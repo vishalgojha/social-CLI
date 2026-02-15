@@ -80,6 +80,7 @@ This includes API version, default IDs, and tokens. The CLI never prints full to
 - `utils`: config helpers, api version, limits
 - `doctor`: quick diagnostics (sanitized config + setup hints)
 - `agent`: safe planning + execution with scoped memory
+- `chat`: conversational multi-turn AI assistant with persistent sessions
 - `accounts`: manage multiple profiles (multi-client)
 - `batch`: run tool-based jobs from JSON/CSV
 
@@ -258,6 +259,80 @@ For LLM planning, set `META_AGENT_API_KEY` (or `OPENAI_API_KEY`). If no key is s
 setx META_AGENT_API_KEY "YOUR_KEY"
 meta agent --provider openai --model gpt-4o-mini "list my pages"
 ```
+
+## AI Natural Language Interface (`meta ai`)
+
+`meta ai` lets you describe an action in plain English and executes a safe mapped command flow:
+
+- Parse intent (LLM first, heuristic fallback)
+- Validate required fields and formats
+- Show risk-aware confirmation UI
+- Execute via internal API client functions (no shell/eval)
+
+### Examples
+
+```bash
+meta ai "show my pages"
+meta ai "what are my Facebook pages?"
+meta ai "who am I on Instagram"
+meta ai "check if I'm close to rate limit"
+meta ai "post 'New product launch!' to my Facebook page with link https://product.com"
+meta ai "schedule post 'Tomorrow launch reminder' to My Business Page tomorrow at 10am"
+meta ai "post sunset photo to Instagram with caption 'Beautiful evening' from https://cdn.example.com/sunset.jpg"
+meta ai "send WhatsApp message 'Order confirmed' to +919812345678"
+meta ai "list my active ad campaigns for account act_123456789"
+meta ai "get ad performance for last 30 days"
+meta ai "show campaign spend for account act_123456789"
+meta ai "create campaign 'Summer Sale' with objective OUTCOME_SALES and daily budget 10000"
+```
+
+### Flags
+
+- `--yes`: skips confirmation for low/medium risk actions (high risk always confirms)
+- `--debug`: prints parse/execution internals (sanitized)
+- `--json`: prints raw result JSON
+- `--ink`: use Ink prompt UI for confirmation when available
+
+### Safety
+
+- No `eval()` and no shell command execution in AI flow
+- High-risk actions require user confirmation
+- Tokens are redacted in debug logs
+- Invalid/missing fields block execution until corrected
+
+See `docs/AI_INTERFACE.md` for full architecture and troubleshooting.
+
+## Conversational Chat Agent (`meta chat`)
+
+`meta chat` is a persistent, multi-turn assistant built on top of the same safe execution layer as `meta ai`.
+
+### What it does
+
+- Keeps context across messages in a session
+- Proposes actions and waits for explicit confirmation
+- Executes through internal API clients (no shell/eval)
+- Saves and resumes sessions across CLI runs
+
+### Quick usage
+
+```bash
+# start a new conversation
+meta chat
+
+# resume a specific session
+meta chat --session chat_20260215150000_ab12cd
+
+# list recent sessions
+meta chat sessions
+```
+
+### In-session commands
+
+- `help`: examples and usage tips
+- `summary`: show known facts and pending actions
+- `exit`: save and quit
+
+See `docs/CHAT_AGENT.md` for architecture, flow, and safety details.
 
 ## Disclaimer
 

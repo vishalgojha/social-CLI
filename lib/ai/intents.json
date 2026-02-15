@@ -1,0 +1,119 @@
+{
+  "post_facebook": {
+    "required": ["message"],
+    "optional": ["page", "link", "datetime"],
+    "risk": "high",
+    "description": "Post to Facebook timeline or page",
+    "examples": [
+      "post 'Hello world' to my Facebook page",
+      "post to My Business Page with link https://example.com"
+    ]
+  },
+  "post_instagram": {
+    "required": ["caption", "imageUrl"],
+    "optional": ["datetime", "accountId"],
+    "risk": "high",
+    "description": "Post photo to Instagram (Business/Creator only)",
+    "examples": [
+      "post to Instagram with caption 'Beautiful sunset' and image https://cdn.example.com/sunset.jpg"
+    ]
+  },
+  "post_whatsapp": {
+    "required": ["message", "phone", "phoneId"],
+    "optional": [],
+    "risk": "high",
+    "description": "Send WhatsApp Business message",
+    "examples": [
+      "send 'Thanks for your order' to +919812345678 via WhatsApp"
+    ]
+  },
+  "query_pages": {
+    "required": [],
+    "optional": ["api"],
+    "risk": "low",
+    "description": "List Facebook pages you manage",
+    "examples": [
+      "show my Facebook pages",
+      "list pages"
+    ]
+  },
+  "query_me": {
+    "required": [],
+    "optional": ["api", "fields"],
+    "risk": "low",
+    "description": "Get your profile info",
+    "examples": [
+      "who am I on Facebook",
+      "show my Instagram profile"
+    ]
+  },
+  "query_instagram_media": {
+    "required": [],
+    "optional": ["accountId", "fields"],
+    "risk": "low",
+    "description": "Get Instagram posts",
+    "examples": [
+      "show my last 10 Instagram posts",
+      "get my recent Instagram media"
+    ]
+  },
+  "query_insights": {
+    "required": [],
+    "optional": ["preset", "accountId", "fields"],
+    "risk": "low",
+    "description": "Get marketing insights",
+    "examples": [
+      "show ad performance last 7 days",
+      "get campaign analytics for last month"
+    ]
+  },
+  "get_analytics": {
+    "required": [],
+    "optional": ["preset", "accountId", "fields"],
+    "risk": "low",
+    "description": "Get marketing analytics",
+    "examples": [
+      "how much did I spend on ads last week",
+      "get ad analytics for account act_123"
+    ]
+  },
+  "check_limits": {
+    "required": [],
+    "optional": ["api"],
+    "risk": "low",
+    "description": "Check API rate limits",
+    "examples": [
+      "check my rate limits",
+      "am I close to rate limit"
+    ]
+  },
+  "list_campaigns": {
+    "required": [],
+    "optional": ["accountId", "status"],
+    "risk": "low",
+    "description": "List ad campaigns",
+    "examples": [
+      "show my active campaigns",
+      "list all ad campaigns"
+    ]
+  },
+  "create_campaign": {
+    "required": ["name", "objective", "budget"],
+    "optional": ["accountId", "status"],
+    "risk": "high",
+    "description": "Create new ad campaign",
+    "examples": [
+      "create campaign 'Summer Sale' with objective OUTCOME_SALES and daily budget 10000"
+    ]
+  },
+  "schedule_post": {
+    "required": ["message", "datetime", "api"],
+    "optional": ["page", "link"],
+    "risk": "medium",
+    "description": "Schedule a post for later publishing",
+    "examples": [
+      "schedule a Facebook post for tomorrow 10am",
+      "schedule post to my page on 2026-02-20T15:00:00Z"
+    ]
+  }
+}

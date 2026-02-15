@@ -5,7 +5,9 @@ async function run() {
     './api.test.js',
     './config.test.js',
     './marketing-export.test.js',
-    './batch.test.js'
+    './batch.test.js',
+    './ai.test.js',
+    './chat.test.js'
   ];
 
   const tests = [];
@@ -53,4 +55,3 @@ run().catch((e) => {
   console.error(e && e.stack ? e.stack : String(e));
   process.exit(1);
 });
-
