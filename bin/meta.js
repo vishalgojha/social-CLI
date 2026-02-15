@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const { Command } = require('commander');
-const chalk = require('chalk');
 const packageJson = require('../package.json');
 const { getBanner } = require('../lib/banner');
 
@@ -19,11 +18,50 @@ const utilsCommands = require('../commands/utils');
 const agentCommands = require('../commands/agent');
 const marketingCommands = require('../commands/marketing');
 
+function getArgValue(name) {
+  // Supports: --flag value, --flag=value
+  const idx = process.argv.indexOf(name);
+  if (idx >= 0 && process.argv[idx + 1] && !process.argv[idx + 1].startsWith('-')) return process.argv[idx + 1];
+  const pref = name + '=';
+  const hit = process.argv.find((a) => a.startsWith(pref));
+  return hit ? hit.slice(pref.length) : '';
+}
+
+function hasArg(name) {
+  return process.argv.includes(name) || process.argv.some((a) => a.startsWith(name + '='));
+}
+
+function getChalkForBanner() {
+  const chalkLib = require('chalk'); // eslint-disable-line global-require
+
+  const noColor = Boolean(process.env.NO_COLOR) || hasArg('--no-color');
+  const forceColor = Boolean(process.env.FORCE_COLOR) || hasArg('--color') || hasArg('--force-color');
+
+  if (noColor) return new chalkLib.Instance({ level: 0 });
+  if (forceColor) return new chalkLib.Instance({ level: 3 });
+
+  const level = chalkLib.supportsColor ? chalkLib.supportsColor.level : 0;
+  return new chalkLib.Instance({ level });
+}
+
 function showBanner() {
-  const style = (process.env.META_CLI_BANNER_STYLE || 'slant').toLowerCase();
+  const chalk = getChalkForBanner();
+
+  const styleArg = getArgValue('--banner-style');
+  const style = (styleArg || process.env.META_CLI_BANNER_STYLE || 'classic').toLowerCase();
   const banner = getBanner(style);
 
-  console.log(chalk.cyanBright(banner));
+  const lines = String(banner).split('\n');
+  const palette = [
+    (s) => chalk.cyanBright(s),
+    (s) => chalk.blueBright(s),
+    (s) => chalk.cyan(s),
+    (s) => chalk.blue(s),
+    (s) => chalk.cyanBright(s)
+  ];
+  const colored = lines.map((l, i) => palette[i % palette.length](l)).join('\n');
+
+  console.log(colored);
   console.log(chalk.yellow('For devs tired of token gymnastics'));
   console.log(chalk.green('Built by Chaos Craft Labs.'));
   console.log('');
@@ -39,8 +77,11 @@ if (shouldShowBanner && !process.argv.includes('--no-banner')) {
 
 program
   .name('meta')
-  .description(chalk.gray('A CLI for Meta\'s APIs. For devs tired of token gymnastics.'))
+  .description('A CLI for Meta\'s APIs. For devs tired of token gymnastics.')
   .option('--no-banner', 'Disable the startup banner')
+  .option('--banner-style <style>', 'Banner style: classic|slant|clean|compact', process.env.META_CLI_BANNER_STYLE || 'classic')
+  .option('--color', 'Force colored output (overrides auto-detection)')
+  .option('--no-color', 'Disable colored output')
   .version(packageJson.version);
 
 // Register command groups
@@ -57,6 +98,7 @@ marketingCommands(program);
 
 // Custom help
 program.on('--help', () => {
+  const chalk = getChalkForBanner();
   console.log('');
   console.log(chalk.yellow('Examples:'));
   console.log('  $ meta auth login              ' + chalk.gray('# Authenticate with Meta'));

@@ -19,6 +19,23 @@ npm install -g @vishalgojha/meta-cli
 meta --help
 ```
 
+## Banner / Colors
+
+If the banner looks messy in your terminal, use the classic banner (default) or switch styles:
+
+```bash
+meta --banner-style classic --help
+meta --banner-style slant --help
+meta --banner-style clean --help
+meta --banner-style compact --help
+```
+
+If your terminal shows no colors, force it:
+
+```bash
+meta --color --help
+```
+
 ## Config Location
 
 All config is stored here (cross-platform):
