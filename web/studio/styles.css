@@ -85,6 +85,14 @@ body {
   color: var(--text-soft);
 }
 
+.build-label {
+  margin-top: 3px !important;
+  font-family: "Sora", sans-serif;
+  font-size: 10px !important;
+  color: var(--brand-strong) !important;
+  letter-spacing: 0.03em;
+}
+
 .panel {
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -200,6 +208,10 @@ body {
   font-size: 12px;
   color: var(--ok);
   font-weight: 700;
+}
+
+.tiny p.warn {
+  color: #b45309;
 }
 
 .chat-stage {

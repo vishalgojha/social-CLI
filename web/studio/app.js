@@ -23,6 +23,7 @@ const els = {
   sessionsList: document.getElementById('sessionsList'),
   newSessionBtn: document.getElementById('newSessionBtn'),
   healthStatus: document.getElementById('healthStatus'),
+  buildLabel: document.getElementById('buildLabel'),
   kpiMessages: document.getElementById('kpiMessages'),
   kpiPending: document.getElementById('kpiPending'),
   kpiExecuted: document.getElementById('kpiExecuted'),
@@ -259,9 +260,25 @@ async function refreshSessions() {
 async function checkHealth() {
   try {
     const res = await api('/api/health');
-    els.healthStatus.textContent = `Online (${res.version})`;
+    const service = String(res.service || '');
+    const version = String(res.version || '');
+    const isLegacy = service && service !== 'social-api-gateway';
+    els.healthStatus.classList.toggle('warn', isLegacy);
+    els.healthStatus.textContent = isLegacy
+      ? `Legacy build detected (${service})`
+      : `Online (${version})`;
+    if (els.buildLabel) {
+      els.buildLabel.textContent = `${service || 'unknown-service'} • v${version || '-'}`;
+    }
+    if (isLegacy) {
+      appendMessage('system', 'Legacy gateway service detected. Run `social gateway --open` from the latest social-cli install.');
+    }
   } catch (error) {
     els.healthStatus.textContent = `Offline: ${error.message}`;
+    els.healthStatus.classList.add('warn');
+    if (els.buildLabel) {
+      els.buildLabel.textContent = 'Build: unavailable';
+    }
   }
 }
 
