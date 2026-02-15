@@ -5,12 +5,14 @@ const fs = require('fs');
 const path = require('path');
 
 function usage() {
-  console.error('Usage: node scripts/extract-changelog.js <version>');
+  console.error('Usage: node scripts/extract-changelog.js <version> [--allow-missing]');
   process.exit(2);
 }
 
 const version = process.argv[2];
 if (!version) usage();
+
+const allowMissing = process.argv.includes('--allow-missing');
 
 const changelogPath = path.join(__dirname, '..', 'CHANGELOG.md');
 const text = fs.readFileSync(changelogPath, 'utf8');
@@ -19,15 +21,22 @@ const text = fs.readFileSync(changelogPath, 'utf8');
 const re = new RegExp(`^##\\s+${version.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\s*$([\\s\\S]*?)(^##\\s+|\\Z)`, 'm');
 const m = text.match(re);
 if (!m) {
-  console.error(`Changelog entry not found for version ${version} in CHANGELOG.md`);
-  process.exit(1);
+  if (!allowMissing) {
+    console.error(`Changelog entry not found for version ${version} in CHANGELOG.md`);
+    process.exit(1);
+  }
+  console.log(`- Release v${version}.\n`);
+  process.exit(0);
 }
 
 const body = (m[1] || '').trim();
 if (!body) {
-  console.error(`Changelog entry for ${version} is empty`);
-  process.exit(1);
+  if (!allowMissing) {
+    console.error(`Changelog entry for ${version} is empty`);
+    process.exit(1);
+  }
+  console.log(`- Release v${version}.\n`);
+  process.exit(0);
 }
 
 console.log(body + '\n');
-

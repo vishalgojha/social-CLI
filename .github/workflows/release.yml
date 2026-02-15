@@ -41,7 +41,7 @@ jobs:
       - name: Prepare Release Notes
         run: |
           VERSION="$(node -p "require('./package.json').version")"
-          node scripts/extract-changelog.js "$VERSION" > release-notes.md
+          node scripts/extract-changelog.js "$VERSION" --allow-missing > release-notes.md
 
       - name: Publish To npm
         env:
@@ -52,4 +52,3 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: release-notes.md
-

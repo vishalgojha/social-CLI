@@ -5,6 +5,14 @@
 - Release: fix tag-based release notes generation by adding changelog entries for recent versions.
 - Docs: added maintainer release instructions (GitHub Actions + `NPM_TOKEN` secret).
 
+## 0.2.9
+
+- Release: remove OTP requirement from GitHub Actions publish step (CI should use `NPM_TOKEN` only).
+
+## 0.2.10
+
+- Release: make release notes extraction resilient (`--allow-missing`) so publishing isn't blocked.
+
 ## 0.2.7
 
 - CI: keep `package-lock.json` in sync so `npm ci` works in GitHub Actions.
