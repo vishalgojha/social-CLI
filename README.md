@@ -2,6 +2,14 @@
 
 > A command-line tool for Meta's APIs. For devs tired of token gymnastics.
 
+```text
+ __  __      _          ____ _     ___
+|  \/  | ___| |_ __ _  / ___| |   |_ _|
+| |\/| |/ _ \ __/ _` | |   | |    | |
+| |  | |  __/ || (_| | |___| |___ | |
+|_|  |_|\___|\__\__,_|  \____|_____|___|
+```
+
 Tired of clicking through 47 dialogs to get a token? Fed up with decoding cryptic Graph API errors? Done with copy-pasting curl commands like it's 2010? This CLI is built to streamline the Meta API workflow.
 
 ## Features

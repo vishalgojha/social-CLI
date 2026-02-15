@@ -12,6 +12,29 @@ const queryCommands = require('../commands/query');
 const appCommands = require('../commands/app');
 const limitsCommands = require('../commands/limits');
 
+const asciiBanner = `
+ __  __      _          ____ _     ___
+|  \\/  | ___| |_ __ _  / ___| |   |_ _|
+| |\\/| |/ _ \\ __/ _\` | |   | |    | |
+| |  | |  __/ || (_| | |___| |___ | |
+|_|  |_|\\___|\\__\\__,_|  \\____|_____|___|
+`;
+
+function showBanner() {
+  console.log(chalk.cyanBright(asciiBanner));
+  console.log(chalk.yellow('For devs tired of token gymnastics'));
+  console.log(chalk.green('Built by Chaos Craft Labs.'));
+  console.log('');
+}
+
+const shouldShowBanner = process.argv.length <= 2 ||
+  process.argv.includes('--help') ||
+  process.argv.includes('-h');
+
+if (shouldShowBanner) {
+  showBanner();
+}
+
 program
   .name('meta')
   .description(chalk.gray('A CLI for Meta\'s APIs. For devs tired of token gymnastics.'))
@@ -32,7 +55,7 @@ program.on('--help', () => {
   console.log('  $ meta app info                ' + chalk.gray('# View app configuration'));
   console.log('  $ meta limits check            ' + chalk.gray('# Check rate limits'));
   console.log('');
-  console.log(chalk.cyan('Documentation: https://github.com/yourusername/meta-cli'));
+  console.log(chalk.cyan('Documentation: https://github.com/vishalgojha/meta-cli'));
 });
 
 program.parse(process.argv);
