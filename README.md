@@ -19,6 +19,31 @@ npm install -g @vishalgojha/meta-cli
 meta --help
 ```
 
+## Releasing (Maintainers)
+
+This repo includes a tag-based GitHub Actions release flow (`.github/workflows/release.yml`).
+
+1. Add a repo secret: `NPM_TOKEN`
+
+Create an npm automation (or granular) token with publish access for `@vishalgojha/meta-cli` and add it to GitHub:
+
+- GitHub repo: Settings -> Secrets and variables -> Actions -> New repository secret
+- Name: `NPM_TOKEN`
+
+2. Bump + tag
+
+```bash
+# bump version + update CHANGELOG.md first
+git commit -am "release: v0.2.7"
+git tag v0.2.7
+git push origin main --tags
+```
+
+Notes:
+
+- npm will reject re-publishing the same version (you must bump).
+- The workflow verifies the tag version matches `package.json` before publishing.
+
 ## Banner / Colors
 
 If the banner looks messy in your terminal, use the classic banner (default) or switch styles:

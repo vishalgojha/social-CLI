@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Verify Tag Matches package.json
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION tag=$TAG"
+          if [ "$VERSION" != "$TAG" ]; then
+            echo "Tag v$TAG does not match package.json version $VERSION"
+            exit 1
+          fi
+
+      - name: Prepare Release Notes
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          node scripts/extract-changelog.js "$VERSION" > release-notes.md
+
+      - name: Publish To npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes.md
+
