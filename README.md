@@ -78,6 +78,7 @@ This includes API version, default IDs, and tokens. The CLI never prints full to
 - `whatsapp`: send messages, templates, phone numbers
 - `marketing`: ads accounts, campaigns, insights (async), ad sets, creatives
 - `utils`: config helpers, api version, limits
+- `doctor`: quick diagnostics (sanitized config + setup hints)
 - `agent`: safe planning + execution with scoped memory
 - `accounts`: manage multiple profiles (multi-client)
 - `batch`: run tool-based jobs from JSON/CSV
@@ -89,6 +90,9 @@ Run `meta <group> --help` for full flags per command.
 ```bash
 # 1) Login (opens token page, then prompts)
 meta auth login --api facebook
+
+# 1.5) Quick diagnostics (sanitized config + next-step hints)
+meta doctor
 
 # 2) Query
 meta query me --fields id,name
