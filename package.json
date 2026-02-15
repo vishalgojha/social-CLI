@@ -1,13 +1,13 @@
 {
   "name": "@vishalgojha/meta-cli",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "A CLI for Meta's APIs. For devs tired of token gymnastics.",
   "main": "index.js",
   "bin": {
     "meta": "bin/meta.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/run.js"
   },
   "keywords": [
     "meta",
@@ -30,6 +30,16 @@
   "publishConfig": {
     "access": "public"
   },
+  "files": [
+    "bin/",
+    "commands/",
+    "lib/",
+    "tools/",
+    "index.js",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "dependencies": {
     "axios": "^1.6.0",
     "chalk": "^4.1.2",
@@ -44,6 +54,6 @@
     "eslint": "^8.54.0"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   }
 }

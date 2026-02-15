@@ -28,3 +28,9 @@
 
 - Multi-account profiles: `meta accounts ...` and global `--profile <name>`.
 - Batch runner: `meta batch run jobs.(json|csv)` using registered tools.
+
+## 0.2.5
+
+- Added test harness (`node test/run.js`) with coverage of config profiles, API redaction/retry, insights export append, and batch BOM handling.
+- Added GitHub Actions CI workflow to run tests on Node 18/20/22.
+- Packaging: `files` whitelist for safer npm publishes.
