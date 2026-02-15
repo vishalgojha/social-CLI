@@ -3,11 +3,11 @@
 > A command-line tool for Meta's APIs. For devs tired of token gymnastics.
 
 ```text
- __  __      _          ____ _     ___
-|  \/  | ___| |_ __ _  / ___| |   |_ _|
-| |\/| |/ _ \ __/ _` | |   | |    | |
-| |  | |  __/ || (_| | |___| |___ | |
-|_|  |_|\___|\__\__,_|  \____|_____|___|
+    __  ___      __        ________    ________
+   /  |/  /___ _/ /_____ _/ ____/ /   /  _/ __ \
+  / /|_/ / __ `/ __/ __ `/ /   / /    / // / / /
+ / /  / / /_/ / /_/ /_/ / /___/ /____/ // /_/ /
+/_/  /_/\__,_/\__/\__,_/\____/_____/___/\____/
 ```
 
 Tired of clicking through 47 dialogs to get a token? Fed up with decoding cryptic Graph API errors? Done with copy-pasting curl commands like it's 2010? This CLI is built to streamline the Meta API workflow.

@@ -3,6 +3,7 @@
 const { Command } = require('commander');
 const chalk = require('chalk');
 const packageJson = require('../package.json');
+const { getBanner } = require('../lib/banner');
 
 const program = new Command();
 
@@ -12,16 +13,11 @@ const queryCommands = require('../commands/query');
 const appCommands = require('../commands/app');
 const limitsCommands = require('../commands/limits');
 
-const asciiBanner = `
- __  __      _          ____ _     ___
-|  \\/  | ___| |_ __ _  / ___| |   |_ _|
-| |\\/| |/ _ \\ __/ _\` | |   | |    | |
-| |  | |  __/ || (_| | |___| |___ | |
-|_|  |_|\\___|\\__\\__,_|  \\____|_____|___|
-`;
-
 function showBanner() {
-  console.log(chalk.cyanBright(asciiBanner));
+  const style = (process.env.META_CLI_BANNER_STYLE || 'slant').toLowerCase();
+  const banner = getBanner(style);
+
+  console.log(chalk.cyanBright(banner));
   console.log(chalk.yellow('For devs tired of token gymnastics'));
   console.log(chalk.green('Built by Chaos Craft Labs.'));
   console.log('');
@@ -31,7 +27,7 @@ const shouldShowBanner = process.argv.length <= 2 ||
   process.argv.includes('--help') ||
   process.argv.includes('-h');
 
-if (shouldShowBanner) {
+if (shouldShowBanner && !process.argv.includes('--no-banner')) {
   showBanner();
 }
 
