@@ -2,9 +2,16 @@ const chalk = require('chalk');
 const inquirer = require('inquirer');
 const config = require('../lib/config');
 const MetaAPIClient = require('../lib/api-client');
+const { openUrl } = require('../lib/open-url');
 
 function registerAuthCommands(program) {
   const auth = program.command('auth').description('Manage authentication tokens');
+
+  const tokenHelpUrls = {
+    facebook: 'https://developers.facebook.com/tools/explorer/',
+    instagram: 'https://developers.facebook.com/tools/explorer/',
+    whatsapp: 'https://developers.facebook.com/docs/whatsapp/cloud-api/get-started'
+  };
 
   // Login - set token
   auth
@@ -12,6 +19,7 @@ function registerAuthCommands(program) {
     .description('Add an access token')
     .option('-a, --api <api>', 'API to authenticate (facebook, instagram, whatsapp)', 'facebook')
     .option('-t, --token <token>', 'Access token (will prompt if not provided)')
+    .option('--no-open', 'Do not open the token page in your browser')
     .action(async (options) => {
       let { api, token } = options;
 
@@ -23,6 +31,18 @@ function registerAuthCommands(program) {
 
       // Prompt for token if not provided
       if (!token) {
+        const url = tokenHelpUrls[api];
+        if (url) {
+          if (options.open !== false) {
+            console.log(chalk.gray(`\nOpening ${api} token page...`));
+            console.log(chalk.cyan(`  ${url}\n`));
+            await openUrl(url);
+          } else {
+            console.log(chalk.gray(`\nToken page (${api}):`));
+            console.log(chalk.cyan(`  ${url}\n`));
+          }
+        }
+
         const answers = await inquirer.prompt([
           {
             type: 'password',
