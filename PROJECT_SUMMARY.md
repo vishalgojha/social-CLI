@@ -1,4 +1,4 @@
-# meta-cli: Project Summary
+# social-cli: Project Summary
 
 ## What We Built
 
@@ -22,7 +22,7 @@ A complete, production-ready CLI tool for Meta's APIs (Facebook, Instagram, What
 ## File Structure
 
 ```
-meta-cli/
+social-cli/
 ├── bin/
 │   └── meta.js                    # CLI entry point
 ├── commands/
@@ -48,26 +48,26 @@ meta-cli/
 ## Core Features Implemented
 
 ### ✅ 1. Token Management (auth commands)
-- `meta auth login` - Store access tokens
-- `meta auth logout` - Remove tokens
-- `meta auth status` - View authentication status
-- `meta auth debug` - Debug token validity
-- `meta auth app` - Configure app credentials
+- `social auth login` - Store access tokens
+- `social auth logout` - Remove tokens
+- `social auth status` - View authentication status
+- `social auth debug` - Debug token validity
+- `social auth app` - Configure app credentials
 
 ### ✅ 2. API Queries (query commands)
-- `meta query me` - Get profile information
-- `meta query pages` - List Facebook pages
-- `meta query instagram-media` - Get Instagram posts
-- `meta query custom` - Make any API request
+- `social query me` - Get profile information
+- `social query pages` - List Facebook pages
+- `social query instagram-media` - Get Instagram posts
+- `social query custom` - Make any API request
 
 ### ✅ 3. App Management (app commands)
-- `meta app info` - Get app information
-- `meta app list` - List configured apps
-- `meta app set-default` - Set default app
+- `social app info` - Get app information
+- `social app list` - List configured apps
+- `social app set-default` - Set default app
 
 ### ✅ 4. Rate Limit Monitoring (limits commands)
-- `meta limits check` - Check current usage
-- `meta limits docs` - Show rate limit documentation
+- `social limits check` - Check current usage
+- `social limits docs` - Show rate limit documentation
 
 ---
 
@@ -135,26 +135,26 @@ meta-cli/
 ### Quick Start
 ```bash
 # Install
-npm install -g meta-cli
+npm install -g @vishalgojha/social-cli
 
 # Authenticate
-meta auth login --api facebook
+social auth login --api facebook
 
 # Query
-meta query me
-meta query pages
+social query me
+social query pages
 
 # Check limits
-meta limits check
+social limits check
 ```
 
 ### Scripting
 ```bash
 # Check rate limits before bulk operations
-USAGE=$(meta limits check --json | jq -r '.usage.call_count')
+USAGE=$(social limits check --json | jq -r '.usage.call_count')
 if [ "$USAGE" -lt 75 ]; then
   # Safe to proceed
-  meta query pages
+  social query pages
 fi
 ```
 
@@ -162,7 +162,7 @@ fi
 ```javascript
 const { execSync } = require('child_process');
 
-const data = execSync('meta query me --json', { encoding: 'utf8' });
+const data = execSync('social query me --json', { encoding: 'utf8' });
 const profile = JSON.parse(data);
 console.log(`Hello, ${profile.name}!`);
 ```
@@ -214,7 +214,7 @@ These could be future additions:
 
 ### For Twitter/Social:
 - "We built a CLI to make Meta's Graph API workflow faster for developers"
-- "meta-cli by Chaos Craft Labs helps teams automate common Meta API tasks"
+- "social-cli by Chaos Craft Labs helps teams automate common Meta API tasks"
 - "A practical CLI for Meta APIs with clear errors and scriptable output"
 
 ### For Dev Communities:

@@ -1,16 +1,16 @@
 # Quick Start Guide
 
-Get up and running with meta-cli in 5 minutes.
+Get up and running with social-cli in 5 minutes.
 
 ## Step 1: Install
 
 ```bash
-npm install -g meta-cli
+npm install -g @vishalgojha/social-cli
 ```
 
 Or use it without installing:
 ```bash
-npx meta-cli
+npx @vishalgojha/social-cli
 ```
 
 ## Step 2: Get Your Access Token
@@ -36,107 +36,107 @@ npx meta-cli
 
 ```bash
 # Paste your token when prompted
-meta auth login --api facebook
+social auth login --api facebook
 
 # Or provide it directly
-meta auth login --api facebook --token YOUR_TOKEN_HERE
+social auth login --api facebook --token YOUR_TOKEN_HERE
 ```
 
 ## Step 4: Test It Out
 
 ```bash
 # Get your profile
-meta query me
+social query me
 
 # See what it returns
-meta query me --fields id,name,email
+social query me --fields id,name,email
 ```
 
 ## Step 5: Explore
 
 ```bash
 # Get your Facebook pages
-meta query pages
+social query pages
 
 # Get Instagram media
-meta query instagram-media --limit 10
+social query instagram-media --limit 10
 
 # Check rate limits
-meta limits check
+social limits check
 
 # See all commands
-meta --help
+social --help
 ```
 
 ## Common First Commands
 
 ### See your authentication status
 ```bash
-meta auth status
+social auth status
 ```
 
 ### Get app information
 ```bash
-meta app info
+social app info
 ```
 
 ### Make a custom query
 ```bash
-meta query custom /me/photos --fields id,name,created_time
+social query custom /me/photos --fields id,name,created_time
 ```
 
 ### Check if you're hitting rate limits
 ```bash
-meta limits check
+social limits check
 ```
 
 ## Pro Tips
 
 ### 1. Use JSON output for scripting
 ```bash
-meta query me --json | jq .name
+social query me --json | jq .name
 ```
 
 ### 2. Store multiple API tokens
 ```bash
-meta auth login --api facebook
-meta auth login --api instagram
-meta auth login --api whatsapp
+social auth login --api facebook
+social auth login --api instagram
+social auth login --api whatsapp
 ```
 
 ### 3. Set up app credentials for advanced features
 ```bash
-meta auth app
+social auth app
 # Enter your App ID and Secret when prompted
 ```
 
 ### 4. Save your tokens securely
-meta-cli stores tokens in your system's config directory:
-- macOS: `~/Library/Preferences/meta-cli-nodejs/`
-- Linux: `~/.config/meta-cli-nodejs/`
-- Windows: `%APPDATA%\meta-cli-nodejs\`
+social-cli stores tokens in your system's config directory:
+- macOS: `~/Library/Preferences/social-cli/`
+- Linux: `~/.config/social-cli/`
+- Windows: `%APPDATA%\social-cli\`
 
 ### 5. Use aliases for common commands
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
-alias mq='meta query'
-alias ml='meta limits check'
-alias ma='meta auth status'
+alias mq='social query'
+alias ml='social limits check'
+alias ma='social auth status'
 ```
 
 ## Troubleshooting
 
 ### "No token found"
-→ Run `meta auth login --api YOUR_API`
+→ Run `social auth login --api YOUR_API`
 
 ### "Token validation failed"
 → Your token might be expired. Generate a new one from Meta for Developers.
 
 ### "Rate limit exceeded"
-→ You're making too many requests. Check with `meta limits check` and wait.
+→ You're making too many requests. Check with `social limits check` and wait.
 
-### "Command not found: meta"
-→ Install globally: `npm install -g meta-cli`
+### "Command not found: social"
+→ Install globally: `npm install -g @vishalgojha/social-cli`
 
 ## Next Steps
 
@@ -146,8 +146,8 @@ alias ma='meta auth status'
 
 ## Need Help?
 
-- Run `meta --help` for command list
-- Run `meta COMMAND --help` for command-specific help
+- Run `social --help` for command list
+- Run `social COMMAND --help` for command-specific help
 - Open an issue on GitHub
 - Check Meta's [Graph API documentation](https://developers.facebook.com/docs/graph-api/)
 

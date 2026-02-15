@@ -1,16 +1,16 @@
 {
-  "name": "@vishalgojha/meta-cli",
+  "name": "@vishalgojha/social-cli",
   "version": "0.2.11",
-  "description": "A CLI for Meta's APIs. For devs tired of token gymnastics.",
+  "description": "A CLI for social API operations (Facebook, Instagram, WhatsApp).",
   "main": "index.js",
   "bin": {
-    "meta": "bin/meta.js"
+    "social": "bin/meta.js"
   },
   "scripts": {
     "test": "node test/run.js"
   },
   "keywords": [
-    "meta",
+    "social",
     "facebook",
     "instagram",
     "whatsapp",
@@ -21,12 +21,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vishalgojha/meta-cli.git"
+    "url": "git+https://github.com/vishalgojha/social-CLI.git"
   },
   "bugs": {
-    "url": "https://github.com/vishalgojha/meta-cli/issues"
+    "url": "https://github.com/vishalgojha/social-CLI/issues"
   },
-  "homepage": "https://github.com/vishalgojha/meta-cli#readme",
+  "homepage": "https://github.com/vishalgojha/social-CLI#readme",
   "publishConfig": {
     "access": "public"
   },

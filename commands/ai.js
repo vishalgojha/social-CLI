@@ -66,7 +66,7 @@ function printValidationIssues(validation) {
 }
 
 /**
- * Register `meta ai` natural-language command.
+ * Register `social ai` natural-language command.
  * @param {import('commander').Command} program
  */
 function registerAiCommands(program) {

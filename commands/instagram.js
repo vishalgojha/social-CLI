@@ -33,7 +33,7 @@ function registerInstagramCommands(program) {
     .action(async (options) => {
       const token = getToken();
       if (!token) {
-        console.error(chalk.red('X No instagram/facebook token found. Run: meta auth login -a facebook'));
+        console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
         process.exit(1);
       }
 
@@ -92,12 +92,12 @@ function registerInstagramCommands(program) {
     .action(async (options) => {
       const token = getToken();
       if (!token) {
-        console.error(chalk.red('X No instagram/facebook token found. Run: meta auth login -a facebook'));
+        console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
         process.exit(1);
       }
       const igUserId = options.igUserId || config.getDefaultIgUserId();
       if (!igUserId) {
-        console.error(chalk.red('X Missing IG user id. Use --ig-user-id or set default via meta instagram accounts --set-default'));
+        console.error(chalk.red('X Missing IG user id. Use --ig-user-id or set default via social instagram accounts --set-default'));
         process.exit(1);
       }
 
@@ -123,7 +123,7 @@ function registerInstagramCommands(program) {
     .action(async (options) => {
       const token = getToken();
       if (!token) {
-        console.error(chalk.red('X No instagram/facebook token found. Run: meta auth login -a facebook'));
+        console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
         process.exit(1);
       }
 
@@ -151,7 +151,7 @@ function registerInstagramCommands(program) {
     .action(async (options) => {
       const token = getToken();
       if (!token) {
-        console.error(chalk.red('X No instagram/facebook token found. Run: meta auth login -a facebook'));
+        console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
         process.exit(1);
       }
       const spinner = ora('Fetching comments...').start();
@@ -175,7 +175,7 @@ function registerInstagramCommands(program) {
     .action(async (options) => {
       const token = getToken();
       if (!token) {
-        console.error(chalk.red('X No instagram/facebook token found. Run: meta auth login -a facebook'));
+        console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
         process.exit(1);
       }
       const spinner = ora('Replying...').start();
@@ -199,12 +199,12 @@ function registerInstagramCommands(program) {
     .action(async (options) => {
       const token = getToken();
       if (!token) {
-        console.error(chalk.red('X No instagram/facebook token found. Run: meta auth login -a facebook'));
+        console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
         process.exit(1);
       }
       const igUserId = options.igUserId || config.getDefaultIgUserId();
       if (!igUserId) {
-        console.error(chalk.red('X Missing IG user id. Use --ig-user-id or set default via meta instagram accounts --set-default'));
+        console.error(chalk.red('X Missing IG user id. Use --ig-user-id or set default via social instagram accounts --set-default'));
         process.exit(1);
       }
       const spinner = ora('Publishing...').start();

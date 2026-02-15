@@ -3,17 +3,17 @@
 ## Command
 
 ```bash
-meta gateway --open
+social gateway --open
 ```
 
 ## Purpose
 
-`meta gateway` runs a local HTTP server that combines:
+`social gateway` runs a local HTTP server that combines:
 
 - a conversational web UI (`web/studio/`)
 - a safe API gateway for chat operations
 
-This gives you a browser-first control surface while still executing through the same internal `meta-cli` logic.
+This gives you a browser-first control surface while still executing through the same internal `social-cli` logic.
 
 Supported workflow categories:
 
@@ -40,7 +40,7 @@ UI sections:
 
 Sessions are persisted through the chat memory layer:
 
-- storage path: `~/.meta-cli/chat/sessions/*.json`
+- storage path: `~/.social-cli/chat/sessions/*.json`
 - resumed automatically when a known `sessionId` is provided
 
 ## Safety

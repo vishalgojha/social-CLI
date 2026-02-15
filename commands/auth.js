@@ -102,7 +102,7 @@ function registerAuthCommands(program) {
       if (options.oauth) {
         const { appId, appSecret } = config.getAppCredentials();
         if (!appId || !appSecret) {
-          console.error(chalk.red('X Missing app credentials. Run: meta auth app'));
+          console.error(chalk.red('X Missing app credentials. Run: social auth app'));
           process.exit(1);
         }
 
@@ -252,7 +252,7 @@ function registerAuthCommands(program) {
 
       if (!appAccessToken) {
         console.log(chalk.yellow('Warning: No app credentials configured. /debug_token may fail.'));
-        console.log(chalk.gray('  Configure with: meta auth app\n'));
+        console.log(chalk.gray('  Configure with: social auth app\n'));
       }
 
       const client = new MetaAPIClient(appAccessToken || inputToken, 'facebook');
@@ -264,7 +264,7 @@ function registerAuthCommands(program) {
       }
     });
 
-  // Back-compat: keep auth status, but it now shows ~/.meta-cli/config.json.
+  // Back-compat: auth status reads ~/.social-cli/config.json and falls back to legacy ~/.meta-cli/config.json.
   auth
     .command('status')
     .description('Show authentication/config status')

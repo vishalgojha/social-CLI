@@ -1,4 +1,4 @@
-# meta-cli
+# social-cli
 
 A CLI for Meta's APIs. For devs tired of token gymnastics.
 
@@ -15,8 +15,8 @@ Built by Chaos Craft Labs.
 ## Install
 
 ```bash
-npm install -g @vishalgojha/meta-cli
-meta --help
+npm install -g @vishalgojha/social-cli
+social --help
 ```
 
 ## Releasing (Maintainers)
@@ -25,7 +25,7 @@ This repo includes a tag-based GitHub Actions release flow (`.github/workflows/r
 
 1. Add a repo secret: `NPM_TOKEN`
 
-Create an npm automation (or granular) token with publish access for `@vishalgojha/meta-cli` and add it to GitHub:
+Create an npm automation (or granular) token with publish access for `@vishalgojha/social-cli` and add it to GitHub:
 
 - GitHub repo: Settings -> Secrets and variables -> Actions -> New repository secret
 - Name: `NPM_TOKEN`
@@ -49,23 +49,23 @@ Notes:
 If the banner looks messy in your terminal, use the classic banner (default) or switch styles:
 
 ```bash
-meta --banner-style classic --help
-meta --banner-style slant --help
-meta --banner-style clean --help
-meta --banner-style compact --help
+social --banner-style classic --help
+social --banner-style slant --help
+social --banner-style clean --help
+social --banner-style compact --help
 ```
 
 If your terminal shows no colors, force it:
 
 ```bash
-meta --color --help
+social --color --help
 ```
 
 ## Config Location
 
 All config is stored here (cross-platform):
 
-- `~/.meta-cli/config.json`
+- `~/.social-cli/config.json`
 
 This includes API version, default IDs, and tokens. The CLI never prints full tokens.
 
@@ -85,26 +85,26 @@ This includes API version, default IDs, and tokens. The CLI never prints full to
 - `accounts`: manage multiple profiles (multi-client)
 - `batch`: run tool-based jobs from JSON/CSV
 
-Run `meta <group> --help` for full flags per command.
+Run `social <group> --help` for full flags per command.
 
 ## Quick Start
 
 ```bash
 # 1) Login (opens token page, then prompts)
-meta auth login --api facebook
+social auth login --api facebook
 
 # 1.5) Quick diagnostics (sanitized config + next-step hints)
-meta doctor
+social doctor
 
 # 2) Query
-meta query me --fields id,name
-meta query pages --table
+social query me --fields id,name
+social query pages --table
 
 # 3) Pick a default Page for posting
-meta post pages --set-default
+social post pages --set-default
 
 # 4) Post
-meta post create --message "Hello from meta-cli"
+social post create --message "Hello from social-cli"
 ```
 
 ## Multi-Account Profiles
@@ -112,12 +112,12 @@ meta post create --message "Hello from meta-cli"
 Use profiles to manage multiple clients/environments (agency-friendly). Tokens/default IDs are stored per profile.
 
 ```bash
-meta accounts list
-meta accounts add clientA
-meta accounts switch clientA   # persists active profile
+social accounts list
+social accounts add clientA
+social accounts switch clientA   # persists active profile
 
 # One-off: don't persist, just run using a profile
-meta --profile clientA query me
+social --profile clientA query me
 ```
 
 ## Batch Runner
@@ -125,8 +125,8 @@ meta --profile clientA query me
 Run a batch of tool-based jobs from a file. Jobs use the tool registry (the same safety model the agent uses).
 
 ```bash
-meta batch run jobs.json --concurrency 3
-meta batch run jobs.csv --concurrency 2 --yes
+social batch run jobs.json --concurrency 3
+social batch run jobs.csv --concurrency 2 --yes
 ```
 
 Example `jobs.json`:
@@ -169,59 +169,59 @@ Many apps require **Advanced Access** for these scopes. If you get error `(#200)
 
 ```bash
 # List ad accounts
-meta marketing accounts --table
+social marketing accounts --table
 
 # Set a default ad account for future commands
-meta marketing set-default-account act_123
+social marketing set-default-account act_123
 
 # Upload an image to get image_hash
-meta marketing upload-image --file ./creative.png
+social marketing upload-image --file ./creative.png
 
 # List campaigns
-meta marketing campaigns --status ACTIVE --table
+social marketing campaigns --status ACTIVE --table
 
 # Async insights (recommended when using breakdowns)
-meta marketing insights --preset last_7d --level campaign --fields spend,impressions,clicks,ctr,cpc,cpm --breakdowns age,gender --table
+social marketing insights --preset last_7d --level campaign --fields spend,impressions,clicks,ctr,cpc,cpm --breakdowns age,gender --table
 
 # Export insights to CSV/JSON
-meta marketing insights --preset last_7d --level campaign --fields spend,impressions,clicks --export ./report.csv
-meta marketing insights --preset last_7d --level campaign --fields spend,impressions,clicks --export ./report.json
-meta marketing insights --preset last_7d --level campaign --fields spend,impressions,clicks --export ./report.csv --append
+social marketing insights --preset last_7d --level campaign --fields spend,impressions,clicks --export ./report.csv
+social marketing insights --preset last_7d --level campaign --fields spend,impressions,clicks --export ./report.json
+social marketing insights --preset last_7d --level campaign --fields spend,impressions,clicks --export ./report.csv --append
 
 # Quick status (spend today + active campaigns + rate-limit header snapshot)
-meta marketing status
+social marketing status
 
 # List ads + audiences
-meta marketing ads --table
-meta marketing audiences --table
+social marketing ads --table
+social marketing audiences --table
 
 # Create ad set + creative + ad (high risk; defaults to PAUSED unless you set ACTIVE)
-meta marketing create-adset <CAMPAIGN_ID> --name "Test Adset" --targeting "{\"geo_locations\":{\"countries\":[\"US\"]}}"
-meta marketing create-creative --name "Test Creative" --page-id <PAGE_ID> --link "https://example.com" --body-text "Hello" --image-url "https://example.com/creative.png" --call-to-action LEARN_MORE
-meta marketing create-ad <ADSET_ID> --name "Test Ad" --creative-id <CREATIVE_ID>
+social marketing create-adset <CAMPAIGN_ID> --name "Test Adset" --targeting "{\"geo_locations\":{\"countries\":[\"US\"]}}"
+social marketing create-creative --name "Test Creative" --page-id <PAGE_ID> --link "https://example.com" --body-text "Hello" --image-url "https://example.com/creative.png" --call-to-action LEARN_MORE
+social marketing create-ad <ADSET_ID> --name "Test Ad" --creative-id <CREATIVE_ID>
 
 # Operate safely: pause/resume + budget updates (high risk)
-meta marketing pause campaign <CAMPAIGN_ID>
-meta marketing resume adset <ADSET_ID>
-meta marketing set-budget campaign <CAMPAIGN_ID> --daily-budget 15000
-meta marketing set-budget adset <ADSET_ID> --daily-budget 8000
+social marketing pause campaign <CAMPAIGN_ID>
+social marketing resume adset <ADSET_ID>
+social marketing set-budget campaign <CAMPAIGN_ID> --daily-budget 15000
+social marketing set-budget adset <ADSET_ID> --daily-budget 8000
 
 # High risk: create a campaign (defaults to PAUSED)
-meta marketing create-campaign --name "Test Camp" --objective OUTCOME_SALES --daily-budget 10000
+social marketing create-campaign --name "Test Camp" --objective OUTCOME_SALES --daily-budget 10000
 ```
 
 Safety note: Always test writes (`create-*`, `set-status`, `set-budget`) on a sandbox/test ad account first. These operations can affect real spend.
 
 ## Agent Mode (Meta DevOps Co-pilot)
 
-`meta agent` plans first, then executes only after you confirm.
+`social agent` plans first, then executes only after you confirm.
 
 ### Safety Model
 
 - No shell exec, no arbitrary code.
 - Strict tool registry: agent steps must use registered tool names.
 - High-risk tools (example: `whatsapp.send`) require an extra confirmation per step.
-- Scoped memory (optional) stored at `~/.meta-cli/context/<scope>/`:
+- Scoped memory (optional) stored at `~/.social-cli/context/<scope>/`:
   - `memory.json` (append-only entries: decision/status/config)
   - `summary.md` (human-readable)
 - Secrets/tokens are redacted before writing memory.
@@ -230,40 +230,40 @@ Safety note: Always test writes (`create-*`, `set-status`, `set-budget`) on a sa
 ### Usage
 
 ```bash
-meta agent "fix whatsapp webhook for clientA"
-meta agent --scope clientA "check auth + list pages"
+social agent "fix whatsapp webhook for clientA"
+social agent --scope clientA "check auth + list pages"
 
 # Plan only
-meta agent --plan-only "inspect app subscriptions"
+social agent --plan-only "inspect app subscriptions"
 
 # Disable memory
-meta agent --no-memory "check my rate limits"
+social agent --no-memory "check my rate limits"
 
 # JSON output
-meta agent --json --plan-only "check my setup"
+social agent --json --plan-only "check my setup"
 ```
 
 ### Memory Commands
 
 ```bash
-meta agent memory list
-meta agent memory show clientA
-meta agent memory forget clientA
-meta agent memory clear
+social agent memory list
+social agent memory show clientA
+social agent memory forget clientA
+social agent memory clear
 ```
 
 ### LLM Key Setup
 
-For LLM planning, set `META_AGENT_API_KEY` (or `OPENAI_API_KEY`). If no key is set, the agent falls back to a conservative heuristic planner.
+For LLM planning, set `SOCIAL_AGENT_API_KEY` (or `OPENAI_API_KEY`). If no key is set, the agent falls back to a conservative heuristic planner.
 
 ```powershell
-setx META_AGENT_API_KEY "YOUR_KEY"
-meta agent --provider openai --model gpt-4o-mini "list my pages"
+setx SOCIAL_AGENT_API_KEY "YOUR_KEY"
+social agent --provider openai --model gpt-4o-mini "list my pages"
 ```
 
-## AI Natural Language Interface (`meta ai`)
+## AI Natural Language Interface (`social ai`)
 
-`meta ai` lets you describe an action in plain English and executes a safe mapped command flow:
+`social ai` lets you describe an action in plain English and executes a safe mapped command flow:
 
 - Parse intent (LLM first, heuristic fallback)
 - Validate required fields and formats
@@ -273,18 +273,18 @@ meta agent --provider openai --model gpt-4o-mini "list my pages"
 ### Examples
 
 ```bash
-meta ai "show my pages"
-meta ai "what are my Facebook pages?"
-meta ai "who am I on Instagram"
-meta ai "check if I'm close to rate limit"
-meta ai "post 'New product launch!' to my Facebook page with link https://product.com"
-meta ai "schedule post 'Tomorrow launch reminder' to My Business Page tomorrow at 10am"
-meta ai "post sunset photo to Instagram with caption 'Beautiful evening' from https://cdn.example.com/sunset.jpg"
-meta ai "send WhatsApp message 'Order confirmed' to +919812345678"
-meta ai "list my active ad campaigns for account act_123456789"
-meta ai "get ad performance for last 30 days"
-meta ai "show campaign spend for account act_123456789"
-meta ai "create campaign 'Summer Sale' with objective OUTCOME_SALES and daily budget 10000"
+social ai "show my pages"
+social ai "what are my Facebook pages?"
+social ai "who am I on Instagram"
+social ai "check if I'm close to rate limit"
+social ai "post 'New product launch!' to my Facebook page with link https://product.com"
+social ai "schedule post 'Tomorrow launch reminder' to My Business Page tomorrow at 10am"
+social ai "post sunset photo to Instagram with caption 'Beautiful evening' from https://cdn.example.com/sunset.jpg"
+social ai "send WhatsApp message 'Order confirmed' to +919812345678"
+social ai "list my active ad campaigns for account act_123456789"
+social ai "get ad performance for last 30 days"
+social ai "show campaign spend for account act_123456789"
+social ai "create campaign 'Summer Sale' with objective OUTCOME_SALES and daily budget 10000"
 ```
 
 ### Flags
@@ -303,9 +303,9 @@ meta ai "create campaign 'Summer Sale' with objective OUTCOME_SALES and daily bu
 
 See `docs/AI_INTERFACE.md` for full architecture and troubleshooting.
 
-## Conversational Chat Agent (`meta chat`)
+## Conversational Chat Agent (`social chat`)
 
-`meta chat` is a persistent, multi-turn assistant built on top of the same safe execution layer as `meta ai`.
+`social chat` is a persistent, multi-turn assistant built on top of the same safe execution layer as `social ai`.
 
 ### What it does
 
@@ -318,13 +318,13 @@ See `docs/AI_INTERFACE.md` for full architecture and troubleshooting.
 
 ```bash
 # start a new conversation
-meta chat
+social chat
 
 # resume a specific session
-meta chat --session chat_20260215150000_ab12cd
+social chat --session chat_20260215150000_ab12cd
 
 # list recent sessions
-meta chat sessions
+social chat sessions
 ```
 
 ### In-session commands
@@ -335,12 +335,12 @@ meta chat sessions
 
 See `docs/CHAT_AGENT.md` for architecture, flow, and safety details.
 
-## Social API Gateway UI (`meta gateway`)
+## Social API Gateway UI (`social gateway`)
 
 Run a local web app with a polished chat interface and backing API gateway:
 
 ```bash
-meta gateway --open
+social gateway --open
 ```
 
 Options:

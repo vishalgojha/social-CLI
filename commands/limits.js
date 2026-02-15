@@ -18,7 +18,7 @@ async function checkRateLimits(options) {
   const token = config.getToken(api);
 
   if (!token) {
-    console.error(chalk.red(`X No ${api} token found. Run: meta auth login -a ${api}`));
+    console.error(chalk.red(`X No ${api} token found. Run: social auth login -a ${api}`));
     process.exit(1);
   }
 
@@ -113,7 +113,7 @@ function showRateLimitDocs() {
   console.log('  - Implement exponential backoff for retries');
   console.log('  - Cache responses when possible');
   console.log('  - Use batch requests for multiple operations');
-  console.log('  - Monitor usage with: meta limits check');
+  console.log('  - Monitor usage with: social limits check');
   console.log('\n' + chalk.gray('Documentation:'));
   console.log('  https://developers.facebook.com/docs/graph-api/overview/rate-limiting');
   console.log('');

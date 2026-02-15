@@ -1,8 +1,8 @@
-# AI Interface (`meta ai`)
+# AI Interface (`social ai`)
 
 ## Overview
 
-`meta ai "<intent>"` is a natural-language command entrypoint for Facebook, Instagram, WhatsApp, and Marketing API workflows.
+`social ai "<intent>"` is a natural-language command entrypoint for Facebook, Instagram, WhatsApp, and Marketing API workflows.
 
 Execution flow:
 
@@ -45,8 +45,8 @@ Intent metadata and risk profiles are defined in `lib/ai/intents.json`.
 LLM parsing:
 
 - `OPENAI_BASE_URL` (default: `https://api.openai.com/v1`)
-- `META_AI_MODEL` (default: `gpt-4o-mini`)
-- `OPENAI_API_KEY` or `META_AI_KEY`
+- `SOCIAL_AI_MODEL` (default: `gpt-4o-mini`)
+- `OPENAI_API_KEY` or `SOCIAL_AI_KEY`
 
 Behavior:
 
@@ -60,16 +60,16 @@ Behavior:
 ## Examples
 
 ```bash
-meta ai "show my Facebook pages"
-meta ai "who am I on Facebook"
-meta ai "post 'Hello world' to my Facebook page"
-meta ai "schedule post 'Launch reminder' tomorrow at 9am to My Business Page"
-meta ai "post to Instagram with caption 'Sunset' and image https://cdn.example.com/sunset.jpg"
-meta ai "send WhatsApp message 'Order confirmed' to +15551234567"
-meta ai "check if I'm close to rate limit"
-meta ai "get ad performance for last 30 days"
-meta ai "list my active ad campaigns for account act_123456789"
-meta ai "create campaign 'Summer Sale' with objective OUTCOME_SALES and daily budget 10000"
+social ai "show my Facebook pages"
+social ai "who am I on Facebook"
+social ai "post 'Hello world' to my Facebook page"
+social ai "schedule post 'Launch reminder' tomorrow at 9am to My Business Page"
+social ai "post to Instagram with caption 'Sunset' and image https://cdn.example.com/sunset.jpg"
+social ai "send WhatsApp message 'Order confirmed' to +15551234567"
+social ai "check if I'm close to rate limit"
+social ai "get ad performance for last 30 days"
+social ai "list my active ad campaigns for account act_123456789"
+social ai "create campaign 'Summer Sale' with objective OUTCOME_SALES and daily budget 10000"
 ```
 
 ## Troubleshooting
@@ -77,24 +77,24 @@ meta ai "create campaign 'Summer Sale' with objective OUTCOME_SALES and daily bu
 `Missing token`
 
 - Run auth:
-  - `meta auth login -a facebook`
-  - `meta auth login -a instagram`
-  - `meta auth login -a whatsapp`
+  - `social auth login -a facebook`
+  - `social auth login -a instagram`
+  - `social auth login -a whatsapp`
 
 `Could not resolve page`
 
-- List pages: `meta query pages --table`
-- Set default page: `meta post pages --set-default`
+- List pages: `social query pages --table`
+- Set default page: `social post pages --set-default`
 
 `Missing IG user id`
 
 - Resolve and set default:
-  - `meta instagram accounts list --set-default`
+  - `social instagram accounts list --set-default`
 
 `Missing ad account id`
 
 - Set default:
-  - `meta marketing set-default-account act_123456789`
+  - `social marketing set-default-account act_123456789`
 
 `Parser confidence is low`
 
@@ -103,5 +103,5 @@ meta ai "create campaign 'Summer Sale' with objective OUTCOME_SALES and daily bu
 
 `Non-interactive shell blocked`
 
-- `meta ai` requires confirmation for writes.
+- `social ai` requires confirmation for writes.
 - Use interactive terminal and approve prompts.

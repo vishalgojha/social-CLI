@@ -8,7 +8,7 @@ const { sanitizeForLog } = require('../lib/api');
 function getTokenOrExit() {
   const token = config.getToken('whatsapp');
   if (!token) {
-    console.error(chalk.red('X No WhatsApp token found. Run: meta auth login -a whatsapp'));
+    console.error(chalk.red('X No WhatsApp token found. Run: social auth login -a whatsapp'));
     process.exit(1);
   }
   return token;
@@ -59,7 +59,7 @@ function registerWhatsAppCommands(program) {
 
       if (!from) {
         console.error(chalk.red('X Missing --from phone number id and no default set.'));
-        console.error(chalk.gray('  Set one with: meta utils config set-default-whatsapp-phone PHONE_NUMBER_ID'));
+        console.error(chalk.gray('  Set one with: social utils config set-default-whatsapp-phone PHONE_NUMBER_ID'));
         process.exit(1);
       }
 

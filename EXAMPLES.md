@@ -6,18 +6,18 @@
 #!/bin/bash
 # authenticate.sh - Set up authentication
 
-echo "Setting up meta-cli authentication..."
+echo "Setting up social-cli authentication..."
 
 # Prompt for Facebook token
 echo "Enter your Facebook access token:"
 read -s FB_TOKEN
-meta auth login --api facebook --token "$FB_TOKEN"
+social auth login --api facebook --token "$FB_TOKEN"
 
 # Prompt for Instagram token
 echo "Enter your Instagram access token (or press enter to skip):"
 read -s IG_TOKEN
 if [ ! -z "$IG_TOKEN" ]; then
-  meta auth login --api instagram --token "$IG_TOKEN"
+  social auth login --api instagram --token "$IG_TOKEN"
 fi
 
 # Set up app credentials
@@ -25,10 +25,10 @@ echo "Enter your App ID:"
 read APP_ID
 echo "Enter your App Secret:"
 read -s APP_SECRET
-meta auth app --id "$APP_ID" --secret "$APP_SECRET"
+social auth app --id "$APP_ID" --secret "$APP_SECRET"
 
 echo "✓ Authentication complete!"
-meta auth status
+social auth status
 ```
 
 ## Monitoring Rate Limits
@@ -39,7 +39,7 @@ meta auth status
 
 check_and_wait() {
   while true; do
-    USAGE=$(meta limits check --json 2>/dev/null | jq -r '.usage.call_count // 0')
+    USAGE=$(social limits check --json 2>/dev/null | jq -r '.usage.call_count // 0')
     
     if [ "$USAGE" -lt 70 ]; then
       echo "✓ Rate limit OK (${USAGE}% used)"
@@ -56,8 +56,8 @@ check_and_wait
 
 echo "Proceeding with operations..."
 # Your bulk operations here
-meta query pages
-meta query instagram-media --limit 50
+social query pages
+social query instagram-media --limit 50
 ```
 
 ## Fetching and Analyzing Instagram Data
@@ -71,11 +71,11 @@ OUTPUT_FILE="instagram-report-$(date +%Y%m%d).json"
 echo "Fetching Instagram data..."
 
 # Get account info
-ACCOUNT=$(meta query me --api instagram --fields id,username,media_count --json)
+ACCOUNT=$(social query me --api instagram --fields id,username,media_count --json)
 echo "$ACCOUNT" > "$OUTPUT_FILE"
 
 # Get recent media
-MEDIA=$(meta query instagram-media --limit 50 --json)
+MEDIA=$(social query instagram-media --limit 50 --json)
 echo "$MEDIA" >> "$OUTPUT_FILE"
 
 # Extract engagement metrics with jq
@@ -106,14 +106,14 @@ if [ -z "$MESSAGE" ]; then
 fi
 
 # Check rate limits
-USAGE=$(meta limits check --json 2>/dev/null | jq -r '.usage.call_count // 0')
+USAGE=$(social limits check --json 2>/dev/null | jq -r '.usage.call_count // 0')
 if [ "$USAGE" -gt 80 ]; then
   echo "⚠ Rate limit too high (${USAGE}%) - try again later"
   exit 1
 fi
 
 # Get page access token
-PAGE_TOKEN=$(meta query pages --json | jq -r ".data[] | select(.id==\"$PAGE_ID\") | .access_token")
+PAGE_TOKEN=$(social query pages --json | jq -r ".data[] | select(.id==\"$PAGE_ID\") | .access_token")
 
 if [ -z "$PAGE_TOKEN" ]; then
   echo "✖ Could not find page token for page ID: $PAGE_ID"
@@ -122,7 +122,7 @@ fi
 
 # Post to page (you'll need to implement this endpoint)
 echo "Posting to page: $PAGE_ID"
-meta query custom "/$PAGE_ID/feed" \
+social query custom "/$PAGE_ID/feed" \
   --api facebook \
   --params "{\"message\":\"$MESSAGE\",\"access_token\":\"$PAGE_TOKEN\"}"
 
@@ -140,7 +140,7 @@ DAYS_BEFORE_EXPIRY=7
 check_token_expiry() {
   local API=$1
   
-  TOKEN_INFO=$(meta auth debug --api "$API" --json 2>/dev/null)
+  TOKEN_INFO=$(social auth debug --api "$API" --json 2>/dev/null)
   EXPIRES_AT=$(echo "$TOKEN_INFO" | jq -r '.data.expires_at // 0')
   
   if [ "$EXPIRES_AT" -eq 0 ]; then
@@ -165,7 +165,7 @@ echo "Checking token expiration..."
 for API in facebook instagram whatsapp; do
   if ! check_token_expiry "$API"; then
     echo "Please refresh your $API token"
-    echo "Run: meta auth login --api $API"
+    echo "Run: social auth login --api $API"
   fi
 done
 ```
@@ -175,7 +175,7 @@ done
 ```bash
 # Add to crontab: crontab -e
 # Check rate limits every hour and log
-0 * * * * /path/to/meta limits check --json >> /var/log/meta-cli-limits.log 2>&1
+0 * * * * /path/to/social limits check --json >> /var/log/social-cli-limits.log 2>&1
 
 # Daily Instagram stats backup
 0 2 * * * /path/to/scripts/instagram-report.sh >> /var/log/instagram-backup.log 2>&1
@@ -184,12 +184,12 @@ done
 ## Node.js Integration
 
 ```javascript
-// Using meta-cli from Node.js via child_process
+// Using social-cli from Node.js via child_process
 const { execSync } = require('child_process');
 
 function getInstagramMedia(limit = 10) {
   try {
-    const output = execSync(`meta query instagram-media --limit ${limit} --json`, {
+    const output = execSync(`social query instagram-media --limit ${limit} --json`, {
       encoding: 'utf8'
     });
     return JSON.parse(output);
@@ -201,7 +201,7 @@ function getInstagramMedia(limit = 10) {
 
 function checkRateLimits() {
   try {
-    const output = execSync('meta limits check --json', { encoding: 'utf8' });
+    const output = execSync('social limits check --json', { encoding: 'utf8' });
     const limits = JSON.parse(output);
     return limits.usage?.call_count || 0;
   } catch (error) {
@@ -235,22 +235,22 @@ async function safeApiCall(command) {
 
 ```bash
 #!/bin/bash
-# test-setup.sh - Verify meta-cli installation and configuration
+# test-setup.sh - Verify social-cli installation and configuration
 
-echo "Testing meta-cli setup..."
+echo "Testing social-cli setup..."
 echo ""
 
 # Check installation
-if ! command -v meta &> /dev/null; then
-  echo "✖ meta-cli not found. Install with: npm install -g meta-cli"
+if ! command -v social &> /dev/null; then
+  echo "✖ social-cli not found. Install with: npm install -g @vishalgojha/social-cli"
   exit 1
 fi
-echo "✓ meta-cli is installed"
+echo "✓ social-cli is installed"
 
 # Check authentication
-if meta auth status 2>&1 | grep -q "not set"; then
+if social auth status 2>&1 | grep -q "not set"; then
   echo "⚠ Some tokens not configured"
-  echo "  Run: meta auth login"
+  echo "  Run: social auth login"
 else
   echo "✓ Tokens configured"
 fi
@@ -259,13 +259,13 @@ fi
 echo ""
 echo "Testing API connectivity..."
 
-if meta query me --api facebook 2>&1 | grep -q "id"; then
+if social query me --api facebook 2>&1 | grep -q "id"; then
   echo "✓ Facebook API working"
 else
   echo "✖ Facebook API failed"
 fi
 
-if meta query me --api instagram 2>&1 | grep -q "id"; then
+if social query me --api instagram 2>&1 | grep -q "id"; then
   echo "✓ Instagram API working"
 else
   echo "⚠ Instagram API not configured or failed"

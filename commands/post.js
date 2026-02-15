@@ -49,7 +49,7 @@ async function loadFacebookPages(userToken) {
   const pages = pagesResult?.data || [];
   if (!pages.length) {
     console.error(chalk.red('X No Pages found for this token.'));
-    console.error(chalk.gray('  Try: meta query pages --json'));
+    console.error(chalk.gray('  Try: social query pages --json'));
     process.exit(1);
   }
 
@@ -71,7 +71,7 @@ async function resolvePageContext(userToken, pageArg) {
   const selected = pages.find((p) => p.id === pageId);
   if (!selected) {
     console.error(chalk.red(`X Page not found in /me/accounts: ${pageId}`));
-    console.error(chalk.gray('  Run: meta post pages'));
+    console.error(chalk.gray('  Run: social post pages'));
     process.exit(1);
   }
 
@@ -120,7 +120,7 @@ function registerPostCommands(program) {
     .action(async (options) => {
       const token = config.getToken('facebook');
       if (!token) {
-        console.error(chalk.red('X No Facebook token found. Run: meta auth login -a facebook'));
+        console.error(chalk.red('X No Facebook token found. Run: social auth login -a facebook'));
         process.exit(1);
       }
 
@@ -166,7 +166,7 @@ function registerPostCommands(program) {
     .action(async (options) => {
       const token = config.getToken('facebook');
       if (!token) {
-        console.error(chalk.red('X No Facebook token found. Run: meta auth login -a facebook'));
+        console.error(chalk.red('X No Facebook token found. Run: social auth login -a facebook'));
         process.exit(1);
       }
 
@@ -239,7 +239,7 @@ function registerPostCommands(program) {
     .action(async (options) => {
       const token = config.getToken('facebook');
       if (!token) {
-        console.error(chalk.red('X No Facebook token found. Run: meta auth login -a facebook'));
+        console.error(chalk.red('X No Facebook token found. Run: social auth login -a facebook'));
         process.exit(1);
       }
 
@@ -356,7 +356,7 @@ function registerPostCommands(program) {
     .action(async (options) => {
       const token = config.getToken('facebook');
       if (!token) {
-        console.error(chalk.red('X No Facebook token found. Run: meta auth login -a facebook'));
+        console.error(chalk.red('X No Facebook token found. Run: social auth login -a facebook'));
         process.exit(1);
       }
 
@@ -428,7 +428,7 @@ function registerPostCommands(program) {
     .action(async (options) => {
       const token = config.getToken('facebook');
       if (!token) {
-        console.error(chalk.red('X No Facebook token found. Run: meta auth login -a facebook'));
+        console.error(chalk.red('X No Facebook token found. Run: social auth login -a facebook'));
         process.exit(1);
       }
 

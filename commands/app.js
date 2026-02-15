@@ -18,7 +18,7 @@ function registerAppCommands(program) {
       const token = config.getToken(api);
       
       if (!token) {
-        console.error(chalk.red(`✖ No ${api} token found. Run: meta auth login -a ${api}`));
+        console.error(chalk.red(`✖ No ${api} token found. Run: social auth login -a ${api}`));
         process.exit(1);
       }
 
@@ -28,7 +28,7 @@ function registerAppCommands(program) {
         appId = credentials.appId;
         
         if (!appId) {
-          console.error(chalk.red('✖ No App ID configured. Use --id flag or run: meta auth app'));
+          console.error(chalk.red('✖ No App ID configured. Use --id flag or run: social auth app'));
           process.exit(1);
         }
       }
@@ -84,7 +84,7 @@ function registerAppCommands(program) {
         console.log(chalk.cyan('App Secret:'), chalk.green('***configured***'));
       } else {
         console.log(chalk.yellow('No app credentials configured'));
-        console.log(chalk.gray('\nTo configure: meta auth app'));
+        console.log(chalk.gray('\nTo configure: social auth app'));
       }
       console.log('');
     });

@@ -7,7 +7,7 @@ const MetaAPIClient = require('../lib/api-client');
 function getTokenOrExit(api) {
   const token = config.getToken(api);
   if (!token) {
-    console.error(chalk.red(`X No ${api} token found. Run: meta auth login -a ${api}`));
+    console.error(chalk.red(`X No ${api} token found. Run: social auth login -a ${api}`));
     process.exit(1);
   }
   return token;

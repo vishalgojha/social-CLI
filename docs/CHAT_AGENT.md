@@ -1,8 +1,8 @@
-# Conversational Chat Agent (`meta chat`)
+# Conversational Chat Agent (`social chat`)
 
 ## Overview
 
-`meta chat` adds a persistent multi-turn conversation loop to `meta-cli`.
+`social chat` adds a persistent multi-turn conversation loop to `social-cli`.
 
 Core flow:
 
@@ -26,12 +26,12 @@ Core flow:
 
 Session files are stored at:
 
-- `~/.meta-cli/chat/sessions/<session-id>.json`
+- `~/.social-cli/chat/sessions/<session-id>.json`
 
 Features:
 
-- Resume with `meta chat --session <id>`
-- List sessions with `meta chat sessions`
+- Resume with `social chat --session <id>`
+- List sessions with `social chat sessions`
 - Auto-save after each turn
 
 ## Conversation Behavior
@@ -66,20 +66,20 @@ Agent: Perfect. I will execute that now.
 
 Decision strategy:
 
-- LLM mode (if `OPENAI_API_KEY` / `META_AI_KEY` available)
+- LLM mode (if `OPENAI_API_KEY` / `SOCIAL_AI_KEY` available)
 - Heuristic fallback when LLM is unavailable
 
 LLM endpoint config:
 
 - `OPENAI_BASE_URL` (default: `https://api.openai.com/v1`)
-- `META_CHAT_MODEL` (fallback: `META_AI_MODEL`, then `gpt-4o-mini`)
+- `SOCIAL_CHAT_MODEL` (fallback: `SOCIAL_AI_MODEL`, then `gpt-4o-mini`)
 
 ## CLI Options
 
-- `meta chat --session <id>`
-- `meta chat --yes`
+- `social chat --session <id>`
+- `social chat --yes`
   - auto-approve low-risk execution branches
-- `meta chat --debug`
+- `social chat --debug`
   - parser/decision debug traces
 
 ## Testing

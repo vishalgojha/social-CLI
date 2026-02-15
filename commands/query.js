@@ -7,7 +7,7 @@ const { formatTable } = require('../lib/formatters');
 function getTokenOrExit(api) {
   const token = config.getToken(api);
   if (!token) {
-    console.error(chalk.red(`X No ${api} token found. Run: meta auth login -a ${api}`));
+    console.error(chalk.red(`X No ${api} token found. Run: social auth login -a ${api}`));
     process.exit(1);
   }
   return token;
@@ -99,7 +99,7 @@ function registerQueryCommands(program) {
       const token = config.getToken('instagram') || getTokenOrExit('facebook');
       const igUserId = options.igUserId || config.getDefaultIgUserId();
       if (!igUserId) {
-        console.error(chalk.red('X Missing IG user id. Provide --ig-user-id or set a default via meta utils config set-default-ig-user'));
+        console.error(chalk.red('X Missing IG user id. Provide --ig-user-id or set a default via social utils config set-default-ig-user'));
         process.exit(1);
       }
 

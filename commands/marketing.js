@@ -40,7 +40,7 @@ function requireAct(adAccountId) {
   if (!act) {
     console.error(chalk.red('X Missing ad account id.'));
     console.error(chalk.gray('  Provide an id like: act_123 or 123'));
-    console.error(chalk.gray('  Or set a default: meta marketing set-default-account act_123'));
+    console.error(chalk.gray('  Or set a default: social marketing set-default-account act_123'));
     process.exit(1);
   }
   return act;
