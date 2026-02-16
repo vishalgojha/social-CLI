@@ -30,6 +30,7 @@
         <div class="kpi"><span id="kpiExecuted" class="kpi-val kpi-ok">0</span><span class="kpi-label">Executed</span></div>
         <div class="kpi"><span id="kpiSessions" class="kpi-val kpi-info">0</span><span class="kpi-label">Sessions</span></div>
       </div>
+      <button id="themeToggleBtn" class="ghost-btn top-theme-btn" aria-label="Toggle theme">Theme: Dark</button>
       <button id="notifBtn" class="topbar-bell" aria-label="Notifications">
         <span class="bell-dot"></span>
       </button>
@@ -41,6 +42,7 @@
         <div>
           <h1>SOCIAL API GATEWAY</h1>
           <p>Localhost Control Plane</p>
+          <p>Works with Meta APIs</p>
           <p id="buildLabel" class="build-label">Build: loading...</p>
         </div>
       </section>
@@ -50,6 +52,7 @@
         <button class="side-nav-item active" data-view="chat">Chat Agent</button>
         <button class="side-nav-item" data-view="data">Data Console</button>
         <button class="side-nav-item" data-view="config">Config</button>
+        <button class="side-nav-item" data-view="devtools">Developer Toolkit</button>
         <button class="side-nav-item" data-view="help">Help</button>
         <button class="side-nav-item" data-view="settings">Settings</button>
       </section>
@@ -70,6 +73,7 @@
           <button class="chip" data-prompt="Send WhatsApp message 'Order confirmed' to +15551234567">WhatsApp Send</button>
           <button class="chip" data-prompt="List my active campaigns for account act_123456789">Campaign Scan</button>
           <button class="chip" data-prompt="Check auth status for this profile">Auth Status</button>
+          <button class="chip" data-prompt="setup ollama llama3.1:8b for local ai">Setup Local AI</button>
         </div>
       </section>
 
@@ -142,6 +146,62 @@
             <p>Use <strong>yes</strong> to run pending actions.</p>
             <p>Use <strong>no</strong> to cancel and adjust.</p>
             <p>Ask naturally. The agent will follow up.</p>
+            <p>If no API key is configured, ask: <strong>setup ollama llama3.1:8b</strong>.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="view-devtools" class="view-panel">
+        <div class="devtools-grid">
+          <article class="data-card">
+            <h3>Social CLI Commands</h3>
+            <div class="tool-list">
+              <div class="tool-row">
+                <code>social auth status</code>
+                <button class="ghost-btn small copy-btn" data-copy="social auth status">Copy</button>
+              </div>
+              <div class="tool-row">
+                <code>social query me --api facebook</code>
+                <button class="ghost-btn small copy-btn" data-copy="social query me --api facebook">Copy</button>
+              </div>
+              <div class="tool-row">
+                <code>social agent setup --provider ollama --model llama3.1:8b</code>
+                <button class="ghost-btn small copy-btn" data-copy="social agent setup --provider ollama --model llama3.1:8b">Copy</button>
+              </div>
+              <div class="tool-row">
+                <code>social gateway --open</code>
+                <button class="ghost-btn small copy-btn" data-copy="social gateway --open">Copy</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="data-card">
+            <h3>Provider Setup</h3>
+            <div class="tool-list">
+              <div class="tool-row">
+                <code>setx OPENAI_API_KEY "YOUR_KEY"</code>
+                <button class="ghost-btn small copy-btn" data-copy="setx OPENAI_API_KEY &quot;YOUR_KEY&quot;">Copy</button>
+              </div>
+              <div class="tool-row">
+                <code>setx ANTHROPIC_API_KEY "YOUR_KEY"</code>
+                <button class="ghost-btn small copy-btn" data-copy="setx ANTHROPIC_API_KEY &quot;YOUR_KEY&quot;">Copy</button>
+              </div>
+              <div class="tool-row">
+                <code>setx OPENROUTER_API_KEY "YOUR_KEY"</code>
+                <button class="ghost-btn small copy-btn" data-copy="setx OPENROUTER_API_KEY &quot;YOUR_KEY&quot;">Copy</button>
+              </div>
+              <div class="tool-row">
+                <code>ollama pull llama3.1:8b</code>
+                <button class="ghost-btn small copy-btn" data-copy="ollama pull llama3.1:8b">Copy</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="data-card devtools-wide">
+            <h3>Developer Notes</h3>
+            <p>Use Data Console to inspect session history, pending actions, and execution results from the gateway in real time.</p>
+            <p>Use Config to verify active profile, defaults, and token state before high-risk actions.</p>
+            <p>Use Chat Agent for natural language planning and CLI commands for deterministic execution paths.</p>
           </article>
         </div>
       </section>
@@ -159,6 +219,14 @@
           <label class="setting-item">
             <input type="checkbox" id="settingCompactMode" />
             <span>Extra compact mode</span>
+          </label>
+          <label class="setting-item setting-select-row">
+            <span>Theme mode</span>
+            <select id="settingThemeMode" class="setting-select">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="system">System</option>
+            </select>
           </label>
         </div>
       </section>

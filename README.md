@@ -286,6 +286,20 @@ setx SOCIAL_AGENT_API_KEY "YOUR_KEY"
 social agent --provider openai --model gpt-4o-mini "list my pages"
 ```
 
+### Local AI (Ollama, 16GB RAM friendly)
+
+If you do not want cloud API keys, use local Ollama:
+
+```bash
+ollama pull llama3.1:8b
+social agent setup --provider ollama --model llama3.1:8b
+```
+
+Other 16GB-friendly models:
+
+- `qwen2.5:7b`
+- `mistral:7b`
+
 ## AI Natural Language Interface (`social ai`)
 
 `social ai` lets you describe an action in plain English and executes a safe mapped command flow:

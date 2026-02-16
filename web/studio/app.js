@@ -11,7 +11,8 @@ const state = {
   settings: {
     enterToSend: true,
     autoScroll: true,
-    compactMode: false
+    compactMode: false,
+    themeMode: 'dark'
   }
 };
 
@@ -42,7 +43,9 @@ const els = {
   refreshConfigBtn: document.getElementById('refreshConfigBtn'),
   settingEnterSend: document.getElementById('settingEnterSend'),
   settingAutoScroll: document.getElementById('settingAutoScroll'),
-  settingCompactMode: document.getElementById('settingCompactMode')
+  settingCompactMode: document.getElementById('settingCompactMode'),
+  settingThemeMode: document.getElementById('settingThemeMode'),
+  themeToggleBtn: document.getElementById('themeToggleBtn')
 };
 
 function nowTime() {
@@ -61,6 +64,12 @@ function escapeHtml(v) {
 function short(v, n = 96) {
   const s = String(v ?? '');
   return s.length > n ? `${s.slice(0, n)}...` : s;
+}
+
+function resolvedTheme(mode) {
+  if (mode === 'light' || mode === 'dark') return mode;
+  const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  return prefersLight ? 'light' : 'dark';
 }
 
 function loadSettings() {
@@ -89,7 +98,14 @@ function applySettings() {
   if (els.settingEnterSend) els.settingEnterSend.checked = Boolean(state.settings.enterToSend);
   if (els.settingAutoScroll) els.settingAutoScroll.checked = Boolean(state.settings.autoScroll);
   if (els.settingCompactMode) els.settingCompactMode.checked = Boolean(state.settings.compactMode);
+  if (els.settingThemeMode) els.settingThemeMode.value = String(state.settings.themeMode || 'dark');
   document.body.classList.toggle('compact-mode', Boolean(state.settings.compactMode));
+
+  const activeTheme = resolvedTheme(state.settings.themeMode || 'dark');
+  document.documentElement.setAttribute('data-theme', activeTheme);
+  if (els.themeToggleBtn) {
+    els.themeToggleBtn.textContent = `Theme: ${activeTheme === 'dark' ? 'Dark' : 'Light'}`;
+  }
 }
 
 async function api(path, options = {}) {
@@ -220,6 +236,7 @@ function setActiveView(view) {
     chat: { tag: 'Chat Agent', title: 'Talk naturally. Execute safely.' },
     data: { tag: 'Data Console', title: 'Inspect live conversation and execution trails.' },
     config: { tag: 'Config', title: 'Runtime profile, defaults, and token state.' },
+    devtools: { tag: 'Developer Toolkit', title: 'Commands, providers, and integration shortcuts.' },
     help: { tag: 'Help', title: 'Prompt patterns for developer and marketing flows.' },
     settings: { tag: 'Settings', title: 'Keyboard, auto-scroll, and compact display options.' }
   };
@@ -384,6 +401,19 @@ function wireEvents() {
     });
   });
 
+  document.querySelectorAll('.copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const value = btn.getAttribute('data-copy') || '';
+      if (!value) return;
+      try {
+        await navigator.clipboard.writeText(value);
+        appendMessage('system', `Copied command: ${value}`);
+      } catch (error) {
+        appendMessage('system', `Copy failed. Command: ${value}`);
+      }
+    });
+  });
+
   els.sideNavItems.forEach((btn) => {
     btn.addEventListener('click', () => {
       setActiveView(btn.dataset.view || 'chat');
@@ -423,11 +453,41 @@ function wireEvents() {
       persistSettings();
     });
   }
+
+  if (els.settingThemeMode) {
+    els.settingThemeMode.addEventListener('change', () => {
+      state.settings.themeMode = String(els.settingThemeMode.value || 'dark');
+      applySettings();
+      persistSettings();
+    });
+  }
+
+  if (els.themeToggleBtn) {
+    els.themeToggleBtn.addEventListener('click', () => {
+      const current = resolvedTheme(state.settings.themeMode || 'dark');
+      state.settings.themeMode = current === 'dark' ? 'light' : 'dark';
+      applySettings();
+      persistSettings();
+    });
+  }
 }
 
 async function init() {
   loadSettings();
   applySettings();
+  if (window.matchMedia) {
+    const media = window.matchMedia('(prefers-color-scheme: light)');
+    const onThemeChange = () => {
+      if ((state.settings.themeMode || 'dark') === 'system') {
+        applySettings();
+      }
+    };
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', onThemeChange);
+    } else if (typeof media.addListener === 'function') {
+      media.addListener(onThemeChange);
+    }
+  }
   wireEvents();
   await checkHealth();
   await startSession('');

@@ -197,5 +197,69 @@ module.exports = [
       assert.equal(Array.isArray(advice.suggestions), true);
       assert.equal(advice.suggestions.length > 0, true);
     }
+  },
+  {
+    name: 'chat agent asks clarification for ambiguous unknown input',
+    fn: async () => {
+      const oldOpenAI = process.env.OPENAI_API_KEY;
+      const oldMeta = process.env.META_AI_KEY;
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.META_AI_KEY;
+      try {
+        const ctx = new ConversationContext();
+        const agent = new AutonomousAgent({
+          context: ctx,
+          config: { getDefaultApi: () => 'facebook', getAgentConfig: () => ({ provider: 'openai', apiKey: '' }) },
+          options: {}
+        });
+        const res = await agent.process('blabla random text');
+        assert.equal(res.actions.length, 0);
+        assert.equal(res.needsInput, true);
+        assert.equal(res.message.toLowerCase().includes('not fully sure'), true);
+      } finally {
+        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
+        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+      }
+    }
+  },
+  {
+    name: 'chat agent suggests ollama setup when no cloud key is available',
+    fn: async () => {
+      const oldOpenAI = process.env.OPENAI_API_KEY;
+      const oldMeta = process.env.META_AI_KEY;
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.META_AI_KEY;
+      try {
+        const ctx = new ConversationContext();
+        const agent = new AutonomousAgent({
+          context: ctx,
+          config: { getDefaultApi: () => 'facebook', getAgentConfig: () => ({ provider: 'openai', apiKey: '' }) },
+          options: {}
+        });
+        const res = await agent.process('show my pages');
+        const joined = (res.suggestions || []).join('\n').toLowerCase();
+        assert.equal(joined.includes('ollama'), true);
+        assert.equal(joined.includes('llama3.1:8b'), true);
+        assert.equal(joined.includes('social agent setup --provider ollama'), true);
+      } finally {
+        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
+        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+      }
+    }
+  },
+  {
+    name: 'chat agent maps setup ollama intent to local.ollama.setup tool',
+    fn: async () => {
+      const ctx = new ConversationContext();
+      const agent = new AutonomousAgent({
+        context: ctx,
+        config: { getDefaultApi: () => 'facebook' },
+        options: {}
+      });
+      const res = await agent.process('setup ollama llama3.1:8b');
+      assert.equal(res.actions.length, 1);
+      assert.equal(res.actions[0].tool, 'local.ollama.setup');
+      assert.equal(res.actions[0].params.model, 'llama3.1:8b');
+    }
   }
 ];
