@@ -74,6 +74,11 @@ textarea {
   font-family: inherit;
 }
 
+button {
+  cursor: pointer;
+  transition: border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease;
+}
+
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -551,6 +556,11 @@ textarea {
   align-items: flex-end;
 }
 
+.composer-actions {
+  display: flex;
+  align-items: center;
+}
+
 .composer textarea {
   flex: 1;
   min-height: 40px;
@@ -636,6 +646,10 @@ textarea {
   color: var(--text-soft);
   font-family: "JetBrains Mono", monospace;
   font-weight: 500;
+  position: sticky;
+  top: 0;
+  background: var(--bg2);
+  z-index: 1;
 }
 
 .empty-note {
@@ -670,6 +684,7 @@ textarea {
 
 .ops-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -736,6 +751,7 @@ textarea {
 .source-actions {
   grid-column: 1 / -1;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -949,7 +965,7 @@ body.compact-mode .composer {
   .left-rail {
     border-right: none;
     border-bottom: 1px solid var(--border);
-    max-height: 42vh;
+    max-height: 40vh;
   }
 
   .data-grid,
@@ -974,6 +990,110 @@ body.compact-mode .composer {
 
   .topbar-live {
     display: none;
+  }
+
+  .topbar {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .kpi-label {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    padding: 0 8px;
+    gap: 6px;
+  }
+
+  .topbar-logo {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+
+  .topbar-sep,
+  .topbar-status .mono,
+  .top-theme-btn {
+    display: none;
+  }
+
+  .kpi {
+    padding: 2px 8px;
+  }
+
+  .kpi:nth-child(1),
+  .kpi:nth-child(4) {
+    display: none;
+  }
+
+  .left-rail {
+    max-height: 44vh;
+  }
+
+  .top-banner {
+    padding: 12px 12px 10px;
+  }
+
+  .top-banner h2 {
+    font-size: 19px;
+  }
+
+  .chat-meta-strip {
+    padding: 6px 12px;
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .message-list {
+    padding: 10px 12px;
+  }
+
+  .bubble {
+    width: min(96%, 760px);
+  }
+
+  .composer {
+    padding: 8px 10px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .composer textarea {
+    max-height: 120px;
+  }
+
+  .composer-actions {
+    width: 100%;
+  }
+
+  .send-btn {
+    width: 100%;
+  }
+
+  #view-ops,
+  #view-config,
+  #view-help,
+  #view-devtools,
+  #view-settings,
+  .data-grid {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .ops-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ops-actions {
+    width: 100%;
+  }
+
+  .ops-actions .ghost-btn {
+    flex: 1;
+    min-width: 0;
   }
 }
 
