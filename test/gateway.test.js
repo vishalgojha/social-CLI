@@ -172,7 +172,7 @@ module.exports = [
     }
   },
   {
-    name: 'gateway ops endpoints support summary, run, lists, and resolution',
+    name: 'gateway ops endpoints support summary, guard policy, runs, lists, and resolution',
     fn: async () => {
       const oldHome = process.env.META_CLI_HOME;
       const oldSocialHome = process.env.SOCIAL_CLI_HOME;
@@ -192,6 +192,41 @@ module.exports = [
         assert.equal(summary1.status, 200);
         assert.equal(summary1.data.ok, true);
         assert.equal(typeof summary1.data.summary.alertsOpen, 'number');
+        assert.equal(typeof summary1.data.summary.guardPolicy.mode, 'string');
+
+        const guardGet = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: '/api/ops/guard/policy?workspace=default'
+        });
+        assert.equal(guardGet.status, 200);
+        assert.equal(guardGet.data.ok, true);
+        assert.equal(guardGet.data.guardPolicy.mode, 'approval');
+
+        const guardMode = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/ops/guard/mode',
+          body: { workspace: 'default', mode: 'auto_safe' }
+        });
+        assert.equal(guardMode.status, 200);
+        assert.equal(guardMode.data.ok, true);
+        assert.equal(guardMode.data.mode, 'auto_safe');
+
+        const guardSet = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/ops/guard/policy',
+          body: {
+            workspace: 'default',
+            thresholds: { spendSpikePct: 44 },
+            limits: { maxCampaignsPerRun: 3 }
+          }
+        });
+        assert.equal(guardSet.status, 200);
+        assert.equal(guardSet.data.ok, true);
+        assert.equal(guardSet.data.guardPolicy.thresholds.spendSpikePct, 44);
+        assert.equal(guardSet.data.guardPolicy.limits.maxCampaignsPerRun, 3);
 
         const run = await requestJson({
           port: server.port,

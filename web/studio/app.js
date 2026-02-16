@@ -4,6 +4,7 @@ const state = {
   activeView: 'chat',
   workspace: 'default',
   opsSnapshot: null,
+  guardPolicy: null,
   latestPayload: {
     history: [],
     pendingActions: [],
@@ -55,6 +56,20 @@ const els = {
   opsApprovalsTable: document.getElementById('opsApprovalsTable'),
   opsLeadsTable: document.getElementById('opsLeadsTable'),
   opsOutcomesTable: document.getElementById('opsOutcomesTable'),
+  opsGuardRefreshBtn: document.getElementById('opsGuardRefreshBtn'),
+  opsGuardModeSelect: document.getElementById('opsGuardModeSelect'),
+  opsGuardModeSaveBtn: document.getElementById('opsGuardModeSaveBtn'),
+  opsGuardSpendSpikeInput: document.getElementById('opsGuardSpendSpikeInput'),
+  opsGuardCpaSpikeInput: document.getElementById('opsGuardCpaSpikeInput'),
+  opsGuardRoasDropInput: document.getElementById('opsGuardRoasDropInput'),
+  opsGuardMaxBudgetAdjInput: document.getElementById('opsGuardMaxBudgetAdjInput'),
+  opsGuardMaxCampaignsInput: document.getElementById('opsGuardMaxCampaignsInput'),
+  opsGuardMaxDailyAutoInput: document.getElementById('opsGuardMaxDailyAutoInput'),
+  opsGuardCooldownInput: document.getElementById('opsGuardCooldownInput'),
+  opsGuardEnabledInput: document.getElementById('opsGuardEnabledInput'),
+  opsGuardRequirePauseApprovalInput: document.getElementById('opsGuardRequirePauseApprovalInput'),
+  opsGuardPolicySaveBtn: document.getElementById('opsGuardPolicySaveBtn'),
+  opsGuardStatusText: document.getElementById('opsGuardStatusText'),
   configDump: document.getElementById('configDump'),
   refreshConfigBtn: document.getElementById('refreshConfigBtn'),
   settingEnterSend: document.getElementById('settingEnterSend'),
@@ -87,6 +102,11 @@ function fmtTime(v) {
   const ts = Date.parse(v);
   if (!Number.isFinite(ts)) return String(v);
   return new Date(ts).toLocaleString();
+}
+
+function num(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function resolvedTheme(mode) {
@@ -322,6 +342,7 @@ function renderOpsSnapshot(snapshot) {
   if (els.opsApprovalsPending) els.opsApprovalsPending.textContent = String(s.approvalsPending || 0);
   if (els.opsLeadsDue) els.opsLeadsDue.textContent = String(s.leadsDue || 0);
   if (els.opsSchedulesDue) els.opsSchedulesDue.textContent = String(s.schedulesDue || 0);
+  if (s.guardPolicy) renderGuardPolicy(s.guardPolicy);
 
   renderOpsAlerts(state.opsSnapshot?.alerts || []);
   renderOpsApprovals(state.opsSnapshot?.approvals || []);
@@ -349,6 +370,77 @@ function renderOpsSnapshot(snapshot) {
     { key: 'summary', label: 'Summary' },
     { key: 'createdAt', label: 'When' }
   ], outcomeRows);
+}
+
+function setGuardStatus(text) {
+  if (els.opsGuardStatusText) {
+    els.opsGuardStatusText.textContent = text;
+  }
+}
+
+function renderGuardPolicy(policy) {
+  if (!policy) return;
+  state.guardPolicy = policy;
+  if (els.opsGuardModeSelect) els.opsGuardModeSelect.value = String(policy.mode || 'approval');
+  if (els.opsGuardSpendSpikeInput) els.opsGuardSpendSpikeInput.value = String(policy.thresholds?.spendSpikePct ?? 35);
+  if (els.opsGuardCpaSpikeInput) els.opsGuardCpaSpikeInput.value = String(policy.thresholds?.cpaSpikePct ?? 30);
+  if (els.opsGuardRoasDropInput) els.opsGuardRoasDropInput.value = String(policy.thresholds?.roasDropPct ?? 20);
+  if (els.opsGuardMaxBudgetAdjInput) els.opsGuardMaxBudgetAdjInput.value = String(policy.limits?.maxBudgetAdjustmentPct ?? 20);
+  if (els.opsGuardMaxCampaignsInput) els.opsGuardMaxCampaignsInput.value = String(policy.limits?.maxCampaignsPerRun ?? 5);
+  if (els.opsGuardMaxDailyAutoInput) els.opsGuardMaxDailyAutoInput.value = String(policy.limits?.maxDailyAutoActions ?? 10);
+  if (els.opsGuardCooldownInput) els.opsGuardCooldownInput.value = String(policy.cooldownMinutes ?? 60);
+  if (els.opsGuardEnabledInput) els.opsGuardEnabledInput.checked = Boolean(policy.enabled);
+  if (els.opsGuardRequirePauseApprovalInput) {
+    els.opsGuardRequirePauseApprovalInput.checked = Boolean(policy.limits?.requireApprovalForPause);
+  }
+  setGuardStatus(`Mode ${policy.mode} | Updated ${nowTime()}`);
+}
+
+async function loadGuardPolicy() {
+  const ws = encodeURIComponent(state.workspace || 'default');
+  const res = await api(`/api/ops/guard/policy?workspace=${ws}`);
+  renderGuardPolicy(res.guardPolicy || null);
+}
+
+async function saveGuardMode() {
+  const mode = String(els.opsGuardModeSelect?.value || '').trim();
+  if (!mode) throw new Error('Select a guard mode first.');
+  const res = await api('/api/ops/guard/mode', {
+    method: 'POST',
+    body: { workspace: state.workspace, mode }
+  });
+  renderGuardPolicy(res.guardPolicy || null);
+  if (res.snapshot) renderOpsSnapshot(res.snapshot);
+  setGuardStatus(`Guard mode saved: ${mode}`);
+  appendMessage('system', `Guard mode set to ${mode} for ${state.workspace}.`);
+}
+
+async function saveGuardPolicy() {
+  const body = {
+    workspace: state.workspace,
+    enabled: Boolean(els.opsGuardEnabledInput?.checked),
+    cooldownMinutes: num(els.opsGuardCooldownInput?.value, 60),
+    thresholds: {
+      spendSpikePct: num(els.opsGuardSpendSpikeInput?.value, 35),
+      cpaSpikePct: num(els.opsGuardCpaSpikeInput?.value, 30),
+      roasDropPct: num(els.opsGuardRoasDropInput?.value, 20)
+    },
+    limits: {
+      maxBudgetAdjustmentPct: num(els.opsGuardMaxBudgetAdjInput?.value, 20),
+      maxCampaignsPerRun: num(els.opsGuardMaxCampaignsInput?.value, 5),
+      maxDailyAutoActions: num(els.opsGuardMaxDailyAutoInput?.value, 10),
+      requireApprovalForPause: Boolean(els.opsGuardRequirePauseApprovalInput?.checked)
+    }
+  };
+
+  const res = await api('/api/ops/guard/policy', {
+    method: 'POST',
+    body
+  });
+  renderGuardPolicy(res.guardPolicy || null);
+  if (res.snapshot) renderOpsSnapshot(res.snapshot);
+  setGuardStatus(`Guard policy saved at ${nowTime()}`);
+  appendMessage('system', `Guard policy updated for ${state.workspace}.`);
 }
 
 async function refreshOps() {
@@ -633,6 +725,36 @@ function wireEvents() {
 
   if (els.opsRefreshBtn) {
     els.opsRefreshBtn.addEventListener('click', refreshOps);
+  }
+  if (els.opsGuardRefreshBtn) {
+    els.opsGuardRefreshBtn.addEventListener('click', async () => {
+      try {
+        await loadGuardPolicy();
+      } catch (error) {
+        setGuardStatus(`Failed to load guard policy: ${error.message}`);
+        appendMessage('system', `Ops error: ${error.message}`);
+      }
+    });
+  }
+  if (els.opsGuardModeSaveBtn) {
+    els.opsGuardModeSaveBtn.addEventListener('click', async () => {
+      try {
+        await saveGuardMode();
+      } catch (error) {
+        setGuardStatus(`Failed to save guard mode: ${error.message}`);
+        appendMessage('system', `Ops error: ${error.message}`);
+      }
+    });
+  }
+  if (els.opsGuardPolicySaveBtn) {
+    els.opsGuardPolicySaveBtn.addEventListener('click', async () => {
+      try {
+        await saveGuardPolicy();
+      } catch (error) {
+        setGuardStatus(`Failed to save guard policy: ${error.message}`);
+        appendMessage('system', `Ops error: ${error.message}`);
+      }
+    });
   }
   if (els.opsMorningBtn) {
     els.opsMorningBtn.addEventListener('click', async () => {

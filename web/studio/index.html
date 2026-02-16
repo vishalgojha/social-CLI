@@ -153,6 +153,62 @@
           <div class="ops-grid">
             <article class="data-card">
               <div class="ops-card-head">
+                <h3>Guard Rail</h3>
+                <button id="opsGuardRefreshBtn" class="ghost-btn small">Reload Guard</button>
+              </div>
+              <div class="guard-controls">
+                <label class="guard-field">
+                  <span>Mode</span>
+                  <select id="opsGuardModeSelect">
+                    <option value="observe">observe</option>
+                    <option value="approval">approval</option>
+                    <option value="auto_safe">auto_safe</option>
+                  </select>
+                </label>
+                <button id="opsGuardModeSaveBtn" class="ghost-btn small">Save Mode</button>
+                <label class="guard-field">
+                  <span>Spend Spike %</span>
+                  <input id="opsGuardSpendSpikeInput" type="number" min="1" step="1" />
+                </label>
+                <label class="guard-field">
+                  <span>CPA Spike %</span>
+                  <input id="opsGuardCpaSpikeInput" type="number" min="1" step="1" />
+                </label>
+                <label class="guard-field">
+                  <span>ROAS Drop %</span>
+                  <input id="opsGuardRoasDropInput" type="number" min="1" step="1" />
+                </label>
+                <label class="guard-field">
+                  <span>Max Budget Adj %</span>
+                  <input id="opsGuardMaxBudgetAdjInput" type="number" min="1" step="1" />
+                </label>
+                <label class="guard-field">
+                  <span>Max Campaigns / Run</span>
+                  <input id="opsGuardMaxCampaignsInput" type="number" min="1" step="1" />
+                </label>
+                <label class="guard-field">
+                  <span>Max Daily Auto Actions</span>
+                  <input id="opsGuardMaxDailyAutoInput" type="number" min="1" step="1" />
+                </label>
+                <label class="guard-field">
+                  <span>Cooldown Minutes</span>
+                  <input id="opsGuardCooldownInput" type="number" min="1" step="1" />
+                </label>
+                <label class="guard-toggle">
+                  <input id="opsGuardEnabledInput" type="checkbox" />
+                  <span>Guard Enabled</span>
+                </label>
+                <label class="guard-toggle">
+                  <input id="opsGuardRequirePauseApprovalInput" type="checkbox" />
+                  <span>Require Pause Approval</span>
+                </label>
+                <button id="opsGuardPolicySaveBtn" class="ghost-btn small">Save Guard Policy</button>
+              </div>
+              <p id="opsGuardStatusText" class="guard-status">Guard policy not loaded yet.</p>
+            </article>
+
+            <article class="data-card">
+              <div class="ops-card-head">
                 <h3>Alerts</h3>
                 <button id="opsAckTokenBtn" class="ghost-btn small">Ack Token Alerts</button>
               </div>

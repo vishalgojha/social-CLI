@@ -685,6 +685,65 @@ textarea {
   margin: 0;
 }
 
+.guard-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.guard-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.guard-field span {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.guard-field input,
+.guard-field select {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg3);
+  color: var(--text);
+  padding: 7px 8px;
+  font-size: 12px;
+  outline: none;
+}
+
+.guard-field input:focus,
+.guard-field select:focus {
+  border-color: rgba(249, 115, 22, 0.45);
+}
+
+.guard-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg3);
+  padding: 7px 8px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.guard-toggle input {
+  accent-color: var(--amber);
+}
+
+.guard-status {
+  margin: 8px 0 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
 #view-config {
   padding: 12px 16px 16px;
   gap: 8px;
@@ -849,6 +908,10 @@ body.compact-mode .composer {
   .ops-kpis,
   .help-grid,
   .devtools-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guard-controls {
     grid-template-columns: 1fr;
   }
 
