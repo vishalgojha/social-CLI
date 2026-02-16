@@ -1,0 +1,30 @@
+#!/usr/bin/env sh
+set -eu
+
+REMOTE_NAME="${1:-origin}"
+REMOTE_URL="${2:-}"
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+MONITOR_SCRIPT="$REPO_ROOT/scripts/post-push-monitor.js"
+
+if [ ! -f "$MONITOR_SCRIPT" ]; then
+  exit 0
+fi
+
+TMP_DIR="$REPO_ROOT/.git"
+if [ ! -d "$TMP_DIR" ]; then
+  TMP_DIR="$REPO_ROOT"
+fi
+
+TS="$(date +%s 2>/dev/null || echo 0)"
+TMP_FILE="$TMP_DIR/codex-push-$TS-$$.txt"
+cat > "$TMP_FILE"
+
+if [ ! -s "$TMP_FILE" ]; then
+  rm -f "$TMP_FILE" >/dev/null 2>&1 || true
+  exit 0
+fi
+
+cd "$REPO_ROOT"
+node "$MONITOR_SCRIPT" --remote "$REMOTE_NAME" --url "$REMOTE_URL" --updates-file "$TMP_FILE" >/dev/null 2>&1 &
+exit 0
