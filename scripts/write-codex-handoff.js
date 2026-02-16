@@ -206,7 +206,9 @@ function main() {
   const branch = activeBranch || branchFromRef || 'unknown';
   const headSha = readHeadSha(repoRoot);
   const direction = resolvePushDirection(preferred, headSha);
-  const pushedCommitsRaw = direction.commits;
+  const pushedCommitsRaw = direction.commits.length
+    ? direction.commits
+    : commitsForRange(direction.fromSha, direction.toSha);
   const filesRaw = changedFilesForRange(direction.fromSha, direction.toSha);
   const pushedCommits = pushedCommitsRaw.length
     ? pushedCommitsRaw
