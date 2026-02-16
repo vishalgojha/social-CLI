@@ -100,6 +100,7 @@ const aiCommands = require('../commands/ai');
 const chatCommands = require('../commands/chat');
 const gatewayCommands = require('../commands/gateway');
 const opsCommands = require('../commands/ops');
+const hubCommands = require('../commands/hub');
 
 // Register command groups
 authCommands(program);
@@ -119,6 +120,7 @@ aiCommands(program);
 chatCommands(program);
 gatewayCommands(program);
 opsCommands(program);
+hubCommands(program);
 
 // Custom help
 program.on('--help', () => {
@@ -143,6 +145,7 @@ program.on('--help', () => {
   console.log('  $ social chat                    ' + chalk.gray('# Conversational multi-turn AI assistant'));
   console.log('  $ social gateway --open          ' + chalk.gray('# Social API Gateway web UI + API gateway'));
   console.log('  $ social ops morning-run --all-workspaces --spend 320  ' + chalk.gray('# Morning agency ops checks + approvals'));
+  console.log('  $ social hub search ops          ' + chalk.gray('# Search hub packages (connectors/playbooks/skills)'));
   console.log('');
   console.log(chalk.cyan('Documentation: https://github.com/vishalgojha/social-CLI'));
 });

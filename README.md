@@ -108,6 +108,7 @@ This includes API version, default IDs, and tokens. The CLI never prints full to
 - `chat`: conversational multi-turn AI assistant with persistent sessions
 - `gateway`: localhost web UI + API gateway for chat/agent workflows
 - `ops`: morning operations workflow, alerts, approvals, scheduler, roles, knowledge sources
+- `hub`: package hub for connectors, playbooks, and agent skills
 - `accounts`: manage multiple profiles (multi-client)
 - `batch`: run tool-based jobs from JSON/CSV
 
@@ -472,6 +473,27 @@ social ops schedule run-due --workspace clientA
 # integrations
 social ops integrations set --workspace clientA --slack-webhook https://hooks.slack.com/services/...
 social ops integrations show --workspace clientA
+```
+
+## Hub Registry (`social hub`)
+
+`social hub` provides a versioned package surface for reusable connectors, playbooks, and skills.
+
+Quick examples:
+
+```bash
+# discover packages
+social hub search ops
+social hub search --type connector --tag slack
+
+# inspect package metadata + versions
+social hub inspect connector.slack.alerts
+social hub inspect connector.slack.alerts@1.0.0
+
+# install/update and list installed packages
+social hub install connector.slack.alerts
+social hub update
+social hub list
 ```
 
 ## Disclaimer
