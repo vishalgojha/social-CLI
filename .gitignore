@@ -22,6 +22,7 @@ pids
 *.pid.lock
 .social-cli-chat/
 .social-cli-ops/
+undefined/
 social cli pending.txt
 codex.md
 
