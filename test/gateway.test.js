@@ -321,6 +321,64 @@ module.exports = [
     }
   },
   {
+    name: 'gateway chat returns clarification choices and accepts numeric selection',
+    fn: async () => {
+      const oldHome = process.env.META_CLI_HOME;
+      process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
+      const oldOpenAI = process.env.OPENAI_API_KEY;
+      const oldMeta = process.env.META_AI_KEY;
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.META_AI_KEY;
+
+      const server = createGatewayServer({ host: '127.0.0.1', port: 0 });
+      try {
+        await server.start();
+
+        const startRes = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/chat/start',
+          body: {}
+        });
+        assert.equal(startRes.status, 200);
+        assert.equal(Boolean(startRes.data.sessionId), true);
+
+        const first = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/chat/message',
+          body: {
+            sessionId: startRes.data.sessionId,
+            message: 'totally unknown request text'
+          }
+        });
+        assert.equal(first.status, 200);
+        assert.equal(first.data.ok, true);
+        assert.equal(Array.isArray(first.data.response?.clarificationChoices), true);
+        assert.equal(first.data.response.clarificationChoices.length > 0, true);
+
+        const second = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/chat/message',
+          body: {
+            sessionId: startRes.data.sessionId,
+            message: '1'
+          }
+        });
+        assert.equal(second.status, 200);
+        assert.equal(second.data.ok, true);
+        assert.equal(Array.isArray(second.data.response?.actions), true);
+        assert.equal(second.data.response.actions.length, 1);
+      } finally {
+        await server.stop();
+        process.env.META_CLI_HOME = oldHome;
+        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
+        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+      }
+    }
+  },
+  {
     name: 'gateway ops endpoints support summary, guard policy, runs, lists, and resolution',
     fn: async () => {
       const oldHome = process.env.META_CLI_HOME;

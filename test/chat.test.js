@@ -265,7 +265,35 @@ module.exports = [
         const res = await agent.process('blabla random text');
         assert.equal(res.actions.length, 0);
         assert.equal(res.needsInput, true);
-        assert.equal(res.message.toLowerCase().includes('not fully sure'), true);
+        assert.equal(res.message.toLowerCase().includes('did you mean'), true);
+        assert.equal(Array.isArray(res.clarificationChoices), true);
+        assert.equal(res.clarificationChoices.length > 0, true);
+      } finally {
+        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
+        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+      }
+    }
+  },
+  {
+    name: 'chat agent routes numeric clarification choice to deterministic action',
+    fn: async () => {
+      const oldOpenAI = process.env.OPENAI_API_KEY;
+      const oldMeta = process.env.META_AI_KEY;
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.META_AI_KEY;
+      try {
+        const ctx = new ConversationContext();
+        const agent = new AutonomousAgent({
+          context: ctx,
+          config: { getDefaultApi: () => 'facebook', getAgentConfig: () => ({ provider: 'openai', apiKey: '' }) },
+          options: {}
+        });
+        const first = await agent.process('random words that do not map');
+        assert.equal(first.actions.length, 0);
+        assert.equal(first.needsInput, true);
+        const second = await agent.process('1');
+        assert.equal(second.actions.length, 1);
+        assert.equal(second.actions[0].tool, 'query_pages');
       } finally {
         if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
         if (oldMeta) process.env.META_AI_KEY = oldMeta;
