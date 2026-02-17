@@ -15,6 +15,11 @@ const state = {
     region: null,
     preflight: null
   },
+  team: {
+    operator: null,
+    role: '',
+    activity: []
+  },
   opsSnapshot: null,
   sources: [],
   guardPolicy: null,
@@ -159,6 +164,9 @@ const els = {
   opsApprovalsTable: document.getElementById('opsApprovalsTable'),
   opsLeadsTable: document.getElementById('opsLeadsTable'),
   opsOutcomesTable: document.getElementById('opsOutcomesTable'),
+  teamActivityRefreshBtn: document.getElementById('teamActivityRefreshBtn'),
+  teamActivityActorInput: document.getElementById('teamActivityActorInput'),
+  teamActivityTable: document.getElementById('teamActivityTable'),
   opsGuardRefreshBtn: document.getElementById('opsGuardRefreshBtn'),
   opsGuardModeSelect: document.getElementById('opsGuardModeSelect'),
   opsGuardModeSaveBtn: document.getElementById('opsGuardModeSaveBtn'),
@@ -209,7 +217,17 @@ const els = {
   regionModeInput: document.getElementById('regionModeInput'),
   regionPolicySaveBtn: document.getElementById('regionPolicySaveBtn'),
   regionPolicyCheckBtn: document.getElementById('regionPolicyCheckBtn'),
-  regionPolicySummary: document.getElementById('regionPolicySummary')
+  regionPolicySummary: document.getElementById('regionPolicySummary'),
+  teamRoleBadge: document.getElementById('teamRoleBadge'),
+  teamOperatorIdInput: document.getElementById('teamOperatorIdInput'),
+  teamOperatorNameInput: document.getElementById('teamOperatorNameInput'),
+  teamOperatorSaveBtn: document.getElementById('teamOperatorSaveBtn'),
+  teamOperatorClearBtn: document.getElementById('teamOperatorClearBtn'),
+  teamRoleUserInput: document.getElementById('teamRoleUserInput'),
+  teamRoleInput: document.getElementById('teamRoleInput'),
+  teamRoleSaveBtn: document.getElementById('teamRoleSaveBtn'),
+  teamStatusRefreshBtn: document.getElementById('teamStatusRefreshBtn'),
+  teamStatusSummary: document.getElementById('teamStatusSummary')
 };
 
 function nowTime() {
@@ -628,6 +646,119 @@ async function runRegionPreflight() {
   }
 }
 
+function renderTeamStatus() {
+  const operator = state.team.operator || { id: '', name: '' };
+  const role = String(state.team.role || '').trim();
+  if (els.teamOperatorIdInput && !els.teamOperatorIdInput.value) els.teamOperatorIdInput.value = operator.id || '';
+  if (els.teamOperatorNameInput && !els.teamOperatorNameInput.value) els.teamOperatorNameInput.value = operator.name || '';
+  if (els.teamRoleUserInput && !els.teamRoleUserInput.value) els.teamRoleUserInput.value = operator.id || '';
+  if (els.teamRoleBadge) {
+    els.teamRoleBadge.classList.remove('badge-ok', 'badge-warn');
+    if (role) {
+      els.teamRoleBadge.classList.add('badge-ok');
+      els.teamRoleBadge.textContent = `ROLE: ${role.toUpperCase()}`;
+    } else {
+      els.teamRoleBadge.classList.add('badge-warn');
+      els.teamRoleBadge.textContent = 'ROLE UNKNOWN';
+    }
+  }
+  if (els.teamStatusSummary) {
+    const id = operator.id || '(not set)';
+    const name = operator.name ? ` (${operator.name})` : '';
+    els.teamStatusSummary.textContent = `Active operator: ${id}${name} | workspace role: ${role || '(unknown)'}`;
+  }
+}
+
+function renderTeamActivity() {
+  if (!els.teamActivityTable) return;
+  const rows = Array.isArray(state.team.activity) ? state.team.activity : [];
+  if (!rows.length) {
+    els.teamActivityTable.innerHTML = '<p class="empty-note">No team activity yet.</p>';
+    return;
+  }
+  const html = [
+    '<table class="mini-table">',
+    '<thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Status</th><th>Summary</th></tr></thead>',
+    '<tbody>',
+    ...rows.map((x) => `<tr><td>${escapeHtml(fmtTime(x.createdAt))}</td><td>${escapeHtml(x.actor || '')}</td><td>${escapeHtml(x.action || '')}</td><td>${escapeHtml(x.status || '')}</td><td>${escapeHtml(short(x.summary || '', 110))}</td></tr>`),
+    '</tbody></table>'
+  ].join('');
+  els.teamActivityTable.innerHTML = html;
+}
+
+async function refreshTeamStatus() {
+  try {
+    const res = await api('/api/team/status');
+    state.team.operator = res.operator || null;
+    state.team.role = String(res.role || '');
+    renderTeamStatus();
+  } catch (error) {
+    appendMessage('system', `Team status error: ${error.message}`);
+  }
+}
+
+async function setTeamOperatorFromUi() {
+  const id = String((els.teamOperatorIdInput && els.teamOperatorIdInput.value) || '').trim();
+  const name = String((els.teamOperatorNameInput && els.teamOperatorNameInput.value) || '').trim();
+  try {
+    const res = await api('/api/team/operator', {
+      method: 'POST',
+      body: { id, name }
+    });
+    state.team.operator = res.operator || null;
+    state.team.role = String(res.role || '');
+    renderTeamStatus();
+    appendMessage('system', `Active operator set: ${id}`);
+  } catch (error) {
+    appendMessage('system', `Set operator failed: ${error.message}`);
+  }
+}
+
+async function clearTeamOperatorFromUi() {
+  try {
+    await api('/api/team/operator/clear', { method: 'POST', body: {} });
+    state.team.operator = { id: '', name: '' };
+    state.team.role = '';
+    if (els.teamOperatorIdInput) els.teamOperatorIdInput.value = '';
+    if (els.teamOperatorNameInput) els.teamOperatorNameInput.value = '';
+    renderTeamStatus();
+    appendMessage('system', 'Active operator cleared.');
+  } catch (error) {
+    appendMessage('system', `Clear operator failed: ${error.message}`);
+  }
+}
+
+async function setTeamRoleFromUi() {
+  const user = String((els.teamRoleUserInput && els.teamRoleUserInput.value) || '').trim();
+  const role = String((els.teamRoleInput && els.teamRoleInput.value) || '').trim();
+  if (!user || !role) {
+    appendMessage('system', 'Provide user and role first.');
+    return;
+  }
+  try {
+    await api('/api/team/role', {
+      method: 'POST',
+      body: { user, role, workspace: state.workspace }
+    });
+    appendMessage('system', `Role updated: ${user} => ${role}`);
+    await refreshTeamStatus();
+  } catch (error) {
+    appendMessage('system', `Set role failed: ${error.message}`);
+  }
+}
+
+async function refreshTeamActivity() {
+  const actor = String((els.teamActivityActorInput && els.teamActivityActorInput.value) || '').trim();
+  const q = actor ? `?actor=${encodeURIComponent(actor)}&limit=50` : '?limit=50';
+  try {
+    const res = await api(`/api/team/activity${q}`);
+    state.team.activity = Array.isArray(res.activity) ? res.activity : [];
+    renderTeamActivity();
+  } catch (error) {
+    appendMessage('system', `Team activity error: ${error.message}`);
+  }
+}
+
 function appendMessage(role, text, meta = '') {
   const node = els.messageTemplate.content.firstElementChild.cloneNode(true);
   node.classList.add(role);
@@ -797,12 +928,14 @@ function renderOpsApprovals(approvals) {
       <td>${escapeHtml(a.risk || '')}</td>
       <td>${escapeHtml(short(a.title || '', 120))}</td>
       <td>${escapeHtml(short(a.reason || '', 140))}</td>
+      <td>${escapeHtml(a.requestedBy || '')}</td>
+      <td>${escapeHtml(a.decidedBy || '')}</td>
       <td>${opsActionButtons('approval', a)}</td>
     </tr>
   `).join('');
   els.opsApprovalsTable.innerHTML = `
     <table class="mini-table">
-      <thead><tr><th>Risk</th><th>Title</th><th>Reason</th><th>Decision</th></tr></thead>
+      <thead><tr><th>Risk</th><th>Title</th><th>Reason</th><th>Requested By</th><th>Resolved By</th><th>Decision</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
@@ -1013,6 +1146,7 @@ async function refreshOps() {
     const ws = encodeURIComponent(state.workspace || 'default');
     const res = await api(`/api/ops/summary?workspace=${ws}`);
     renderOpsSnapshot(res);
+    await refreshTeamActivity();
     if (!Array.isArray(res.sources)) {
       await refreshSources();
     }
@@ -1055,9 +1189,10 @@ async function ackAlertById(id) {
 }
 
 async function resolveApprovalById(id, decision) {
+  const actor = String((state.team && state.team.operator && state.team.operator.id) || '').trim();
   const res = await api('/api/ops/approvals/resolve', {
     method: 'POST',
-    body: { workspace: state.workspace, id, decision }
+    body: { workspace: state.workspace, id, decision, actor: actor || undefined }
   });
   renderOpsSnapshot(res.snapshot);
 }
@@ -1120,7 +1255,9 @@ function setActiveView(view) {
   if (view === 'posts') renderPostsView(state.latestPayload);
   if (view === 'analytics') renderAnalytics(state.latestPayload);
   if (view === 'ops') refreshOps();
+  if (view === 'ops') refreshTeamActivity();
   if (view === 'config') refreshConfig();
+  if (view === 'settings') refreshTeamStatus();
 }
 
 function renderExecuted(executed) {
@@ -1613,6 +1750,31 @@ function wireEvents() {
       void runRegionPreflight();
     });
   }
+  if (els.teamOperatorSaveBtn) {
+    els.teamOperatorSaveBtn.addEventListener('click', () => {
+      void setTeamOperatorFromUi();
+    });
+  }
+  if (els.teamOperatorClearBtn) {
+    els.teamOperatorClearBtn.addEventListener('click', () => {
+      void clearTeamOperatorFromUi();
+    });
+  }
+  if (els.teamRoleSaveBtn) {
+    els.teamRoleSaveBtn.addEventListener('click', () => {
+      void setTeamRoleFromUi();
+    });
+  }
+  if (els.teamStatusRefreshBtn) {
+    els.teamStatusRefreshBtn.addEventListener('click', () => {
+      void refreshTeamStatus();
+    });
+  }
+  if (els.teamActivityRefreshBtn) {
+    els.teamActivityRefreshBtn.addEventListener('click', () => {
+      void refreshTeamActivity();
+    });
+  }
 }
 
 async function init() {
@@ -1642,6 +1804,8 @@ async function init() {
   await refreshWabaStatus();
   await refreshRegionPolicyStatus();
   await runRegionPreflight();
+  await refreshTeamStatus();
+  await refreshTeamActivity();
   setActiveView('chat');
 }
 

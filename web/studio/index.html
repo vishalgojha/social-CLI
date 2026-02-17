@@ -346,6 +346,20 @@
               <h3>Recent Outcomes</h3>
               <div id="opsOutcomesTable" class="table-wrap"></div>
             </article>
+
+            <article class="data-card">
+              <div class="ops-card-head">
+                <h3>Team Activity</h3>
+                <button id="teamActivityRefreshBtn" class="ghost-btn small">Refresh</button>
+              </div>
+              <div class="source-controls">
+                <label class="guard-field">
+                  <span>Actor Filter</span>
+                  <input id="teamActivityActorInput" type="text" placeholder="optional actor id" />
+                </label>
+              </div>
+              <div id="teamActivityTable" class="table-wrap"></div>
+            </article>
           </div>
         </div>
       </section>
@@ -540,6 +554,46 @@
             <button id="regionPolicyCheckBtn" class="ghost-btn small">Run Preflight</button>
           </div>
           <p id="regionPolicySummary" class="muted">No policy check yet.</p>
+        </article>
+        <article class="data-card waba-card">
+          <div class="panel-head">
+            <p class="section-label">Team Management</p>
+            <span id="teamRoleBadge" class="badge badge-warn">ROLE UNKNOWN</span>
+          </div>
+          <div class="settings-list waba-form">
+            <label class="setting-item setting-select-row">
+              <span>Active Operator ID</span>
+              <input id="teamOperatorIdInput" type="text" class="setting-input" placeholder="vishal / alice / bob" />
+            </label>
+            <label class="setting-item setting-select-row">
+              <span>Active Operator Name</span>
+              <input id="teamOperatorNameInput" type="text" class="setting-input" placeholder="optional display name" />
+            </label>
+          </div>
+          <div class="plan-actions">
+            <button id="teamOperatorSaveBtn" class="ghost-btn small">Set Operator</button>
+            <button id="teamOperatorClearBtn" class="ghost-btn small">Clear Operator</button>
+          </div>
+          <div class="settings-list waba-form">
+            <label class="setting-item setting-select-row">
+              <span>User</span>
+              <input id="teamRoleUserInput" type="text" class="setting-input" placeholder="user id" />
+            </label>
+            <label class="setting-item setting-select-row">
+              <span>Role</span>
+              <select id="teamRoleInput" class="setting-select">
+                <option value="viewer">viewer</option>
+                <option value="analyst">analyst</option>
+                <option value="operator">operator</option>
+                <option value="owner">owner</option>
+              </select>
+            </label>
+          </div>
+          <div class="plan-actions">
+            <button id="teamRoleSaveBtn" class="ghost-btn small">Set Role</button>
+            <button id="teamStatusRefreshBtn" class="ghost-btn small">Refresh Team Status</button>
+          </div>
+          <p id="teamStatusSummary" class="muted">No team status loaded yet.</p>
         </article>
       </section>
     </section>
