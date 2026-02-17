@@ -7,6 +7,7 @@ async function run() {
     './marketing-export.test.js',
     './batch.test.js',
     './ai.test.js',
+    './prompt-regression.test.js',
     './chat.test.js',
     './onboarding-ready.test.js',
     './gateway.test.js',

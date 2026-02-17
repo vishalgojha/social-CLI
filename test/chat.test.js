@@ -25,6 +25,20 @@ module.exports = [
     }
   },
   {
+    name: 'chat context exposes unified timeline events',
+    fn: () => {
+      const ctx = new ConversationContext();
+      ctx.addMessage('user', 'hello');
+      ctx.addMessage('agent', 'hi');
+      ctx.addResult({ tool: 'query_pages', description: 'List pages' }, { success: true, data: { status: 'ok' } });
+      const timeline = ctx.getTimeline(20);
+      assert.equal(Array.isArray(timeline), true);
+      assert.equal(timeline.length >= 3, true);
+      assert.equal(timeline.some((x) => x.type === 'message'), true);
+      assert.equal(timeline.some((x) => x.type === 'tool_result'), true);
+    }
+  },
+  {
     name: 'chat memory saves and loads session payload',
     fn: () => {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-chat-test-'));

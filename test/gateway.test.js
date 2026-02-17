@@ -265,6 +265,7 @@ module.exports = [
         assert.equal(msgRes.data.ok, true);
         assert.equal(typeof msgRes.data.response.message, 'string');
         assert.equal(msgRes.data.response.actions.length, 0);
+        assert.equal(Array.isArray(msgRes.data.timeline), true);
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;
@@ -312,6 +313,51 @@ module.exports = [
         assert.equal(msgRes.data.executed.length, 1);
         assert.equal(Array.isArray(msgRes.data.pendingActions), true);
         assert.equal(msgRes.data.pendingActions.length, 0);
+        assert.equal(Array.isArray(msgRes.data.timeline), true);
+      } finally {
+        await server.stop();
+        process.env.META_CLI_HOME = oldHome;
+        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
+        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+      }
+    }
+  },
+  {
+    name: 'gateway session replay endpoint returns timeline',
+    fn: async () => {
+      const oldHome = process.env.META_CLI_HOME;
+      process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
+      const oldOpenAI = process.env.OPENAI_API_KEY;
+      const oldMeta = process.env.META_AI_KEY;
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.META_AI_KEY;
+
+      const server = createGatewayServer({ host: '127.0.0.1', port: 0 });
+      try {
+        await server.start();
+        const startRes = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/chat/start',
+          body: {}
+        });
+        const sid = startRes.data.sessionId;
+        await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/chat/message',
+          body: { sessionId: sid, message: 'hello' }
+        });
+        const replay = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: `/api/sessions/${sid}/replay?limit=30`
+        });
+        assert.equal(replay.status, 200);
+        assert.equal(replay.data.ok, true);
+        assert.equal(replay.data.sessionId, sid);
+        assert.equal(Array.isArray(replay.data.timeline), true);
+        assert.equal(replay.data.timeline.length > 0, true);
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;

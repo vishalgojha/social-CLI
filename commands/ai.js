@@ -7,6 +7,7 @@ const { validateIntent } = require('../lib/ai/validator');
 const { executeIntent } = require('../lib/ai/executor');
 const { formatResult } = require('../lib/ai/format');
 const { showConfirmation } = require('../lib/ui/confirm');
+const { confirmationPromptForRisk, normalizeRisk } = require('../lib/ui/risk-policy');
 const intentsSchema = require('../lib/ai/intents.json');
 const { intentRisk } = require('../lib/ai/contract');
 
@@ -112,18 +113,17 @@ function registerAiCommands(program) {
 
         printWarnings(validation.warnings);
 
-        const risk = riskForIntent(intent);
+        const risk = normalizeRisk(riskForIntent(intent));
         const mustConfirm = risk === 'high';
         const shouldConfirm = mustConfirm || !opts.yes;
         if (!opts.yes && !process.stdout.isTTY) {
+          console.error(chalk.red(`x ${confirmationPromptForRisk(risk, { surface: 'cli' })}`));
           console.error(chalk.red('x Refusing to execute without confirmation in non-interactive mode.'));
           process.exit(1);
         }
 
         if (shouldConfirm) {
-          if (opts.yes && mustConfirm) {
-            console.log(chalk.yellow('\nHigh-risk action detected. Confirmation is still required.\n'));
-          }
+          console.log(chalk.yellow(`\n${confirmationPromptForRisk(risk, { surface: 'cli' })}\n`));
           const confirmation = await showConfirmation(intent, { useInk: Boolean(opts.ink) });
           if (!confirmation.confirmed) {
             console.log(chalk.yellow('\nx Cancelled by user.'));

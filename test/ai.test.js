@@ -5,6 +5,7 @@ const { aiParseIntent, heuristicParse, parseJsonPayload, parseDateTimeFromText }
 const { validateIntent } = require('../lib/ai/validator');
 const { executeIntent } = require('../lib/ai/executor');
 const { parseUserChoice } = require('../lib/ui/confirm');
+const { normalizeRisk, confirmationPromptForRisk } = require('../lib/ui/risk-policy');
 
 module.exports = [
   {
@@ -235,6 +236,23 @@ module.exports = [
       assert.equal(parseUserChoice('n'), 'n');
       assert.equal(parseUserChoice('edit'), 'edit');
       assert.equal(parseUserChoice('d'), 'details');
+    }
+  },
+  {
+    name: 'risk policy: normalizeRisk maps unknown to low',
+    fn: () => {
+      assert.equal(normalizeRisk('HIGH'), 'high');
+      assert.equal(normalizeRisk('medium'), 'medium');
+      assert.equal(normalizeRisk('anything_else'), 'low');
+    }
+  },
+  {
+    name: 'risk policy: confirmation copy is explicit for high risk',
+    fn: () => {
+      const cli = confirmationPromptForRisk('high', { surface: 'cli' });
+      const chat = confirmationPromptForRisk('high', { surface: 'chat' });
+      assert.equal(cli.toLowerCase().includes('high risk'), true);
+      assert.equal(chat.toLowerCase().includes('reply \"yes\"'), true);
     }
   }
 ];

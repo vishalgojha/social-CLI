@@ -425,6 +425,21 @@ function riskFromTool(tool) {
   return 'low';
 }
 
+function highestRiskFromActions(actions) {
+  const rows = Array.isArray(actions) ? actions : [];
+  const risks = rows.map((a) => String(a?.risk || riskFromTool(a?.tool || '')).toLowerCase());
+  if (risks.includes('high')) return 'high';
+  if (risks.includes('medium')) return 'medium';
+  return 'low';
+}
+
+function confirmationTextForRisk(risk) {
+  const r = String(risk || 'low').toLowerCase();
+  if (r === 'high') return 'HIGH risk plan queued. Explicit approval required. Reply "yes" to execute, or "no" to cancel.';
+  if (r === 'medium') return 'MEDIUM risk plan queued. Review and reply "yes" to execute, or "no" to cancel.';
+  return 'LOW risk plan queued. Reply "yes" to execute, or "no" to cancel.';
+}
+
 function renderPlanCard(actions) {
   const rows = Array.isArray(actions) ? actions : [];
   state.currentPlan = rows;
@@ -1152,7 +1167,8 @@ function setSending(isSending) {
 function pendingActionsText(actions) {
   if (!Array.isArray(actions) || !actions.length) return '';
   const rows = actions.map((a, i) => `${i + 1}. ${a.tool}`).join('\n');
-  return `Pending actions:\n${rows}\n\nReply "yes" to run, or "no" to cancel.`;
+  const risk = highestRiskFromActions(actions);
+  return `Pending actions:\n${rows}\n\n${confirmationTextForRisk(risk)}`;
 }
 
 function updateKpis(payload = {}) {
@@ -1185,10 +1201,11 @@ function renderTable(target, columns, rows) {
 
 function renderDataConsole(payload) {
   const p = payload || state.latestPayload || {};
-  const historyRows = (p.history || []).slice(-40).reverse().map((h) => ({
-    time: h.timestamp ? new Date(h.timestamp).toLocaleTimeString() : '',
-    role: h.role || '',
-    content: h.content || ''
+  const timeline = Array.isArray(p.timeline) ? p.timeline : [];
+  const historyRows = (timeline.length ? timeline : (p.history || [])).slice(-40).reverse().map((h) => ({
+    time: h.at ? new Date(h.at).toLocaleTimeString() : (h.timestamp ? new Date(h.timestamp).toLocaleTimeString() : ''),
+    role: h.role || h.type || '',
+    content: h.text || h.content || ''
   }));
   const pendingRows = (p.pendingActions || []).map((a, i) => ({
     n: i + 1,
@@ -1703,6 +1720,20 @@ function renderExecuted(executed) {
   });
 }
 
+async function replaySession(sessionId) {
+  const sid = String(sessionId || '').trim();
+  if (!sid) return;
+  const res = await api(`/api/sessions/${encodeURIComponent(sid)}/replay?limit=120`);
+  appendMessage('system', `Replayed timeline for ${sid}`);
+  state.latestPayload = {
+    ...state.latestPayload,
+    timeline: Array.isArray(res.timeline) ? res.timeline : [],
+    history: [],
+    pendingActions: []
+  };
+  renderDataConsole(state.latestPayload);
+}
+
 async function refreshSessions() {
   try {
     const res = await api('/api/sessions');
@@ -1718,8 +1749,14 @@ async function refreshSessions() {
     }
     sessions.forEach((s) => {
       const li = document.createElement('li');
-      li.textContent = `${s.sessionId}\n${new Date(s.updatedAt).toLocaleString()}`;
-      li.onclick = () => startSession(s.sessionId);
+      li.textContent = `${s.sessionId}\n${new Date(s.updatedAt).toLocaleString()}\n(click: resume | alt+click: replay)`;
+      li.onclick = (evt) => {
+        if (evt && evt.altKey) {
+          replaySession(s.sessionId).catch((error) => appendMessage('system', `Replay error: ${error.message}`));
+          return;
+        }
+        startSession(s.sessionId);
+      };
       els.sessionsList.appendChild(li);
     });
   } catch (error) {
@@ -1771,6 +1808,7 @@ async function startSession(sessionId = '') {
 
   state.latestPayload = {
     history: res.history || [],
+    timeline: res.timeline || [],
     pendingActions: [],
     executed: [],
     summary: res.summary || {}
@@ -1815,6 +1853,7 @@ async function sendMessage() {
 
     state.latestPayload = {
       history: res.history || [],
+      timeline: res.timeline || [],
       pendingActions: res.pendingActions || [],
       executed: res.executed || [],
       summary: res.summary || {}
@@ -1855,6 +1894,7 @@ async function executeCurrentPlan(dryRun = false) {
       ...state.latestPayload,
       executed: Array.isArray(res.executed) ? res.executed : state.latestPayload.executed,
       history: Array.isArray(res.history) ? res.history : state.latestPayload.history,
+      timeline: Array.isArray(res.timeline) ? res.timeline : state.latestPayload.timeline,
       summary: res.summary || state.latestPayload.summary
     };
     updateKpis(state.latestPayload);
