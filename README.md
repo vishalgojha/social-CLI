@@ -34,6 +34,27 @@ npm install -g @vishalgojha/social-cli
 social --help
 ```
 
+## Uninstall
+
+App only (keeps local config/history):
+
+```bash
+npm uninstall -g @vishalgojha/social-cli
+```
+
+Full cleanup (remove app + local data):
+
+```powershell
+npm.cmd uninstall -g @vishalgojha/social-cli
+Remove-Item -Recurse -Force "$env:USERPROFILE\.social-cli"
+```
+
+Verify removal:
+
+```bash
+social --version
+```
+
 ## Local Dev + `npm link` (Windows)
 
 If `npm link` is failing on Windows/PowerShell, use this checklist:
