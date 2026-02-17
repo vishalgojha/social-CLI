@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.13
+
+- Studio: added team management role table with inline edit and role refresh.
+- Studio/Gateway: added one-click handoff pack generation and file download/copy actions.
+- Ops: added `social ops handoff` templates (`simple|agency|enterprise`) and `handoff pack`.
+- Ops invites: added invite create/list/revoke/accept CLI + Studio flows.
+- Ops invites: added shareable invite links with URL token prefill in Studio.
+- Ops invites: hardened token visibility (masked in lists), added resend/rotate flow, invite accept audit logging, and accept rate limiting.
+- Studio: added invite analytics cards (active/accepted/expired/avg accept), expiry sweep, and resend for expired invites.
+- Studio/Ops: added workspace readiness checklist with one-click onboarding actions and completion state.
+- Ops reporting: added weekly admin markdown report generation via CLI and Studio.
+- Docs: expanded README with team onboarding, invite APIs, readiness APIs, and reporting usage.
+
 ## 0.3.0-alpha-launcher
 
 - Added OpenClaw-style interactive launcher when running `social` with no command.
