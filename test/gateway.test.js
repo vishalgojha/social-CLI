@@ -509,6 +509,15 @@ module.exports = [
         assert.equal(fs.existsSync(handoffPack.data.files.accessMatrix), true);
         assert.equal(fs.existsSync(handoffPack.data.files.incidentPlaybook), true);
 
+        const fileDownload = await requestRaw({
+          port: server.port,
+          method: 'GET',
+          pathName: `/api/ops/handoff/file?path=${encodeURIComponent(handoffPack.data.files.handoff)}`
+        });
+        assert.equal(fileDownload.status, 200);
+        assert.equal(String(fileDownload.headers['content-disposition'] || '').includes('handoff.md'), true);
+        assert.equal(String(fileDownload.raw || '').includes('# Social CLI Agency Handoff - default'), true);
+
         const setViewerRole = await requestJson({
           port: server.port,
           method: 'POST',

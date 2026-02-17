@@ -621,6 +621,7 @@ Gateway endpoints:
 - `POST /api/execute` (execute a provided plan)
 - `POST /api/cancel` (cancel stub response for compatibility)
 - `POST /api/ops/handoff/pack` (generate handoff/runbook/access-matrix/incident-playbook files)
+- `GET /api/ops/handoff/file?path=<absolute-path>` (download generated handoff file)
 - `GET /api/team/activity/export?format=json|csv&workspace=<ws>&actor=<id>&from=<ISO>&to=<ISO>&limit=<n>`
 - `WS /ws` (live output/plan/step events)
 
@@ -638,6 +639,7 @@ In `Ops`, Social Studio includes `Team Activity` (who did what, when, status).
 Approval actions in Studio are role-gated (`operator`/`owner` only). `viewer`/`analyst` can inspect but cannot approve/reject.
 Team Activity can be exported from Studio as `JSON` or `CSV`.
 `Ops -> Handoff Pack` can generate full onboarding files for agencies.
+Studio now shows download + copy-path actions for generated handoff files.
 
 Studio shortcuts:
 

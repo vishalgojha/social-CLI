@@ -173,6 +173,7 @@ const els = {
   handoffPackOutDirInput: document.getElementById('handoffPackOutDirInput'),
   handoffPackGenerateBtn: document.getElementById('handoffPackGenerateBtn'),
   handoffPackOutput: document.getElementById('handoffPackOutput'),
+  handoffPackFiles: document.getElementById('handoffPackFiles'),
   opsGuardRefreshBtn: document.getElementById('opsGuardRefreshBtn'),
   opsGuardModeSelect: document.getElementById('opsGuardModeSelect'),
   opsGuardModeSaveBtn: document.getElementById('opsGuardModeSaveBtn'),
@@ -812,6 +813,29 @@ async function generateHandoffPackFromUi() {
   });
   if (els.handoffPackOutput) {
     els.handoffPackOutput.textContent = JSON.stringify(res, null, 2);
+  }
+  if (els.handoffPackFiles) {
+    const files = res.files && typeof res.files === 'object' ? res.files : {};
+    const rows = Object.entries(files).map(([key, value]) => `
+      <tr>
+        <td>${escapeHtml(key)}</td>
+        <td class="mono">${escapeHtml(String(value || ''))}</td>
+        <td>
+          <button class="ghost-btn small js-download-pack-file" data-path="${escapeHtml(String(value || ''))}">Download</button>
+          <button class="ghost-btn small js-copy-pack-path" data-path="${escapeHtml(String(value || ''))}">Copy Path</button>
+        </td>
+      </tr>
+    `).join('');
+    if (rows) {
+      els.handoffPackFiles.innerHTML = `
+        <table class="mini-table">
+          <thead><tr><th>File</th><th>Path</th><th>Actions</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    } else {
+      els.handoffPackFiles.innerHTML = '<p class="empty-note">No files returned.</p>';
+    }
   }
   appendMessage('system', `Handoff pack generated: ${res.outDir}`);
 }
@@ -1739,6 +1763,26 @@ function wireEvents() {
         await resolveApprovalById(id, 'reject');
       } else if (btn.classList.contains('js-source-sync')) {
         await syncSources([id]);
+      } else if (btn.classList.contains('js-copy-pack-path')) {
+        const value = String(btn.getAttribute('data-path') || '').trim();
+        if (!value) return;
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          await navigator.clipboard.writeText(value);
+          appendMessage('system', 'Path copied.');
+        } else {
+          appendMessage('system', `Copy manually: ${value}`);
+        }
+      } else if (btn.classList.contains('js-download-pack-file')) {
+        const value = String(btn.getAttribute('data-path') || '').trim();
+        if (!value) return;
+        const href = `/api/ops/handoff/file?path=${encodeURIComponent(value)}`;
+        const a = document.createElement('a');
+        a.href = href;
+        a.rel = 'noopener';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
       }
     } catch (error) {
       appendMessage('system', `Ops error: ${error.message}`);
