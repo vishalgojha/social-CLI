@@ -464,6 +464,48 @@
             <input type="password" id="settingGatewayApiKey" class="setting-input" placeholder="optional for protected mode" />
           </label>
         </div>
+        <article class="data-card waba-card">
+          <div class="panel-head">
+            <p class="section-label">WhatsApp Integration</p>
+            <span id="wabaConnectBadge" class="badge badge-warn">NOT CONNECTED</span>
+          </div>
+          <div class="settings-list waba-form">
+            <label class="setting-item setting-select-row">
+              <span>WhatsApp Token</span>
+              <input id="wabaTokenInput" type="password" class="setting-input" placeholder="optional if already configured" />
+            </label>
+            <label class="setting-item setting-select-row">
+              <span>Business ID</span>
+              <input id="wabaBusinessIdInput" type="text" class="setting-input" placeholder="optional" />
+            </label>
+            <label class="setting-item setting-select-row">
+              <span>WABA ID</span>
+              <input id="wabaWabaIdInput" type="text" class="setting-input" placeholder="optional (auto-detect)" />
+            </label>
+            <label class="setting-item setting-select-row">
+              <span>Phone Number ID</span>
+              <input id="wabaPhoneNumberIdInput" type="text" class="setting-input" placeholder="optional (auto-detect)" />
+            </label>
+            <label class="setting-item setting-select-row">
+              <span>Webhook Callback URL</span>
+              <input id="wabaWebhookCallbackInput" type="text" class="setting-input" placeholder="https://..." />
+            </label>
+            <label class="setting-item setting-select-row">
+              <span>Webhook Verify Token</span>
+              <input id="wabaWebhookVerifyTokenInput" type="text" class="setting-input" placeholder="recommended" />
+            </label>
+            <label class="setting-item setting-select-row">
+              <span>Test Destination</span>
+              <input id="wabaTestToInput" type="text" class="setting-input" placeholder="+15551234567" />
+            </label>
+          </div>
+          <div class="plan-actions">
+            <button id="wabaConnectBtn" class="ghost-btn small">Connect WhatsApp</button>
+            <button id="wabaStatusBtn" class="ghost-btn small">Refresh Status</button>
+            <button id="wabaDisconnectBtn" class="ghost-btn small">Disconnect</button>
+          </div>
+          <div id="wabaDoctorCards" class="doctor-cards"></div>
+        </article>
       </section>
     </section>
   </main>

@@ -7,6 +7,10 @@ const state = {
   ws: null,
   liveLogs: [],
   currentPlan: [],
+  waba: {
+    integration: null,
+    doctor: null
+  },
   opsSnapshot: null,
   sources: [],
   guardPolicy: null,
@@ -113,7 +117,19 @@ const els = {
   settingCompactMode: document.getElementById('settingCompactMode'),
   settingThemeMode: document.getElementById('settingThemeMode'),
   settingGatewayApiKey: document.getElementById('settingGatewayApiKey'),
-  themeToggleBtn: document.getElementById('themeToggleBtn')
+  themeToggleBtn: document.getElementById('themeToggleBtn'),
+  wabaConnectBadge: document.getElementById('wabaConnectBadge'),
+  wabaTokenInput: document.getElementById('wabaTokenInput'),
+  wabaBusinessIdInput: document.getElementById('wabaBusinessIdInput'),
+  wabaWabaIdInput: document.getElementById('wabaWabaIdInput'),
+  wabaPhoneNumberIdInput: document.getElementById('wabaPhoneNumberIdInput'),
+  wabaWebhookCallbackInput: document.getElementById('wabaWebhookCallbackInput'),
+  wabaWebhookVerifyTokenInput: document.getElementById('wabaWebhookVerifyTokenInput'),
+  wabaTestToInput: document.getElementById('wabaTestToInput'),
+  wabaConnectBtn: document.getElementById('wabaConnectBtn'),
+  wabaStatusBtn: document.getElementById('wabaStatusBtn'),
+  wabaDisconnectBtn: document.getElementById('wabaDisconnectBtn'),
+  wabaDoctorCards: document.getElementById('wabaDoctorCards')
 };
 
 function nowTime() {
@@ -345,6 +361,101 @@ function connectWs() {
     };
   } catch {
     setWsState('error', 'ws unavailable');
+  }
+}
+
+function doctorStateClass(ok) {
+  if (ok === true) return 'doctor-ok';
+  if (ok === false) return 'doctor-fail';
+  return 'doctor-skip';
+}
+
+function doctorStateText(ok) {
+  if (ok === true) return 'PASS';
+  if (ok === false) return 'FAIL';
+  return 'SKIP';
+}
+
+function renderWabaCards() {
+  const integration = state.waba.integration || {};
+  const doctor = state.waba.doctor || {};
+  if (els.wabaConnectBadge) {
+    const connected = Boolean(integration.connected);
+    els.wabaConnectBadge.classList.remove('badge-ok', 'badge-warn');
+    els.wabaConnectBadge.classList.add(connected ? 'badge-ok' : 'badge-warn');
+    els.wabaConnectBadge.textContent = connected ? 'CONNECTED' : 'NOT CONNECTED';
+  }
+  if (els.wabaBusinessIdInput && !els.wabaBusinessIdInput.value) els.wabaBusinessIdInput.value = integration.businessId || '';
+  if (els.wabaWabaIdInput && !els.wabaWabaIdInput.value) els.wabaWabaIdInput.value = integration.wabaId || '';
+  if (els.wabaPhoneNumberIdInput && !els.wabaPhoneNumberIdInput.value) els.wabaPhoneNumberIdInput.value = integration.phoneNumberId || '';
+  if (els.wabaWebhookCallbackInput && !els.wabaWebhookCallbackInput.value) els.wabaWebhookCallbackInput.value = integration.webhookCallbackUrl || '';
+  if (els.wabaWebhookVerifyTokenInput && !els.wabaWebhookVerifyTokenInput.value) els.wabaWebhookVerifyTokenInput.value = integration.webhookVerifyToken || '';
+  if (!els.wabaDoctorCards) return;
+  const checks = Array.isArray(doctor.checks) ? doctor.checks : [];
+  if (!checks.length) {
+    els.wabaDoctorCards.innerHTML = '<p class="muted">No doctor checks yet. Click "Refresh Status".</p>';
+    return;
+  }
+  els.wabaDoctorCards.innerHTML = checks.map((c) => `
+    <article class="doctor-card">
+      <div class="doctor-card-key">${escapeHtml(c.key || '')}</div>
+      <div class="doctor-card-state ${doctorStateClass(c.ok)}">${doctorStateText(c.ok)}</div>
+      <div class="doctor-card-detail">${escapeHtml(c.detail || '')}</div>
+    </article>
+  `).join('');
+}
+
+async function refreshWabaStatus() {
+  try {
+    const res = await api('/api/integrations/waba/status?doctor=1');
+    state.waba.integration = res.integration || null;
+    state.waba.doctor = res.doctor || null;
+    renderWabaCards();
+  } catch (error) {
+    appendMessage('system', `WABA status error: ${error.message}`);
+  }
+}
+
+async function connectWabaFromUi() {
+  const body = {
+    token: String((els.wabaTokenInput && els.wabaTokenInput.value) || '').trim(),
+    businessId: String((els.wabaBusinessIdInput && els.wabaBusinessIdInput.value) || '').trim(),
+    wabaId: String((els.wabaWabaIdInput && els.wabaWabaIdInput.value) || '').trim(),
+    phoneNumberId: String((els.wabaPhoneNumberIdInput && els.wabaPhoneNumberIdInput.value) || '').trim(),
+    webhookCallbackUrl: String((els.wabaWebhookCallbackInput && els.wabaWebhookCallbackInput.value) || '').trim(),
+    webhookVerifyToken: String((els.wabaWebhookVerifyTokenInput && els.wabaWebhookVerifyTokenInput.value) || '').trim(),
+    testTo: String((els.wabaTestToInput && els.wabaTestToInput.value) || '').trim()
+  };
+  try {
+    const res = await api('/api/integrations/waba/connect', { method: 'POST', body });
+    state.waba.integration = res.integration || null;
+    state.waba.doctor = res.doctor || null;
+    renderWabaCards();
+    appendMessage('system', `WABA connect ${res.integration?.connected ? 'ready' : 'partial'}.`);
+  } catch (error) {
+    appendMessage('system', `WABA connect failed: ${error.message}`);
+  }
+}
+
+async function disconnectWabaFromUi() {
+  try {
+    await api('/api/integrations/waba/disconnect', {
+      method: 'POST',
+      body: { clearToken: false }
+    });
+    state.waba.integration = null;
+    state.waba.doctor = null;
+    if (els.wabaTokenInput) els.wabaTokenInput.value = '';
+    if (els.wabaBusinessIdInput) els.wabaBusinessIdInput.value = '';
+    if (els.wabaWabaIdInput) els.wabaWabaIdInput.value = '';
+    if (els.wabaPhoneNumberIdInput) els.wabaPhoneNumberIdInput.value = '';
+    if (els.wabaWebhookCallbackInput) els.wabaWebhookCallbackInput.value = '';
+    if (els.wabaWebhookVerifyTokenInput) els.wabaWebhookVerifyTokenInput.value = '';
+    if (els.wabaTestToInput) els.wabaTestToInput.value = '';
+    renderWabaCards();
+    appendMessage('system', 'WABA integration disconnected.');
+  } catch (error) {
+    appendMessage('system', `WABA disconnect failed: ${error.message}`);
   }
 }
 
@@ -1299,6 +1410,22 @@ function wireEvents() {
       persistSettings();
     });
   }
+
+  if (els.wabaConnectBtn) {
+    els.wabaConnectBtn.addEventListener('click', () => {
+      void connectWabaFromUi();
+    });
+  }
+  if (els.wabaStatusBtn) {
+    els.wabaStatusBtn.addEventListener('click', () => {
+      void refreshWabaStatus();
+    });
+  }
+  if (els.wabaDisconnectBtn) {
+    els.wabaDisconnectBtn.addEventListener('click', () => {
+      void disconnectWabaFromUi();
+    });
+  }
 }
 
 async function init() {
@@ -1325,6 +1452,7 @@ async function init() {
   await refreshConfig();
   await startSession('');
   await refreshOps();
+  await refreshWabaStatus();
   setActiveView('chat');
 }
 

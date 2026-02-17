@@ -1272,3 +1272,55 @@ body.compact-mode .composer {
 .muted {
   color: var(--text-dim);
 }
+
+.waba-card {
+  margin-top: 12px;
+}
+
+.waba-form {
+  margin-top: 8px;
+}
+
+.doctor-cards {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.doctor-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.doctor-card-key {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.doctor-card-state {
+  margin-top: 4px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+.doctor-ok {
+  color: var(--green);
+}
+
+.doctor-fail {
+  color: var(--red);
+}
+
+.doctor-skip {
+  color: var(--yellow);
+}
+
+.doctor-card-detail {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-soft);
+}

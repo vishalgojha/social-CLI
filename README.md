@@ -581,6 +581,7 @@ UI assets are served from `web/studio/`.
 
 The gateway covers both marketing flows and developer diagnostics (auth status, token debug, webhook subscriptions).
 It includes dedicated tabs for `Chat`, `Posts`, `Analytics`, `Data Console`, `Config`, `Help`, and `Settings`.
+In `Settings`, Social Studio now includes a guided `WhatsApp Integration` card with doctor checks and connect/disconnect actions.
 
 Studio shortcuts:
 
