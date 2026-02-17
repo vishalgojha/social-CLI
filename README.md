@@ -200,6 +200,12 @@ social ops activity list --workspace clientA --limit 50
 social ops activity list --workspace clientA --actor bob
 ```
 
+Generate a one-file onboarding/runbook handoff for your team:
+
+```bash
+social ops handoff --workspace clientA --out ./handoff-clientA.md
+```
+
 ## Agentic TUI
 
 ```bash

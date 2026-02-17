@@ -1,4 +1,6 @@
 const chalk = require('chalk');
+const fs = require('fs');
+const path = require('path');
 const config = require('../lib/config');
 const storage = require('../lib/ops/storage');
 const rbac = require('../lib/ops/rbac');
@@ -44,6 +46,85 @@ function printRows(title, rows) {
   }
   rows.forEach((r) => console.log(`- ${r}`));
   console.log('');
+}
+
+function toIsoOrFallback(value, fallbackIso) {
+  const raw = String(value || '').trim();
+  if (!raw) return fallbackIso;
+  const ts = Date.parse(raw);
+  if (!Number.isFinite(ts)) return fallbackIso;
+  return new Date(ts).toISOString();
+}
+
+function buildHandoffDoc({
+  workspace,
+  studioUrl,
+  gatewayApiKey,
+  operatorId,
+  runAtIso,
+  generatedAt
+}) {
+  const ws = workspace || 'default';
+  const operator = operatorId || '<operator_id>';
+  const keyText = gatewayApiKey || '<set_gateway_api_key>';
+  return [
+    `# Social CLI Agency Handoff - ${ws}`,
+    '',
+    `Generated: ${generatedAt}`,
+    '',
+    '## What This Workspace Does',
+    '- Run daily agency checks (tokens, approvals, follow-ups).',
+    '- Track who approved/rejected risky actions.',
+    '- Operate via CLI or Social Studio web UI.',
+    '',
+    '## Quick Access',
+    `- Workspace: \`${ws}\``,
+    `- Studio URL: \`${studioUrl}\``,
+    `- Gateway API key: \`${keyText}\``,
+    '',
+    '## First-Time Setup (Team Member)',
+    '1. Install and verify:',
+    '   - `npm install -g @vishalgojha/social-cli`',
+    '   - `social --help`',
+    '2. Set workspace and operator:',
+    `   - \`social accounts switch ${ws}\``,
+    `   - \`social ops user set ${operator} --name "<your_name>"\``,
+    '3. Verify role and access:',
+    `   - \`social ops roles show --workspace ${ws}\``,
+    `   - \`social ops user show --workspace ${ws}\``,
+    '',
+    '## Daily Operations Runbook',
+    `- \`social ops morning-run --workspace ${ws} --spend 0\``,
+    `- \`social ops alerts list --workspace ${ws} --open\``,
+    `- \`social ops approvals list --workspace ${ws} --open\``,
+    `- \`social ops activity list --workspace ${ws} --limit 30\``,
+    '',
+    '## Role Setup (Owner/Admin only)',
+    `- Viewer:   \`social ops roles set <user> viewer --workspace ${ws}\``,
+    `- Analyst:  \`social ops roles set <user> analyst --workspace ${ws}\``,
+    `- Operator: \`social ops roles set <user> operator --workspace ${ws}\``,
+    `- Owner:    \`social ops roles set <user> owner --workspace ${ws}\``,
+    '',
+    '## Studio Mode (Recommended for non-technical users)',
+    `1. Start: \`social gateway --open\``,
+    `2. Open Settings -> Gateway API Key and set: \`${keyText}\``,
+    `3. Open Settings -> Team Management and set operator ID/name`,
+    '4. Use Ops Center for approvals and activity export (JSON/CSV)',
+    '',
+    '## Suggested Schedule',
+    `- Daily morning run at: \`${runAtIso}\``,
+    `- Command: \`social ops schedule add --workspace ${ws} --name "Daily Ops" --run-at ${runAtIso} --repeat daily\``,
+    '',
+    '## Troubleshooting',
+    '- If role errors appear: verify active operator + role in `social ops user show`.',
+    '- If token errors appear: run `social doctor` and re-auth as needed.',
+    '- If Studio cannot connect: check `social gateway` is running and API key is correct.',
+    '',
+    '## Audit & Compliance',
+    `- CLI: \`social ops activity list --workspace ${ws} --limit 200\``,
+    `- Studio: Ops -> Team Activity -> Export JSON/CSV`,
+    ''
+  ].join('\n');
 }
 
 function registerOpsCommands(program) {
@@ -595,6 +676,45 @@ function registerOpsCommands(program) {
         `Activity (${ws})`,
         rows.map((x) => `${x.createdAt} | ${x.actor} | ${x.action} | ${x.status} | ${x.summary}`)
       );
+    });
+
+  ops
+    .command('handoff')
+    .description('Generate a one-file team onboarding and runbook document for a workspace')
+    .option('--workspace <name>', 'Workspace/profile name')
+    .option('--out <file>', 'Output markdown file path')
+    .option('--studio-url <url>', 'Studio URL', 'http://127.0.0.1:1310')
+    .option('--gateway-api-key <key>', 'Gateway API key placeholder/value')
+    .option('--operator-id <id>', 'Default operator id placeholder')
+    .option('--run-at <iso>', 'Suggested daily run time (ISO)')
+    .option('--json', 'Output JSON')
+    .action((options) => {
+      const ws = workspaceFrom(options);
+      rbac.assertCan({ workspace: ws, action: 'read' });
+      const suggestedRunAt = toIsoOrFallback(options.runAt, new Date().toISOString());
+      const outputPath = path.resolve(
+        process.cwd(),
+        String(options.out || `handoff-${ws}.md`)
+      );
+      const doc = buildHandoffDoc({
+        workspace: ws,
+        studioUrl: String(options.studioUrl || 'http://127.0.0.1:1310').trim(),
+        gatewayApiKey: String(options.gatewayApiKey || '').trim(),
+        operatorId: String(options.operatorId || '').trim(),
+        runAtIso: suggestedRunAt,
+        generatedAt: new Date().toISOString()
+      });
+      fs.writeFileSync(outputPath, doc, 'utf8');
+      if (options.json) {
+        console.log(JSON.stringify({
+          ok: true,
+          workspace: ws,
+          output: outputPath,
+          bytes: Buffer.byteLength(doc, 'utf8')
+        }, null, 2));
+        return;
+      }
+      console.log(chalk.green(`\nOK Handoff document generated: ${outputPath}\n`));
     });
 
   const schedule = ops.command('schedule').description('Job scheduler for automated runs');
