@@ -121,6 +121,27 @@ If your terminal shows no colors, force it:
 social --color --help
 ```
 
+## Language (MVP i18n)
+
+CLI language can be set with:
+
+```bash
+social --lang hi doctor
+```
+
+Or globally:
+
+```bash
+setx SOCIAL_LANG hi
+```
+
+Currently supported:
+
+- `en` (default)
+- `hi`
+
+Social Studio also supports language selection in `Settings -> Language`.
+
 ## Config Location
 
 All config is stored here (cross-platform):

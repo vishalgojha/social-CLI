@@ -5,6 +5,7 @@ const packageJson = require('../package.json');
 const { getBanner } = require('../lib/banner');
 const config = require('../lib/config');
 const { startLauncherMenu } = require('../lib/ui/launcher-menu');
+const i18n = require('../lib/i18n');
 
 const program = new Command();
 
@@ -42,6 +43,14 @@ try {
   // Don't crash on unknown profile before help; show a friendly error later.
 }
 
+try {
+  const lang = getArgValue('--lang');
+  if (lang) i18n.setLanguage(lang);
+  else if (process.env.SOCIAL_LANG) i18n.setLanguage(process.env.SOCIAL_LANG);
+} catch (e) {
+  // Ignore invalid language and fall back to english.
+}
+
 function showBanner() {
   const chalk = getChalkForBanner();
 
@@ -77,6 +86,7 @@ program
   .name('social')
   .description('Social API CLI for Meta APIs (Facebook, Instagram, WhatsApp).')
   .option('--profile <name>', 'Use a profile (multi-account). Does not persist; use `social accounts switch` to persist.')
+  .option('--lang <code>', 'UI language (en|hi). You can also set SOCIAL_LANG.', process.env.SOCIAL_LANG || 'en')
   .option('--no-banner', 'Disable the startup banner')
   .option('--banner-style <style>', 'Banner style: classic|slant|clean|compact', process.env.SOCIAL_CLI_BANNER_STYLE || process.env.META_CLI_BANNER_STYLE || 'classic')
   .option('--color', 'Force colored output (overrides auto-detection)')

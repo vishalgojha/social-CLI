@@ -1,5 +1,6 @@
 const chalk = require('chalk');
 const config = require('../lib/config');
+const { t } = require('../lib/i18n');
 
 function buildSnapshot() {
   const activeProfile = config.getActiveProfile();
@@ -26,23 +27,23 @@ function buildSnapshot() {
   const hints = [];
 
   if (!tokens.facebook && !tokens.instagram && !tokens.whatsapp) {
-    hints.push('No tokens are configured. Start with: social auth login -a facebook');
+    hints.push(t('doctor_no_tokens'));
   } else {
-    if (!tokens.facebook) hints.push('Missing Facebook token: social auth login -a facebook');
-    if (!tokens.instagram) hints.push('Missing Instagram token: social auth login -a instagram');
-    if (!tokens.whatsapp) hints.push('Missing WhatsApp token: social auth login -a whatsapp');
+    if (!tokens.facebook) hints.push(t('doctor_missing_facebook'));
+    if (!tokens.instagram) hints.push(t('doctor_missing_instagram'));
+    if (!tokens.whatsapp) hints.push(t('doctor_missing_whatsapp'));
   }
 
   if (!appCredentialsConfigured) {
-    hints.push('App credentials not set (needed for OAuth and token debugging): social auth app');
+    hints.push(t('doctor_missing_app_creds'));
   }
 
   if (!defaults.marketingAdAccountId) {
-    hints.push('No default ad account set (Marketing API): social marketing set-default-account act_<AD_ACCOUNT_ID>');
+    hints.push(t('doctor_missing_ad_account'));
   }
 
   if (defaultApi && !tokens[defaultApi]) {
-    hints.push(`Default API is "${defaultApi}" but its token is not set. Set a token or change default API.`);
+    hints.push(t('doctor_default_api_missing_token', { api: defaultApi }));
   }
 
   return {
@@ -70,7 +71,7 @@ function runDoctor(options) {
   config.display();
 
   if (snapshot.hints.length) {
-    console.log(chalk.bold('Next Steps:'));
+    console.log(chalk.bold(t('doctor_next_steps')));
     snapshot.hints.forEach((h) => console.log('  - ' + chalk.cyan(h)));
     console.log('');
   }

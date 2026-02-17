@@ -25,9 +25,77 @@ const state = {
     autoScroll: true,
     compactMode: false,
     themeMode: 'dark',
-    gatewayApiKey: ''
+    gatewayApiKey: '',
+    lang: 'en'
   }
 };
+
+const I18N = {
+  en: {
+    send: 'Send',
+    sending: 'Sending...',
+    view_chat_tag: 'Chat Agent',
+    view_chat_title: 'Talk naturally. Execute safely.',
+    view_posts_tag: 'Posts',
+    view_posts_title: 'Recent publishing actions across platforms.',
+    view_analytics_tag: 'Analytics',
+    view_analytics_title: 'Reach, engagement, and execution trend snapshot.',
+    view_settings_tag: 'Settings',
+    view_settings_title: 'Keyboard, theme, and gateway security settings.',
+    waba_connected: 'CONNECTED',
+    waba_not_connected: 'NOT CONNECTED',
+    waba_no_checks: 'No doctor checks yet. Click "Refresh Status".',
+    waba_status_error: 'WABA status error: {error}',
+    waba_connect_ready: 'WABA connect ready.',
+    waba_connect_partial: 'WABA connect partial.',
+    waba_connect_failed: 'WABA connect failed: {error}',
+    waba_disconnected: 'WABA integration disconnected.',
+    waba_disconnect_failed: 'WABA disconnect failed: {error}',
+    no_plan: 'No plan available to execute.',
+    unknown_palette: 'Unknown palette command: {cmd}',
+    failed_init: 'Failed to initialize: {error}',
+    doctor_pass: 'PASS',
+    doctor_fail: 'FAIL',
+    doctor_skip: 'SKIP'
+  },
+  hi: {
+    send: 'Bhejo',
+    sending: 'Bhej rahe hain...',
+    view_chat_tag: 'Chat Agent',
+    view_chat_title: 'Natural language mein bolo. Safe execute hoga.',
+    view_posts_tag: 'Posts',
+    view_posts_title: 'Recent publishing actions across platforms.',
+    view_analytics_tag: 'Analytics',
+    view_analytics_title: 'Reach, engagement aur execution trend snapshot.',
+    view_settings_tag: 'Settings',
+    view_settings_title: 'Keyboard, theme aur gateway security settings.',
+    waba_connected: 'CONNECTED',
+    waba_not_connected: 'NOT CONNECTED',
+    waba_no_checks: 'Doctor checks abhi nahi hain. "Refresh Status" dabao.',
+    waba_status_error: 'WABA status error: {error}',
+    waba_connect_ready: 'WABA connect ready.',
+    waba_connect_partial: 'WABA connect partial.',
+    waba_connect_failed: 'WABA connect failed: {error}',
+    waba_disconnected: 'WABA integration disconnect ho gaya.',
+    waba_disconnect_failed: 'WABA disconnect failed: {error}',
+    no_plan: 'Execute karne ke liye abhi koi plan nahi hai.',
+    unknown_palette: 'Unknown palette command: {cmd}',
+    failed_init: 'Initialize failed: {error}',
+    doctor_pass: 'PASS',
+    doctor_fail: 'FAIL',
+    doctor_skip: 'SKIP'
+  }
+};
+
+function st(key, vars = {}) {
+  const lang = String((state.settings && state.settings.lang) || 'en').toLowerCase();
+  const table = I18N[lang] || I18N.en;
+  let out = String(table[key] || I18N.en[key] || key);
+  Object.entries(vars || {}).forEach(([k, v]) => {
+    out = out.replaceAll(`{${k}}`, String(v));
+  });
+  return out;
+}
 
 const els = {
   messageList: document.getElementById('messageList'),
@@ -116,6 +184,7 @@ const els = {
   settingAutoScroll: document.getElementById('settingAutoScroll'),
   settingCompactMode: document.getElementById('settingCompactMode'),
   settingThemeMode: document.getElementById('settingThemeMode'),
+  settingLang: document.getElementById('settingLang'),
   settingGatewayApiKey: document.getElementById('settingGatewayApiKey'),
   themeToggleBtn: document.getElementById('themeToggleBtn'),
   wabaConnectBadge: document.getElementById('wabaConnectBadge'),
@@ -180,6 +249,10 @@ function loadSettings() {
   } catch {
     // ignore
   }
+  if (!state.settings.lang) {
+    const nav = String((navigator.language || 'en')).toLowerCase();
+    state.settings.lang = nav.startsWith('hi') ? 'hi' : 'en';
+  }
 }
 
 function persistSettings() {
@@ -195,6 +268,7 @@ function applySettings() {
   if (els.settingAutoScroll) els.settingAutoScroll.checked = Boolean(state.settings.autoScroll);
   if (els.settingCompactMode) els.settingCompactMode.checked = Boolean(state.settings.compactMode);
   if (els.settingThemeMode) els.settingThemeMode.value = String(state.settings.themeMode || 'dark');
+  if (els.settingLang) els.settingLang.value = String(state.settings.lang || 'en');
   if (els.settingGatewayApiKey) els.settingGatewayApiKey.value = String(state.settings.gatewayApiKey || '');
   document.body.classList.toggle('compact-mode', Boolean(state.settings.compactMode));
 
@@ -203,6 +277,13 @@ function applySettings() {
   if (els.themeToggleBtn) {
     els.themeToggleBtn.textContent = `Theme: ${activeTheme === 'dark' ? 'Dark' : 'Light'}`;
   }
+  if (els.sendBtn && !state.sending) {
+    els.sendBtn.textContent = st('send');
+  }
+  if (state.activeView) {
+    setActiveView(state.activeView);
+  }
+  renderWabaCards();
 }
 
 function setTopClock() {
@@ -371,9 +452,9 @@ function doctorStateClass(ok) {
 }
 
 function doctorStateText(ok) {
-  if (ok === true) return 'PASS';
-  if (ok === false) return 'FAIL';
-  return 'SKIP';
+  if (ok === true) return st('doctor_pass');
+  if (ok === false) return st('doctor_fail');
+  return st('doctor_skip');
 }
 
 function renderWabaCards() {
@@ -383,7 +464,7 @@ function renderWabaCards() {
     const connected = Boolean(integration.connected);
     els.wabaConnectBadge.classList.remove('badge-ok', 'badge-warn');
     els.wabaConnectBadge.classList.add(connected ? 'badge-ok' : 'badge-warn');
-    els.wabaConnectBadge.textContent = connected ? 'CONNECTED' : 'NOT CONNECTED';
+    els.wabaConnectBadge.textContent = connected ? st('waba_connected') : st('waba_not_connected');
   }
   if (els.wabaBusinessIdInput && !els.wabaBusinessIdInput.value) els.wabaBusinessIdInput.value = integration.businessId || '';
   if (els.wabaWabaIdInput && !els.wabaWabaIdInput.value) els.wabaWabaIdInput.value = integration.wabaId || '';
@@ -393,7 +474,7 @@ function renderWabaCards() {
   if (!els.wabaDoctorCards) return;
   const checks = Array.isArray(doctor.checks) ? doctor.checks : [];
   if (!checks.length) {
-    els.wabaDoctorCards.innerHTML = '<p class="muted">No doctor checks yet. Click "Refresh Status".</p>';
+    els.wabaDoctorCards.innerHTML = `<p class="muted">${escapeHtml(st('waba_no_checks'))}</p>`;
     return;
   }
   els.wabaDoctorCards.innerHTML = checks.map((c) => `
@@ -412,7 +493,7 @@ async function refreshWabaStatus() {
     state.waba.doctor = res.doctor || null;
     renderWabaCards();
   } catch (error) {
-    appendMessage('system', `WABA status error: ${error.message}`);
+    appendMessage('system', st('waba_status_error', { error: error.message }));
   }
 }
 
@@ -431,9 +512,9 @@ async function connectWabaFromUi() {
     state.waba.integration = res.integration || null;
     state.waba.doctor = res.doctor || null;
     renderWabaCards();
-    appendMessage('system', `WABA connect ${res.integration?.connected ? 'ready' : 'partial'}.`);
+    appendMessage('system', res.integration?.connected ? st('waba_connect_ready') : st('waba_connect_partial'));
   } catch (error) {
-    appendMessage('system', `WABA connect failed: ${error.message}`);
+    appendMessage('system', st('waba_connect_failed', { error: error.message }));
   }
 }
 
@@ -453,9 +534,9 @@ async function disconnectWabaFromUi() {
     if (els.wabaWebhookVerifyTokenInput) els.wabaWebhookVerifyTokenInput.value = '';
     if (els.wabaTestToInput) els.wabaTestToInput.value = '';
     renderWabaCards();
-    appendMessage('system', 'WABA integration disconnected.');
+    appendMessage('system', st('waba_disconnected'));
   } catch (error) {
-    appendMessage('system', `WABA disconnect failed: ${error.message}`);
+    appendMessage('system', st('waba_disconnect_failed', { error: error.message }));
   }
 }
 
@@ -484,7 +565,7 @@ function setSending(isSending) {
   state.sending = isSending;
   els.sendBtn.disabled = isSending;
   els.messageInput.disabled = isSending;
-  els.sendBtn.textContent = isSending ? 'Sending...' : 'Send';
+  els.sendBtn.textContent = isSending ? st('sending') : st('send');
 }
 
 function pendingActionsText(actions) {
@@ -922,15 +1003,15 @@ async function approveLowRisk() {
 function setActiveView(view) {
   state.activeView = view;
   const titles = {
-    chat: { tag: 'Chat Agent', title: 'Talk naturally. Execute safely.' },
-    posts: { tag: 'Posts', title: 'Recent publishing actions across platforms.' },
-    analytics: { tag: 'Analytics', title: 'Reach, engagement, and execution trend snapshot.' },
+    chat: { tag: st('view_chat_tag'), title: st('view_chat_title') },
+    posts: { tag: st('view_posts_tag'), title: st('view_posts_title') },
+    analytics: { tag: st('view_analytics_tag'), title: st('view_analytics_title') },
     data: { tag: 'Data Console', title: 'Inspect live conversation and execution trails.' },
     ops: { tag: 'Ops Center', title: 'Run workflows, resolve approvals, and clear alerts.' },
     config: { tag: 'Config', title: 'Runtime profile, defaults, and token state.' },
     devtools: { tag: 'Developer Toolkit', title: 'Commands, providers, and integration shortcuts.' },
     help: { tag: 'Help', title: 'Prompt patterns for developer and marketing flows.' },
-    settings: { tag: 'Settings', title: 'Keyboard, theme, and gateway security settings.' }
+    settings: { tag: st('view_settings_tag'), title: st('view_settings_title') }
   };
   const copy = titles[view] || titles.chat;
   if (els.viewTag) els.viewTag.textContent = copy.tag;
@@ -1101,7 +1182,7 @@ async function sendMessage() {
 async function executeCurrentPlan(dryRun = false) {
   const steps = Array.isArray(state.currentPlan) ? state.currentPlan : [];
   if (!steps.length) {
-    appendMessage('system', 'No plan available to execute.');
+    appendMessage('system', st('no_plan'));
     return;
   }
   if (dryRun) {
@@ -1147,7 +1228,7 @@ function openCommandPalette() {
     setActiveView(cmd);
     return;
   }
-  appendMessage('system', `Unknown palette command: ${cmd}`);
+  appendMessage('system', st('unknown_palette', { cmd }));
 }
 
 function wireEvents() {
@@ -1395,6 +1476,14 @@ function wireEvents() {
     });
   }
 
+  if (els.settingLang) {
+    els.settingLang.addEventListener('change', () => {
+      state.settings.lang = String(els.settingLang.value || 'en');
+      applySettings();
+      persistSettings();
+    });
+  }
+
   if (els.settingGatewayApiKey) {
     els.settingGatewayApiKey.addEventListener('change', () => {
       state.settings.gatewayApiKey = String(els.settingGatewayApiKey.value || '').trim();
@@ -1457,5 +1546,5 @@ async function init() {
 }
 
 init().catch((error) => {
-  appendMessage('system', `Failed to initialize: ${error.message}`);
+  appendMessage('system', st('failed_init', { error: error.message }));
 });
