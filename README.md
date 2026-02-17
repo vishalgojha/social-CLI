@@ -13,6 +13,20 @@ A social API CLI that works with Meta APIs (Facebook, Instagram, WhatsApp). For 
 
 Built by Chaos Craft Labs.
 
+## What Social CLI Does
+
+`social-cli` is a unified control plane for Meta surfaces from terminal or localhost UI.
+
+It helps you:
+
+- Authenticate once and manage tokens/scopes safely across Facebook, Instagram, WhatsApp, and Marketing APIs
+- Run deterministic API operations (`query`, `post`, `marketing`, `whatsapp`) without writing one-off scripts
+- Use profile-based multi-account workflows for agency/client setups
+- Run guarded AI/agent workflows with plan-first execution and risk confirmations
+- Monitor and operate through chat/TUI/web studio with logs, replay, approvals, and ops workflows
+
+In short: instead of juggling Postman collections, scattered scripts, and manual API debugging, you get one consistent workflow with safety rails.
+
 ## Install
 
 ```bash
@@ -108,6 +122,7 @@ This includes API version, default IDs, and tokens. The CLI never prints full to
 - `chat`: legacy alias to `hatch` (agentic terminal chat)
 - `tui`: agentic terminal dashboard (chat-style intent input + approvals + replay)
 - `gateway`: localhost web UI + API gateway for chat/agent workflows
+- `studio`: alias command to launch Social Studio web UI (`social studio`)
 - `ops`: morning operations workflow, alerts, approvals, scheduler, roles, knowledge sources
 - `hub`: package hub for connectors, playbooks, and agent skills
 - `accounts`: manage multiple profiles (multi-client)
@@ -495,6 +510,13 @@ UI assets are served from `web/studio/`.
 
 The gateway covers both marketing flows and developer diagnostics (auth status, token debug, webhook subscriptions).
 It includes dedicated tabs for `Chat`, `Posts`, `Analytics`, `Data Console`, `Config`, `Help`, and `Settings`.
+
+Studio shortcuts:
+
+- `Ctrl/Cmd + Enter`: send message
+- `Ctrl/Cmd + K`: command palette
+- `Ctrl/Cmd + N`: new session
+- `Ctrl/Cmd + 1/2/3/4`: switch top views (`Chat/Posts/Analytics/Settings`)
 
 ## Ops Control Plane (`social ops`)
 
