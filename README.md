@@ -208,6 +208,7 @@ social ops invite list --workspace clientA --open
 social ops invite accept <TOKEN> --user alice
 social ops invite create --workspace clientA --role operator --base-url http://127.0.0.1:1310
 social ops invite resend --workspace clientA --id <INVITE_ID> --base-url http://127.0.0.1:1310
+social ops report weekly --workspace clientA --out ./reports/clientA-weekly.md
 ```
 
 Generate a one-file onboarding/runbook handoff for your team:
@@ -633,6 +634,7 @@ Gateway endpoints:
 - `GET /api/ops/readiness?workspace=<ws>` (workspace onboarding readiness checks)
 - `POST /api/ops/onboard/workspace` (create workspace morning schedule bootstrap)
 - `POST /api/ops/onboarding/complete` (mark onboarding complete)
+- `POST /api/ops/report/weekly` (generate weekly markdown admin report)
 - `POST /api/ops/handoff/pack` (generate handoff/runbook/access-matrix/incident-playbook files)
 - `GET /api/ops/handoff/file?path=<absolute-path>` (download generated handoff file)
 - `GET /api/team/roles?workspace=<ws>` (list users + effective role for workspace)
@@ -667,6 +669,7 @@ Invite links are supported (`?invite=<token>`), and Studio auto-prefills the tok
 Invite tokens are one-time-visible (shown at create/resend only; list views show masked tokens).
 Studio shows invite analytics cards (active/accepted/expired/avg accept) and supports resend for expired invites.
 `Settings -> Workspace Readiness` provides a guided onboarding checklist with one-click schedule setup and completion mark.
+`Ops -> Weekly Report` can generate and download a weekly admin markdown report from Studio.
 
 Studio shortcuts:
 

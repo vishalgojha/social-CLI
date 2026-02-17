@@ -349,6 +349,28 @@
 
             <article class="data-card">
               <div class="ops-card-head">
+                <h3>Weekly Report</h3>
+                <button id="weeklyReportGenerateBtn" class="ghost-btn small">Generate Weekly Report</button>
+              </div>
+              <div class="source-controls">
+                <label class="guard-field">
+                  <span>Window (days)</span>
+                  <input id="weeklyReportDaysInput" type="number" min="1" max="30" value="7" />
+                </label>
+                <label class="guard-field">
+                  <span>Output Directory</span>
+                  <input id="weeklyReportOutDirInput" type="text" placeholder="reports" />
+                </label>
+              </div>
+              <p id="weeklyReportSummary" class="muted">No report generated yet.</p>
+              <div class="plan-actions">
+                <button id="weeklyReportDownloadBtn" class="ghost-btn small" disabled>Download Latest</button>
+                <button id="weeklyReportCopyPathBtn" class="ghost-btn small" disabled>Copy Path</button>
+              </div>
+            </article>
+
+            <article class="data-card">
+              <div class="ops-card-head">
                 <h3>Team Activity</h3>
                 <div class="inline-actions">
                   <button id="teamActivityRefreshBtn" class="ghost-btn small">Refresh</button>

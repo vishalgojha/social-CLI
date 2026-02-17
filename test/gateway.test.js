@@ -446,6 +446,16 @@ module.exports = [
         assert.equal(onboardingComplete.data.ok, true);
         assert.equal(Boolean(onboardingComplete.data.state.onboardingCompletedAt), true);
 
+        const weeklyReport = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/ops/report/weekly',
+          body: { workspace: 'default', days: 7, outDir: path.join(tempHome, 'reports') }
+        });
+        assert.equal(weeklyReport.status, 200);
+        assert.equal(weeklyReport.data.ok, true);
+        assert.equal(fs.existsSync(weeklyReport.data.reportPath), true);
+
         const slackSourceUpsert = await requestJson({
           port: server.port,
           method: 'POST',

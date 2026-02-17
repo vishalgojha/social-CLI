@@ -252,6 +252,60 @@ function buildIncidentPlaybookDoc({ workspace, generatedAt }) {
   ].join('\n');
 }
 
+function buildWeeklyReportDoc({ workspace, days = 7 }) {
+  const ws = workspace || 'default';
+  const dayCount = Math.max(1, Math.min(30, Number(days) || 7));
+  const cutoff = Date.now() - dayCount * 24 * 60 * 60 * 1000;
+  const toTs = (v) => {
+    const ts = Date.parse(String(v || ''));
+    return Number.isFinite(ts) ? ts : 0;
+  };
+  const inWindow = (v) => toTs(v) >= cutoff;
+  const invites = storage.listInvites({ workspace: ws, includeExpired: true });
+  const approvals = storage.listApprovals(ws);
+  const alerts = storage.listAlerts(ws);
+  const outcomes = storage.listOutcomes(ws);
+  const actions = storage.listActionLog(ws);
+  const inviteStats = storage.inviteStats({ workspace: ws, days: dayCount });
+  const approvalsApproved = approvals.filter((x) => x.status === 'approved' && inWindow(x.decidedAt)).length;
+  const approvalsRejected = approvals.filter((x) => x.status === 'rejected' && inWindow(x.decidedAt)).length;
+  const approvalsPending = approvals.filter((x) => x.status === 'pending').length;
+  const alertsOpened = alerts.filter((x) => inWindow(x.createdAt)).length;
+  const alertsAcked = alerts.filter((x) => inWindow(x.ackAt)).length;
+  const outcomesRecent = outcomes.filter((x) => inWindow(x.createdAt));
+  const inviteAcceptedActions = actions.filter((x) => x.action === 'invite.accept' && inWindow(x.createdAt));
+  return [
+    `# Weekly Ops Report - ${ws}`,
+    '',
+    `Generated: ${new Date().toISOString()}`,
+    `Window: last ${dayCount} day(s)`,
+    '',
+    '## Invites',
+    `- Total invites: ${invites.length}`,
+    `- Active: ${inviteStats.active}`,
+    `- Accepted: ${inviteStats.accepted}`,
+    `- Expired (window): ${inviteStats.expiredRecent}`,
+    `- Avg time-to-accept (min): ${Math.round((inviteStats.avgAcceptMs || 0) / 60000)}`,
+    `- Accepted via actions (window): ${inviteAcceptedActions.length}`,
+    '',
+    '## Approvals',
+    `- Approved (window): ${approvalsApproved}`,
+    `- Rejected (window): ${approvalsRejected}`,
+    `- Pending now: ${approvalsPending}`,
+    '',
+    '## Alerts',
+    `- Opened (window): ${alertsOpened}`,
+    `- Acked (window): ${alertsAcked}`,
+    '',
+    '## Outcomes',
+    `- Outcomes logged (window): ${outcomesRecent.length}`,
+    '',
+    '## Recent Outcomes',
+    ...outcomesRecent.slice(-8).reverse().map((x) => `- ${x.createdAt}: ${x.summary || x.kind || 'outcome'}`),
+    ''
+  ].join('\n');
+}
+
 function registerOpsCommands(program) {
   const ops = program.command('ops').description('Agency operations control plane (workflows, alerts, approvals, schedules, roles)');
 
@@ -931,6 +985,39 @@ function registerOpsCommands(program) {
       }
       console.log(chalk.green(`\nInvite accepted: ${accepted.id}`));
       console.log(chalk.gray(`Workspace: ${accepted.workspace} | role: ${accepted.role} | user: ${accepted.acceptedBy}\n`));
+    });
+
+  const report = ops.command('report').description('Ops reporting exports');
+
+  report
+    .command('weekly')
+    .description('Generate weekly markdown report for workspace ops')
+    .option('--workspace <name>', 'Workspace/profile name')
+    .option('--days <n>', 'Report window in days (1-30)', '7')
+    .option('--out <file>', 'Output markdown file path')
+    .option('--json', 'Output JSON')
+    .action((options) => {
+      const ws = workspaceFrom(options);
+      rbac.assertCan({ workspace: ws, action: 'read' });
+      const days = Math.max(1, Math.min(30, parseNumber(options.days, 7)));
+      const outPath = path.resolve(
+        process.cwd(),
+        String(options.out || `reports/${ws}-weekly.md`)
+      );
+      fs.mkdirSync(path.dirname(outPath), { recursive: true });
+      const reportDoc = buildWeeklyReportDoc({ workspace: ws, days });
+      fs.writeFileSync(outPath, reportDoc, 'utf8');
+      if (options.json) {
+        console.log(JSON.stringify({
+          ok: true,
+          workspace: ws,
+          days,
+          output: outPath,
+          bytes: Buffer.byteLength(reportDoc, 'utf8')
+        }, null, 2));
+        return;
+      }
+      console.log(chalk.green(`\nOK Weekly report generated: ${outPath}\n`));
     });
 
   const handoff = ops

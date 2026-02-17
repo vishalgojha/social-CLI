@@ -26,6 +26,7 @@ const state = {
   opsSnapshot: null,
   sources: [],
   guardPolicy: null,
+  weeklyReportPath: '',
   latestPayload: {
     history: [],
     pendingActions: [],
@@ -167,6 +168,12 @@ const els = {
   opsApprovalsTable: document.getElementById('opsApprovalsTable'),
   opsLeadsTable: document.getElementById('opsLeadsTable'),
   opsOutcomesTable: document.getElementById('opsOutcomesTable'),
+  weeklyReportGenerateBtn: document.getElementById('weeklyReportGenerateBtn'),
+  weeklyReportDaysInput: document.getElementById('weeklyReportDaysInput'),
+  weeklyReportOutDirInput: document.getElementById('weeklyReportOutDirInput'),
+  weeklyReportSummary: document.getElementById('weeklyReportSummary'),
+  weeklyReportDownloadBtn: document.getElementById('weeklyReportDownloadBtn'),
+  weeklyReportCopyPathBtn: document.getElementById('weeklyReportCopyPathBtn'),
   teamActivityRefreshBtn: document.getElementById('teamActivityRefreshBtn'),
   teamActivityExportJsonBtn: document.getElementById('teamActivityExportJsonBtn'),
   teamActivityExportCsvBtn: document.getElementById('teamActivityExportCsvBtn'),
@@ -1587,6 +1594,57 @@ async function approveLowRisk() {
   appendMessage('system', `Approved ${rows.length} low-risk requests.`);
 }
 
+function renderWeeklyReportState() {
+  const hasPath = Boolean(String(state.weeklyReportPath || '').trim());
+  if (els.weeklyReportSummary) {
+    els.weeklyReportSummary.textContent = hasPath
+      ? `Latest report: ${state.weeklyReportPath}`
+      : 'No report generated yet.';
+  }
+  if (els.weeklyReportDownloadBtn) {
+    els.weeklyReportDownloadBtn.disabled = !hasPath;
+  }
+  if (els.weeklyReportCopyPathBtn) {
+    els.weeklyReportCopyPathBtn.disabled = !hasPath;
+  }
+}
+
+async function generateWeeklyReportFromUi() {
+  const days = Number((els.weeklyReportDaysInput && els.weeklyReportDaysInput.value) || 7);
+  const outDir = String((els.weeklyReportOutDirInput && els.weeklyReportOutDirInput.value) || '').trim() || 'reports';
+  const res = await api('/api/ops/report/weekly', {
+    method: 'POST',
+    body: { workspace: state.workspace, days, outDir }
+  });
+  state.weeklyReportPath = String(res.reportPath || '').trim();
+  renderWeeklyReportState();
+  appendMessage('system', `Weekly report generated: ${state.weeklyReportPath}`);
+}
+
+function downloadWeeklyReportFromUi() {
+  const file = String(state.weeklyReportPath || '').trim();
+  if (!file) return;
+  const href = `/api/ops/handoff/file?path=${encodeURIComponent(file)}`;
+  const a = document.createElement('a');
+  a.href = href;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function copyWeeklyReportPathFromUi() {
+  const file = String(state.weeklyReportPath || '').trim();
+  if (!file) return;
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    await navigator.clipboard.writeText(file);
+    appendMessage('system', 'Weekly report path copied.');
+  } else {
+    appendMessage('system', file);
+  }
+}
+
 function setActiveView(view) {
   state.activeView = view;
   const titles = {
@@ -1620,6 +1678,7 @@ function setActiveView(view) {
   if (view === 'analytics') renderAnalytics(state.latestPayload);
   if (view === 'ops') refreshOps();
   if (view === 'ops') refreshTeamActivity();
+  if (view === 'ops') renderWeeklyReportState();
   if (view === 'config') refreshConfig();
   if (view === 'settings') refreshTeamStatus();
   if (view === 'settings') refreshTeamInvites();
@@ -2017,6 +2076,25 @@ function wireEvents() {
       }
     });
   }
+  if (els.weeklyReportGenerateBtn) {
+    els.weeklyReportGenerateBtn.addEventListener('click', async () => {
+      try {
+        await generateWeeklyReportFromUi();
+      } catch (error) {
+        appendMessage('system', `Ops error: ${error.message}`);
+      }
+    });
+  }
+  if (els.weeklyReportDownloadBtn) {
+    els.weeklyReportDownloadBtn.addEventListener('click', () => {
+      downloadWeeklyReportFromUi();
+    });
+  }
+  if (els.weeklyReportCopyPathBtn) {
+    els.weeklyReportCopyPathBtn.addEventListener('click', () => {
+      void copyWeeklyReportPathFromUi();
+    });
+  }
 
   document.addEventListener('click', async (evt) => {
     const btn = evt.target.closest('button');
@@ -2285,6 +2363,7 @@ async function init() {
     }
   }
   wireEvents();
+  renderWeeklyReportState();
   prefillInviteFromQuery();
   connectWs();
   await checkHealth();
