@@ -243,6 +243,9 @@ const els = {
   teamInviteExpiresInput: document.getElementById('teamInviteExpiresInput'),
   teamInviteCreateBtn: document.getElementById('teamInviteCreateBtn'),
   teamInviteRefreshBtn: document.getElementById('teamInviteRefreshBtn'),
+  teamInviteAcceptTokenInput: document.getElementById('teamInviteAcceptTokenInput'),
+  teamInviteAcceptUserInput: document.getElementById('teamInviteAcceptUserInput'),
+  teamInviteAcceptBtn: document.getElementById('teamInviteAcceptBtn'),
   teamInviteSummary: document.getElementById('teamInviteSummary'),
   teamInvitesTable: document.getElementById('teamInvitesTable')
 };
@@ -875,6 +878,24 @@ async function createTeamInviteFromUi() {
   appendMessage('system', `Invite created (${role}).`);
   state.team.invites = Array.isArray(res.invites) ? res.invites : state.team.invites;
   renderTeamInvites();
+}
+
+async function acceptTeamInviteFromUi() {
+  const token = String((els.teamInviteAcceptTokenInput && els.teamInviteAcceptTokenInput.value) || '').trim();
+  const user = String((els.teamInviteAcceptUserInput && els.teamInviteAcceptUserInput.value) || '').trim();
+  if (!token || !user) {
+    appendMessage('system', 'Provide invite token and user ID.');
+    return;
+  }
+  const res = await api('/api/team/invites/accept', {
+    method: 'POST',
+    body: { token, user }
+  });
+  appendMessage('system', `Invite accepted: ${res.invite.workspace} -> ${res.invite.role} (${user})`);
+  if (els.teamInviteAcceptTokenInput) els.teamInviteAcceptTokenInput.value = '';
+  await refreshTeamStatus();
+  await refreshTeamRoles();
+  await refreshTeamInvites();
 }
 
 async function refreshTeamActivity() {
@@ -2041,6 +2062,11 @@ function wireEvents() {
   if (els.teamInviteRefreshBtn) {
     els.teamInviteRefreshBtn.addEventListener('click', () => {
       void refreshTeamInvites();
+    });
+  }
+  if (els.teamInviteAcceptBtn) {
+    els.teamInviteAcceptBtn.addEventListener('click', () => {
+      void acceptTeamInviteFromUi();
     });
   }
   if (els.teamActivityRefreshBtn) {

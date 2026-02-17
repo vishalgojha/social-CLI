@@ -642,6 +642,19 @@
             <button id="teamInviteCreateBtn" class="ghost-btn small">Create Invite</button>
             <button id="teamInviteRefreshBtn" class="ghost-btn small">Refresh Invites</button>
           </div>
+          <div class="settings-list waba-form">
+            <label class="setting-item setting-select-row">
+              <span>Accept Invite Token</span>
+              <input id="teamInviteAcceptTokenInput" type="text" class="setting-input" placeholder="paste invite token" />
+            </label>
+            <label class="setting-item setting-select-row">
+              <span>User ID</span>
+              <input id="teamInviteAcceptUserInput" type="text" class="setting-input" placeholder="alice / bob" />
+            </label>
+          </div>
+          <div class="plan-actions">
+            <button id="teamInviteAcceptBtn" class="ghost-btn small">Accept Invite</button>
+          </div>
           <p id="teamInviteSummary" class="muted">No invites loaded yet.</p>
           <div id="teamInvitesTable" class="table-wrap"></div>
         </article>

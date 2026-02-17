@@ -655,6 +655,7 @@ Team Activity can be exported from Studio as `JSON` or `CSV`.
 Studio now shows download + copy-path actions for generated handoff files.
 `Settings -> Team Management` now includes an editable role table (with refresh + inline save).
 `Settings -> Team Management` also supports invite creation + revoke + copy accept command.
+`Settings -> Team Management` includes an `Accept Invite` form (token + user ID) for one-click onboarding.
 
 Studio shortcuts:
 
