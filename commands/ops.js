@@ -109,7 +109,7 @@ function buildHandoffDoc({
     '',
     '## Role Setup (Owner/Admin only)',
     `- Viewer:   \`social ops roles set <user> viewer --workspace ${ws}\``,
-    `- Analyst:  \`social ops roles set <user> analyst --workspace ${ws}\``,
+    `- Admin:  \`social ops roles set <user> admin --workspace ${ws}\``,
     `- Operator: \`social ops roles set <user> operator --workspace ${ws}\``,
     `- Owner:    \`social ops roles set <user> owner --workspace ${ws}\``,
     '',
@@ -160,7 +160,7 @@ function buildHandoffDoc({
       '',
       '## Approval Matrix (Recommended)',
       '- Viewer: read-only, no approvals.',
-      '- Analyst: read + write notes, no approvals.',
+      '- Admin: read + write notes, no approvals.',
       '- Operator: can approve/execute daily ops actions.',
       '- Owner: full admin controls including role changes.',
       '',
@@ -219,7 +219,7 @@ function buildAccessMatrixCsv({ workspace }) {
   return [
     'workspace,user,role,owner_approved,notes',
     `${ws},<user1>,viewer,yes,read-only`,
-    `${ws},<user2>,analyst,yes,analysis and notes`,
+    `${ws},<user2>,admin,yes,analysis and notes`,
     `${ws},<user3>,operator,yes,can approve and execute`,
     `${ws},<user4>,owner,yes,full admin`
   ].join('\n');
@@ -756,7 +756,7 @@ function registerOpsCommands(program) {
 
   roles
     .command('set <user> <role>')
-    .description('Set role (viewer|analyst|operator|owner)')
+    .description('Set role (viewer|admin|operator|owner)')
     .option('--workspace <name>', 'Workspace/profile name')
     .option('--json', 'Output JSON')
     .action((user, role, options) => {
@@ -863,7 +863,7 @@ function registerOpsCommands(program) {
     .command('create')
     .description('Create an invite token for a workspace role')
     .option('--workspace <name>', 'Workspace/profile name')
-    .requiredOption('--role <role>', 'viewer|analyst|operator|owner')
+    .requiredOption('--role <role>', 'viewer|admin|operator|owner')
     .option('--base-url <url>', 'Optional studio URL to generate invite link')
     .option('--expires-in <hours>', 'Hours until invite expires', '72')
     .option('--json', 'Output JSON')

@@ -6,6 +6,7 @@ const path = require('node:path');
 const configSingleton = require('../lib/config');
 const storage = require('../lib/ops/storage');
 const workflows = require('../lib/ops/workflows');
+const rbac = require('../lib/ops/rbac');
 
 function withTempHome(fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'social-ops-test-'));
@@ -170,9 +171,13 @@ module.exports = [
         status: 'executed',
         risk: 'high',
         actor: 'test-user',
+        why: 'Spend spike mitigation',
         summary: 'Paused top overspending campaigns.'
       });
       assert.equal(action.incidentId, incident.id);
+      assert.equal(action.who, 'test-user');
+      assert.equal(typeof action.when, 'string');
+      assert.equal(action.why, 'Spend spike mitigation');
 
       const snapshot = storage.addRollbackSnapshot(ws, {
         actionId: action.id,
@@ -186,6 +191,18 @@ module.exports = [
       assert.equal(storage.listIncidents(ws).length, 1);
       assert.equal(storage.listActionLog(ws).length, 1);
       assert.equal(storage.listRollbackSnapshots(ws).length, 1);
+    })
+  },
+  {
+    name: 'ops role model normalizes analyst to admin and enforces strict set',
+    fn: () => withTempHome(() => {
+      const ws = storage.ensureWorkspace('clientA');
+      storage.setRole({ workspace: ws, user: 'u1', role: 'analyst' });
+      const role = storage.getRole({ workspace: ws, user: 'u1' });
+      assert.equal(role, 'admin');
+      assert.equal(rbac.normalizeRole('analyst'), 'admin');
+      assert.equal(rbac.roleChoices().includes('admin'), true);
+      assert.throws(() => storage.setRole({ workspace: ws, user: 'u2', role: 'superadmin' }), /Invalid role/);
     })
   },
   {
