@@ -55,6 +55,7 @@
 - Use one-click diagnostics endpoints for staged validation:
   - `POST /v1/clients/:clientId/credentials/whatsapp/diagnose`
   - `POST /v1/clients/:clientId/credentials/email/diagnose`
+  - `POST /v1/clients/:clientId/credentials/crm/diagnose`
   - `POST /v1/clients/:clientId/credentials/diagnose/all`
 
 ## Staging Verification Command
@@ -72,6 +73,7 @@ Required environment variables:
 - `SOCIALCLAW_CLIENT_ID`
 - `SOCIALCLAW_WA_TEST_RECIPIENT`
 - `SOCIALCLAW_EMAIL_TEST_RECIPIENT`
+- Optional: `SOCIALCLAW_INCLUDE_CRM=true` to include CRM webhook diagnostics in combined run
 
 Optional automatic signoff after verification:
 - `SOCIALCLAW_AUTO_SIGNOFF=true`

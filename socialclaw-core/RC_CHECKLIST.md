@@ -42,7 +42,7 @@
 - [x] Release signoff CLI helper (`npm run release:signoff`)
 - [ ] Live WhatsApp send validation in staging with test number
 - [x] Production email provider adapter (SES/SendGrid)
-- [ ] CRM adapter integration against selected provider
+- [x] CRM adapter integration against selected provider (webhook)
 
 ## Operations
 - [x] Dockerfiles for API and worker

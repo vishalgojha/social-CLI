@@ -57,8 +57,12 @@ function renderMarkdown(report: Record<string, unknown>): string {
   const providers = (response.providers || {}) as Record<string, unknown>;
   const wa = (providers.whatsapp || {}) as Record<string, unknown>;
   const email = (providers.email_sendgrid || {}) as Record<string, unknown>;
+  const crm = (providers.crm_webhook || {}) as Record<string, unknown>;
   lines.push(...renderProviderSection('WhatsApp', wa));
   lines.push(...renderProviderSection('Email (SendGrid)', email));
+  if (Object.keys(crm).length) {
+    lines.push(...renderProviderSection('CRM (Webhook)', crm));
+  }
   return lines.join('\n');
 }
 
@@ -72,6 +76,7 @@ async function main() {
   const releaseNotes = getEnv('SOCIALCLAW_RELEASE_NOTES', 'Auto signoff from staging verify');
   const whatsappTestRecipient = getEnv('SOCIALCLAW_WA_TEST_RECIPIENT');
   const emailTestRecipient = getEnv('SOCIALCLAW_EMAIL_TEST_RECIPIENT');
+  const includeCrm = getEnv('SOCIALCLAW_INCLUDE_CRM', 'false').toLowerCase() === 'true';
 
   if (!token || !clientId || !whatsappTestRecipient || !emailTestRecipient) {
     throw new Error('Missing required env: SOCIALCLAW_BEARER, SOCIALCLAW_CLIENT_ID, SOCIALCLAW_WA_TEST_RECIPIENT, SOCIALCLAW_EMAIL_TEST_RECIPIENT');
@@ -84,7 +89,8 @@ async function main() {
     whatsappLanguage: getEnv('SOCIALCLAW_WA_LANGUAGE', 'en_US'),
     emailTestRecipient,
     emailSubject: getEnv('SOCIALCLAW_EMAIL_SUBJECT', 'SocialClaw Staging Verification'),
-    emailText: getEnv('SOCIALCLAW_EMAIL_TEXT', 'Staging verification test from SocialClaw.')
+    emailText: getEnv('SOCIALCLAW_EMAIL_TEXT', 'Staging verification test from SocialClaw.'),
+    includeCrm
   };
 
   const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/v1/clients/${encodeURIComponent(clientId)}/credentials/diagnose/all`, {
@@ -106,7 +112,8 @@ async function main() {
       clientId,
       mode,
       whatsappTestRecipient,
-      emailTestRecipient
+      emailTestRecipient,
+      includeCrm
     },
     response: payload
   };

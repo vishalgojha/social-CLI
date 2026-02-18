@@ -1,6 +1,8 @@
 import {
+  buildCrmFixSuggestions,
   buildEmailFixSuggestions,
   buildWhatsAppFixSuggestions,
+  evaluateCrmContract,
   evaluateEmailContract,
   evaluateWhatsAppContract
 } from '../src/engine/integration-contract';
@@ -65,6 +67,25 @@ describe('integration contract', () => {
       latestVerificationStatus: ''
     });
     expect(suggestions.some((x) => x.id === 'set_sendgrid_from_email')).toBe(true);
+    expect(suggestions.some((x) => x.id === 'run_live_verify')).toBe(true);
+  });
+
+  it('evaluates crm contract and suggestions', () => {
+    const out = evaluateCrmContract({
+      hasEndpointUrl: false,
+      latestLiveVerificationOk: false,
+      latestLiveVerificationAt: '',
+      maxAgeDays: 30
+    });
+    expect(out.ready).toBe(false);
+    const suggestions = buildCrmFixSuggestions({
+      connected: out.connected,
+      testSendPassed: out.testSendPassed,
+      stale: out.stale,
+      liveAllowed: true,
+      latestVerificationStatus: ''
+    });
+    expect(suggestions.some((x) => x.id === 'connect_crm_webhook')).toBe(true);
     expect(suggestions.some((x) => x.id === 'run_live_verify')).toBe(true);
   });
 });

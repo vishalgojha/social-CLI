@@ -7,7 +7,7 @@ import {
   getLatestIntegrationVerification,
   reserveActionIdempotency
 } from '../services/repository';
-import { evaluateEmailContract, evaluateWhatsAppContract } from './integration-contract';
+import { evaluateCrmContract, evaluateEmailContract, evaluateWhatsAppContract } from './integration-contract';
 
 export interface ActionContext {
   executionId: string;
@@ -166,6 +166,76 @@ async function crmAdapter(input: ActionInput) {
   return { action: input.action, updated: true, status };
 }
 
+async function crmWebhookAdapter(input: ActionInput, ctx: ActionContext) {
+  const status = String(input.config['status'] || '').trim();
+  if (!status) throw new Error(`invalid_action_payload:${input.nodeId}:crm.update_status`);
+  if (env.EXECUTION_DRY_RUN) {
+    return { action: input.action, updated: true, status, dryRun: true };
+  }
+
+  const endpointRow = await getCredential({
+    tenantId: ctx.tenantId,
+    clientId: ctx.clientId,
+    provider: 'crm_webhook',
+    credentialType: 'endpoint_url'
+  });
+  if (!endpointRow) throw new Error('credential_missing:crm_webhook.endpoint_url');
+  const endpointUrl = decryptSecret(endpointRow.encrypted_secret);
+  const apiKeyRow = await getCredential({
+    tenantId: ctx.tenantId,
+    clientId: ctx.clientId,
+    provider: 'crm_webhook',
+    credentialType: 'api_key'
+  });
+  const authHeaderRow = await getCredential({
+    tenantId: ctx.tenantId,
+    clientId: ctx.clientId,
+    provider: 'crm_webhook',
+    credentialType: 'auth_header'
+  });
+  const latestVerification = await getLatestIntegrationVerification({
+    tenantId: ctx.tenantId,
+    clientId: ctx.clientId,
+    provider: 'crm_webhook',
+    checkType: 'test_write_live'
+  });
+  const contract = evaluateCrmContract({
+    hasEndpointUrl: Boolean(endpointRow),
+    latestLiveVerificationOk: latestVerification?.status === 'passed',
+    latestLiveVerificationAt: latestVerification?.created_at || '',
+    maxAgeDays: env.CRM_VERIFICATION_MAX_AGE_DAYS
+  });
+  if (!contract.ready) throw new Error('integration_not_ready:crm_verification_required');
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+  if (apiKeyRow) headers.Authorization = `Bearer ${decryptSecret(apiKeyRow.encrypted_secret)}`;
+  if (authHeaderRow) {
+    const raw = String(decryptSecret(authHeaderRow.encrypted_secret) || '');
+    const idx = raw.indexOf(':');
+    if (idx > 0) {
+      headers[raw.slice(0, idx).trim()] = raw.slice(idx + 1).trim();
+    }
+  }
+  const leadId = String(input.config['leadId'] || readPath(ctx.triggerPayload, 'lead.id') || '').trim();
+  const res = await fetch(endpointUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      event: 'crm.update_status',
+      leadId: leadId || null,
+      status,
+      executionId: ctx.executionId,
+      nodeId: input.nodeId,
+      payload: ctx.triggerPayload
+    })
+  });
+  const responseBody = await res.text().catch(() => '');
+  if (!res.ok) throw new Error(`crm_webhook_failed:${res.status}`);
+  return { action: input.action, updated: true, status, provider: 'crm_webhook', response: responseBody };
+}
+
 export async function executeAction(input: ActionInput, ctx: ActionContext): Promise<Record<string, unknown>> {
   const action = String(input.action || '').trim().toLowerCase();
   if (!action) throw new Error(`invalid_action:missing_action_for_node:${input.nodeId}`);
@@ -191,7 +261,10 @@ export async function executeAction(input: ActionInput, ctx: ActionContext): Pro
     let out: Record<string, unknown>;
     if (action === 'whatsapp.send_template') out = await whatsappAdapter(input, ctx);
     else if (action === 'email.send') out = await emailAdapter(input, ctx);
-    else if (action === 'crm.update_status') out = await crmAdapter(input);
+    else if (action === 'crm.update_status') {
+      const provider = String(input.config['provider'] || 'webhook').trim().toLowerCase();
+      out = provider === 'local' ? await crmAdapter(input) : await crmWebhookAdapter(input, ctx);
+    }
     else throw new Error(`unsupported_action:${action}`);
 
     await completeActionIdempotency({

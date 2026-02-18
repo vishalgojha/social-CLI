@@ -9,8 +9,10 @@ import {
 } from '../../services/repository';
 import { decryptSecret, encryptSecret } from '../../security/crypto';
 import {
+  buildCrmFixSuggestions,
   buildEmailFixSuggestions,
   buildWhatsAppFixSuggestions,
+  evaluateCrmContract,
   evaluateEmailContract,
   evaluateWhatsAppContract
 } from '../../engine/integration-contract';
@@ -229,6 +231,126 @@ async function verifyEmail(input: {
     clientId: input.clientId,
     provider: 'email_sendgrid',
     checkType: 'test_send_live',
+    status: verificationStatus,
+    checks,
+    evidence,
+    initiatedBy: input.initiatedBy
+  });
+  return {
+    ok: verificationStatus === 'passed',
+    verification: {
+      id: row.id,
+      createdAt: row.created_at,
+      status: verificationStatus,
+      checks,
+      evidence
+    }
+  };
+}
+
+async function crmStatus(tenantId: string, clientId: string) {
+  const endpoint = await getCredential({
+    tenantId,
+    clientId,
+    provider: 'crm_webhook',
+    credentialType: 'endpoint_url'
+  });
+  const latest = await getLatestIntegrationVerification({
+    tenantId,
+    clientId,
+    provider: 'crm_webhook',
+    checkType: 'test_write_live'
+  });
+  const contract = evaluateCrmContract({
+    hasEndpointUrl: Boolean(endpoint),
+    latestLiveVerificationOk: latest?.status === 'passed',
+    latestLiveVerificationAt: latest?.created_at || '',
+    maxAgeDays: env.CRM_VERIFICATION_MAX_AGE_DAYS
+  });
+  return { endpoint, latest, contract };
+}
+
+async function verifyCrm(input: {
+  tenantId: string;
+  clientId: string;
+  initiatedBy: string;
+  mode?: 'dry_run' | 'live';
+}) {
+  const status = await crmStatus(input.tenantId, input.clientId);
+  const endpointRow = await getCredential({
+    tenantId: input.tenantId,
+    clientId: input.clientId,
+    provider: 'crm_webhook',
+    credentialType: 'endpoint_url'
+  });
+  const apiKeyRow = await getCredential({
+    tenantId: input.tenantId,
+    clientId: input.clientId,
+    provider: 'crm_webhook',
+    credentialType: 'api_key'
+  });
+  const authHeaderRow = await getCredential({
+    tenantId: input.tenantId,
+    clientId: input.clientId,
+    provider: 'crm_webhook',
+    credentialType: 'auth_header'
+  });
+  const mode = input.mode || 'dry_run';
+  const checks: Array<Record<string, unknown>> = [
+    { key: 'connected', ok: Boolean(endpointRow), detail: endpointRow ? 'CRM endpoint configured.' : 'Missing CRM endpoint.' }
+  ];
+  let verificationStatus: 'passed' | 'failed' | 'partial' = 'failed';
+  let evidence: Record<string, unknown> = { mode };
+
+  if (!endpointRow) {
+    verificationStatus = 'failed';
+  } else if (mode === 'live' && !env.VERIFY_ALLOW_LIVE) {
+    checks.push({
+      key: 'test_write_live',
+      ok: false,
+      detail: 'Live verification is disabled by VERIFY_ALLOW_LIVE=false.'
+    });
+    verificationStatus = 'failed';
+  } else if (mode === 'dry_run') {
+    checks.push({
+      key: 'test_write_live',
+      ok: false,
+      detail: 'Dry run completed. Run mode=live to satisfy CRM test-write pass contract.'
+    });
+    verificationStatus = 'partial';
+  } else {
+    const endpointUrl = decryptSecret(endpointRow.encrypted_secret);
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (apiKeyRow) headers.Authorization = `Bearer ${decryptSecret(apiKeyRow.encrypted_secret)}`;
+    if (authHeaderRow) {
+      const raw = String(decryptSecret(authHeaderRow.encrypted_secret) || '');
+      const idx = raw.indexOf(':');
+      if (idx > 0) headers[raw.slice(0, idx).trim()] = raw.slice(idx + 1).trim();
+    }
+    const res = await fetch(endpointUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        event: 'crm.verify',
+        sample: true,
+        timestamp: new Date().toISOString()
+      })
+    });
+    const responseBody = await res.text().catch(() => '');
+    evidence = { ...evidence, httpStatus: res.status, response: responseBody };
+    checks.push({
+      key: 'test_write_live',
+      ok: res.ok,
+      detail: res.ok ? 'CRM live test-write succeeded.' : `CRM live test-write failed (${res.status}).`
+    });
+    verificationStatus = res.ok ? 'passed' : 'failed';
+  }
+
+  const row = await appendIntegrationVerification({
+    tenantId: input.tenantId,
+    clientId: input.clientId,
+    provider: 'crm_webhook',
+    checkType: 'test_write_live',
     status: verificationStatus,
     checks,
     evidence,
@@ -618,7 +740,8 @@ export function registerCredentialRoutes(app: FastifyInstance) {
           whatsappLanguage: { type: 'string' },
           emailTestRecipient: { type: 'string' },
           emailSubject: { type: 'string' },
-          emailText: { type: 'string' }
+          emailText: { type: 'string' },
+          includeCrm: { type: 'boolean' }
         }
       }
     }
@@ -633,6 +756,7 @@ export function registerCredentialRoutes(app: FastifyInstance) {
       emailTestRecipient: string;
       emailSubject?: string;
       emailText?: string;
+      includeCrm?: boolean;
     };
     const mode = body.mode || 'dry_run';
 
@@ -676,8 +800,47 @@ export function registerCredentialRoutes(app: FastifyInstance) {
       latestVerificationStatus: emailAfter.latest?.status || ''
     });
 
+    let crmBlock: Record<string, unknown> = {};
+    let crmReady = true;
+    if (body.includeCrm) {
+      const crmBefore = await crmStatus(req.user!.tenantId, params.clientId);
+      const crmVerification = await verifyCrm({
+        tenantId: req.user!.tenantId,
+        clientId: params.clientId,
+        initiatedBy: req.user!.userId,
+        mode
+      });
+      const crmAfter = await crmStatus(req.user!.tenantId, params.clientId);
+      const crmSuggestions = buildCrmFixSuggestions({
+        connected: crmAfter.contract.connected,
+        testSendPassed: crmAfter.contract.testSendPassed,
+        stale: crmAfter.contract.stale,
+        liveAllowed: env.VERIFY_ALLOW_LIVE,
+        latestVerificationStatus: crmAfter.latest?.status || ''
+      });
+      crmBlock = {
+        crm_webhook: {
+          before: {
+            contract: crmBefore.contract,
+            latestVerification: crmBefore.latest
+              ? { id: crmBefore.latest.id, status: crmBefore.latest.status, createdAt: crmBefore.latest.created_at }
+              : null
+          },
+          verification: crmVerification,
+          after: {
+            contract: crmAfter.contract,
+            latestVerification: crmAfter.latest
+              ? { id: crmAfter.latest.id, status: crmAfter.latest.status, createdAt: crmAfter.latest.created_at }
+              : null
+          },
+          suggestions: crmSuggestions
+        }
+      };
+      crmReady = crmAfter.contract.ready;
+    }
+
     return {
-      ok: waAfter.contract.ready && emailAfter.contract.ready,
+      ok: waAfter.contract.ready && emailAfter.contract.ready && crmReady,
       mode,
       providers: {
         whatsapp: {
@@ -711,8 +874,146 @@ export function registerCredentialRoutes(app: FastifyInstance) {
               : null
           },
           suggestions: emailSuggestions
+        },
+        ...(crmBlock || {})
+      }
+    };
+  });
+
+  app.post('/v1/clients/:clientId/credentials/crm/webhook', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['endpointUrl'],
+        properties: {
+          endpointUrl: { type: 'string' },
+          apiKey: { type: 'string' },
+          authHeader: { type: 'string' }
         }
       }
+    }
+  }, async (req) => {
+    assertRole(req.user!.role, 'admin');
+    const params = req.params as { clientId: string };
+    const body = req.body as { endpointUrl: string; apiKey?: string; authHeader?: string };
+    const endpoint = await saveCredential({
+      tenantId: req.user!.tenantId,
+      clientId: params.clientId,
+      provider: 'crm_webhook',
+      credentialType: 'endpoint_url',
+      encryptedSecret: encryptSecret(body.endpointUrl),
+      userId: req.user!.userId
+    });
+    if (body.apiKey) {
+      await saveCredential({
+        tenantId: req.user!.tenantId,
+        clientId: params.clientId,
+        provider: 'crm_webhook',
+        credentialType: 'api_key',
+        encryptedSecret: encryptSecret(body.apiKey),
+        userId: req.user!.userId
+      });
+    }
+    if (body.authHeader) {
+      await saveCredential({
+        tenantId: req.user!.tenantId,
+        clientId: params.clientId,
+        provider: 'crm_webhook',
+        credentialType: 'auth_header',
+        encryptedSecret: encryptSecret(body.authHeader),
+        userId: req.user!.userId
+      });
+    }
+    return { connected: true, credential: endpoint };
+  });
+
+  app.get('/v1/clients/:clientId/credentials/crm/status', async (req) => {
+    assertRole(req.user!.role, 'viewer');
+    const params = req.params as { clientId: string };
+    const { latest, contract } = await crmStatus(req.user!.tenantId, params.clientId);
+    const suggestions = buildCrmFixSuggestions({
+      connected: contract.connected,
+      testSendPassed: contract.testSendPassed,
+      stale: contract.stale,
+      liveAllowed: env.VERIFY_ALLOW_LIVE,
+      latestVerificationStatus: latest?.status || ''
+    });
+    return {
+      provider: 'crm_webhook',
+      contract,
+      suggestions,
+      latestVerification: latest
+        ? { id: latest.id, status: latest.status, createdAt: latest.created_at }
+        : null
+    };
+  });
+
+  app.post('/v1/clients/:clientId/credentials/crm/verify', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', enum: ['dry_run', 'live'] }
+        }
+      }
+    }
+  }, async (req) => {
+    assertRole(req.user!.role, 'admin');
+    const params = req.params as { clientId: string };
+    const body = req.body as { mode?: 'dry_run' | 'live' };
+    return verifyCrm({
+      tenantId: req.user!.tenantId,
+      clientId: params.clientId,
+      initiatedBy: req.user!.userId,
+      mode: body.mode
+    });
+  });
+
+  app.post('/v1/clients/:clientId/credentials/crm/diagnose', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string', enum: ['dry_run', 'live'] }
+        }
+      }
+    }
+  }, async (req) => {
+    assertRole(req.user!.role, 'admin');
+    const params = req.params as { clientId: string };
+    const body = req.body as { mode?: 'dry_run' | 'live' };
+    const before = await crmStatus(req.user!.tenantId, params.clientId);
+    const verification = await verifyCrm({
+      tenantId: req.user!.tenantId,
+      clientId: params.clientId,
+      initiatedBy: req.user!.userId,
+      mode: body.mode || 'dry_run'
+    });
+    const after = await crmStatus(req.user!.tenantId, params.clientId);
+    const suggestions = buildCrmFixSuggestions({
+      connected: after.contract.connected,
+      testSendPassed: after.contract.testSendPassed,
+      stale: after.contract.stale,
+      liveAllowed: env.VERIFY_ALLOW_LIVE,
+      latestVerificationStatus: after.latest?.status || ''
+    });
+    return {
+      ok: after.contract.ready,
+      provider: 'crm_webhook',
+      before: {
+        contract: before.contract,
+        latestVerification: before.latest
+          ? { id: before.latest.id, status: before.latest.status, createdAt: before.latest.created_at }
+          : null
+      },
+      verification,
+      after: {
+        contract: after.contract,
+        latestVerification: after.latest
+          ? { id: after.latest.id, status: after.latest.status, createdAt: after.latest.created_at }
+          : null
+      },
+      suggestions
     };
   });
 }
