@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx src/server.ts",
     "worker:dev": "tsx src/engine/worker.ts",
+    "verify:staging": "tsx scripts/staging-verify.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "start:worker": "node dist/engine/worker.js",

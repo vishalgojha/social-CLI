@@ -55,3 +55,16 @@
 - Use one-click diagnostics endpoints for staged validation:
   - `POST /v1/clients/:clientId/credentials/whatsapp/diagnose`
   - `POST /v1/clients/:clientId/credentials/email/diagnose`
+  - `POST /v1/clients/:clientId/credentials/diagnose/all`
+
+## Staging Verification Command
+Run one command to generate a timestamped evidence artifact under `reports/`:
+
+`npm run verify:staging`
+
+Required environment variables:
+- `SOCIALCLAW_API_BASE`
+- `SOCIALCLAW_BEARER`
+- `SOCIALCLAW_CLIENT_ID`
+- `SOCIALCLAW_WA_TEST_RECIPIENT`
+- `SOCIALCLAW_EMAIL_TEST_RECIPIENT`

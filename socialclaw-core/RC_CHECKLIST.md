@@ -35,6 +35,8 @@
 - [x] WhatsApp action adapter scaffold with dry-run safety
 - [x] Verification evidence logging and status contract endpoint
 - [x] One-click diagnostics endpoint with fix suggestions
+- [x] Combined diagnostics endpoint for WhatsApp + Email
+- [x] Staging verification report command (`npm run verify:staging`)
 - [ ] Live WhatsApp send validation in staging with test number
 - [x] Production email provider adapter (SES/SendGrid)
 - [ ] CRM adapter integration against selected provider

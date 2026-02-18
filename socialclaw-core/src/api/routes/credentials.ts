@@ -605,4 +605,114 @@ export function registerCredentialRoutes(app: FastifyInstance) {
       suggestions
     };
   });
+
+  app.post('/v1/clients/:clientId/credentials/diagnose/all', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['whatsappTestRecipient', 'emailTestRecipient'],
+        properties: {
+          mode: { type: 'string', enum: ['dry_run', 'live'] },
+          whatsappTestRecipient: { type: 'string' },
+          whatsappTemplate: { type: 'string' },
+          whatsappLanguage: { type: 'string' },
+          emailTestRecipient: { type: 'string' },
+          emailSubject: { type: 'string' },
+          emailText: { type: 'string' }
+        }
+      }
+    }
+  }, async (req) => {
+    assertRole(req.user!.role, 'admin');
+    const params = req.params as { clientId: string };
+    const body = req.body as {
+      mode?: 'dry_run' | 'live';
+      whatsappTestRecipient: string;
+      whatsappTemplate?: string;
+      whatsappLanguage?: string;
+      emailTestRecipient: string;
+      emailSubject?: string;
+      emailText?: string;
+    };
+    const mode = body.mode || 'dry_run';
+
+    const waBefore = await whatsappStatus(req.user!.tenantId, params.clientId);
+    const waVerification = await verifyWhatsApp({
+      tenantId: req.user!.tenantId,
+      clientId: params.clientId,
+      initiatedBy: req.user!.userId,
+      testRecipient: body.whatsappTestRecipient,
+      template: body.whatsappTemplate,
+      language: body.whatsappLanguage,
+      mode
+    });
+    const waAfter = await whatsappStatus(req.user!.tenantId, params.clientId);
+    const waSuggestions = buildWhatsAppFixSuggestions({
+      connected: waAfter.contract.connected,
+      verified: waAfter.contract.verified,
+      testSendPassed: waAfter.contract.testSendPassed,
+      stale: waAfter.contract.stale,
+      liveAllowed: env.VERIFY_ALLOW_LIVE,
+      latestVerificationStatus: waAfter.latest?.status || ''
+    });
+
+    const emailBefore = await emailStatus(req.user!.tenantId, params.clientId);
+    const emailVerification = await verifyEmail({
+      tenantId: req.user!.tenantId,
+      clientId: params.clientId,
+      initiatedBy: req.user!.userId,
+      testRecipient: body.emailTestRecipient,
+      mode,
+      subject: body.emailSubject,
+      text: body.emailText
+    });
+    const emailAfter = await emailStatus(req.user!.tenantId, params.clientId);
+    const emailSuggestions = buildEmailFixSuggestions({
+      connected: emailAfter.contract.connected,
+      verified: emailAfter.contract.verified,
+      testSendPassed: emailAfter.contract.testSendPassed,
+      stale: emailAfter.contract.stale,
+      liveAllowed: env.VERIFY_ALLOW_LIVE,
+      latestVerificationStatus: emailAfter.latest?.status || ''
+    });
+
+    return {
+      ok: waAfter.contract.ready && emailAfter.contract.ready,
+      mode,
+      providers: {
+        whatsapp: {
+          before: {
+            contract: waBefore.contract,
+            latestVerification: waBefore.latest
+              ? { id: waBefore.latest.id, status: waBefore.latest.status, createdAt: waBefore.latest.created_at }
+              : null
+          },
+          verification: waVerification,
+          after: {
+            contract: waAfter.contract,
+            latestVerification: waAfter.latest
+              ? { id: waAfter.latest.id, status: waAfter.latest.status, createdAt: waAfter.latest.created_at }
+              : null
+          },
+          suggestions: waSuggestions
+        },
+        email_sendgrid: {
+          before: {
+            contract: emailBefore.contract,
+            latestVerification: emailBefore.latest
+              ? { id: emailBefore.latest.id, status: emailBefore.latest.status, createdAt: emailBefore.latest.created_at }
+              : null
+          },
+          verification: emailVerification,
+          after: {
+            contract: emailAfter.contract,
+            latestVerification: emailAfter.latest
+              ? { id: emailAfter.latest.id, status: emailAfter.latest.status, createdAt: emailAfter.latest.created_at }
+              : null
+          },
+          suggestions: emailSuggestions
+        }
+      }
+    };
+  });
 }
