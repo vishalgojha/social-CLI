@@ -40,7 +40,7 @@ From this repository, you can install in one click:
 
 1. Double-click `install.cmd`
 2. Wait for completion
-3. When prompted, press `Y` to launch Social CLI immediately
+3. When prompted, press `Y` to launch Social CLI Hatch in a new terminal window
 
 What it does:
 

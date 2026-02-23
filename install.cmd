@@ -25,10 +25,11 @@ if errorlevel 2 goto :end
 
 where social.cmd >nul 2>nul
 if "%ERRORLEVEL%"=="0" (
-  call social.cmd
+  echo Launching Social CLI Hatch in a new window...
+  start "Social CLI" cmd /k social.cmd hatch
 ) else (
-  echo social command not on PATH yet. Launching local CLI...
-  node "%~dp0bin\social.js"
+  echo social command not on PATH yet. Launching local Hatch from repo...
+  start "Social CLI" cmd /k node "%~dp0bin\social.js" hatch
 )
 
 :end
