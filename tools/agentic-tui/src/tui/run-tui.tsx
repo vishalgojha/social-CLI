@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useReducer, useState } from "re
 import { Box, Text, useApp, useInput } from "ink";
 import { Select, StatusMessage } from "@inkjs/ui";
 import TextInput from "ink-text-input";
-import chalk from "chalk";
 
 import { getExecutor } from "../executors/registry.js";
 import { applySlotEdits, parseNaturalLanguageWithOptionalAi } from "../parser/intent-parser.js";
@@ -44,12 +43,30 @@ function queueItem(action: ActionQueueItem["action"], params: Record<string, str
   };
 }
 
-function formatLiveLog(entry: LogEntry): string {
-  const base = `${entry.at} ${entry.level} ${entry.message}`;
-  if (entry.level === "ERROR") return chalk.red(base);
-  if (entry.level === "WARN") return chalk.yellow(base);
-  if (entry.level === "SUCCESS") return chalk.green(base);
-  return chalk.cyan(base);
+function shortTime(iso: string): string {
+  const date = new Date(String(iso || ""));
+  if (Number.isNaN(date.getTime())) return "--:--:--";
+  return date.toISOString().slice(11, 19);
+}
+
+function logLevelColor(level: LogEntry["level"]): "cyan" | "yellow" | "red" | "green" {
+  if (level === "WARN") return "yellow";
+  if (level === "ERROR") return "red";
+  if (level === "SUCCESS") return "green";
+  return "cyan";
+}
+
+function logLevelGlyph(level: LogEntry["level"]): string {
+  if (level === "WARN") return "!";
+  if (level === "ERROR") return "x";
+  if (level === "SUCCESS") return "ok";
+  return "i";
+}
+
+function roleGlyph(role: ChatTurn["role"]): string {
+  if (role === "user") return "you";
+  if (role === "assistant") return "agent";
+  return "sys";
 }
 
 function summarizeIntent(intent: ParsedIntent, risk: string, missing: string[]): string {
@@ -422,6 +439,12 @@ function HatchRuntime(): JSX.Element {
     ads: !!config?.scopes.find((x) => x.includes("ads")) || !!config?.tokenMap.facebook
   };
   const connectedCount = [platformStatus.instagram, platformStatus.facebook, platformStatus.ads].filter(Boolean).length;
+  const aiProvider = process.env.SOCIAL_TUI_AI_PROVIDER || "deterministic";
+  const aiModel = process.env.SOCIAL_TUI_AI_MODEL || (aiProvider === "openai" ? "gpt-4o-mini" : aiProvider === "ollama" ? "qwen2.5:7b" : "n/a");
+  const aiLabel = `${aiProvider}/${aiModel}`;
+  const riskTone = state.currentRisk === "HIGH" ? theme.error : state.currentRisk === "MEDIUM" ? theme.warning : theme.success;
+  const phaseTone = state.phase === "EXECUTING" ? theme.accent : state.phase === "REJECTED" ? theme.warning : theme.text;
+  const topActivity = state.liveLogs[state.liveLogs.length - 1];
 
   const accountOptions = accountOptionsFromConfig(config || {
     tokenSet: false,
@@ -431,10 +454,18 @@ function HatchRuntime(): JSX.Element {
   });
 
   const queueLines = state.actionQueue.length
-    ? state.actionQueue.map((x) => <Text key={x.id} color={theme.text}>{x.id} {x.action} {x.status}</Text>)
+    ? state.actionQueue.map((x) => (
+      <Text key={x.id} color={x.status === "FAILED" ? theme.error : x.status === "RUNNING" ? theme.accent : theme.text}>
+        {shortTime(x.createdAt)} {x.action} [{x.status}]
+      </Text>
+    ))
     : [<Text key="q0" color={theme.muted}>No queued actions.</Text>];
   const liveLogLines = state.liveLogs.length
-    ? state.liveLogs.slice(-12).map((x, idx) => <Text key={`l-${idx}`} color={theme.text}>{formatLiveLog(x)}</Text>)
+    ? state.liveLogs.slice(-12).map((x, idx) => (
+      <Text key={`l-${idx}`} color={logLevelColor(x.level)}>
+        [{shortTime(x.at)}] {logLevelGlyph(x.level)} {x.message}
+      </Text>
+    ))
     : [<Text key="l0" color={theme.muted}>No runtime logs yet.</Text>];
   const resultLines = state.results
     ? [<Text key="r0" color={theme.text}>{JSON.stringify(state.results, null, 2)}</Text>]
@@ -442,40 +473,53 @@ function HatchRuntime(): JSX.Element {
 
   return (
     <Box flexDirection="column" height={30}>
-      <HeaderBar title="Social CLI Hatch" connected={connectedCount} total={3} />
+      <HeaderBar
+        title="Social CLI Hatch"
+        connected={connectedCount}
+        total={3}
+        phase={state.phase}
+        risk={state.currentRisk || "LOW"}
+        account={selectedAccount}
+        ai={aiLabel}
+      />
+      <Box marginY={1} justifyContent="space-between">
+        <Text color={phaseTone}>phase: {state.phase.toLowerCase()}</Text>
+        <Text color={riskTone}>risk: {(state.currentRisk || "LOW").toLowerCase()}</Text>
+        <Text color={theme.muted}>latest: {topActivity ? `${shortTime(topActivity.at)} ${topActivity.message.slice(0, 44)}` : "idle"}</Text>
+      </Box>
 
       <Box flexGrow={1} flexDirection="row">
         <Box width={rightRailCollapsed ? "100%" : "68%"} marginRight={rightRailCollapsed ? 0 : 1} flexDirection="column">
-          <Panel title="CHAT" focused>
+          <Panel title="CHAT" subtitle="conversation stream" focused>
             {chatTurns.slice(-16).map((turn) => (
               <Text key={turn.id} color={turn.role === "user" ? theme.accent : turn.role === "assistant" ? theme.text : theme.muted}>
-                {turn.role}{">"} {turn.text}
+                [{shortTime(turn.at)}] {roleGlyph(turn.role)}: {turn.text || "..."}
               </Text>
             ))}
           </Panel>
-          <Panel title="LIVE_LOGS">{liveLogLines}</Panel>
-          <Panel title="RESULTS">{resultLines}</Panel>
+          <Panel title="LIVE_LOGS" subtitle="runtime telemetry">{liveLogLines}</Panel>
+          <Panel title="RESULTS" subtitle="last execution output">{resultLines}</Panel>
         </Box>
 
         {!rightRailCollapsed ? (
           <Box width="32%" flexDirection="column">
-            <Panel title="PLAN">
+            <Panel title="PLAN" subtitle="intent + approval context">
               <Text color={theme.text}>Action: {state.currentIntent?.action || "none"}</Text>
-              <Text color={theme.text}>Risk: {state.currentRisk || "none"}</Text>
+              <Text color={riskTone}>Risk: {state.currentRisk || "none"}</Text>
               <Text color={theme.muted}>Missing: {state.missingSlots.join(", ") || "none"}</Text>
-              <Text color={theme.muted}>Phase: {state.phase}</Text>
+              <Text color={phaseTone}>Phase: {state.phase}</Text>
             </Panel>
-            <Panel title="ACTIONS_QUEUE">{queueLines}</Panel>
-            <Panel title="APPROVALS">
+            <Panel title="ACTIONS_QUEUE" subtitle="recent operations">{queueLines}</Panel>
+            <Panel title="APPROVALS" subtitle="risk policy">
               <Text color={theme.muted}>LOW auto | MEDIUM confirm | HIGH reason + confirm</Text>
               <Text color={theme.muted}>Shortcuts: Enter/a/r/e/d</Text>
             </Panel>
-            <Panel title="ROLLBACK">
+            <Panel title="ROLLBACK" subtitle="safety trail">
               {state.rollbackHistory.length
                 ? state.rollbackHistory.slice(-5).map((x) => <Text key={`${x.at}_${x.action}`} color={theme.text}>{x.action} {x.status}</Text>)
                 : <Text color={theme.muted}>No rollback entries.</Text>}
             </Panel>
-            <Panel title="SESSION">
+            <Panel title="SESSION" subtitle="workspace context">
               {configState.loading ? <StatusMessage variant="info">Loading config...</StatusMessage> : null}
               {configState.error ? <StatusMessage variant="error">{configState.error}</StatusMessage> : null}
               <Text color={theme.muted}>Graph: {config?.graphVersion || "v20.0"}</Text>
@@ -503,7 +547,7 @@ function HatchRuntime(): JSX.Element {
       ) : null}
 
       {showPalette ? (
-        <Panel title="COMMAND_PALETTE" focused>
+        <Panel title="COMMAND_PALETTE" subtitle="quick actions" focused>
           <Select
             options={[
               { label: "Doctor", value: "doctor" },
@@ -526,15 +570,15 @@ function HatchRuntime(): JSX.Element {
       ) : null}
 
       {showHelp ? (
-        <Panel title="HELP" focused>
-          <Text color={theme.text}>Chat-first hatch mode.</Text>
+        <Panel title="HELP" subtitle="keyboard map" focused>
+          <Text color={theme.text}>Workflow: describe, plan, approve, execute, and review.</Text>
           <Text color={theme.text}>Commands: /help /doctor /status /config /logs /replay /why /ai ...</Text>
-          <Text color={theme.text}>Shortcuts: Enter confirm, a approve, r reject, e edit, d details</Text>
-          <Text color={theme.muted}>x toggle right rail, / palette, up/down history, q quit</Text>
+          <Text color={theme.text}>Keys: Enter send/confirm, a approve, r reject, e edit slots, d details.</Text>
+          <Text color={theme.muted}>UI: / palette, x toggle right rail, up/down history or replay suggestions, q quit.</Text>
         </Panel>
       ) : null}
 
-      <FooterBar hint="enter:send/confirm | up/down:history | /:palette | x:toggle rail | a/r/e/d | /ai ... | q:quit" />
+      <FooterBar hint="enter send/confirm | / palette | a approve | r reject | e edit | d details | x rail | q quit" />
     </Box>
   );
 }

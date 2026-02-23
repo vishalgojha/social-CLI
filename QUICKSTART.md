@@ -8,6 +8,12 @@ Get up and running with social-cli in 5 minutes.
 npm install -g @vishalgojha/social-cli
 ```
 
+Windows one-click (from repo source):
+
+```powershell
+.\install.cmd
+```
+
 Or use it without installing:
 ```bash
 npx @vishalgojha/social-cli

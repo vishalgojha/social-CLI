@@ -34,6 +34,29 @@ npm install -g @vishalgojha/social-cli
 social --help
 ```
 
+### One-Click Installer (Windows)
+
+From this repository, you can install in one click:
+
+1. Double-click `install.cmd`
+2. Wait for completion
+3. When prompted, press `Y` to launch Social CLI immediately
+
+What it does:
+
+- Installs dependencies
+- Builds CLI + TUI artifacts
+- Installs global `social` command (`npm link` with fallback to packed global install)
+- Verifies with `social --version`
+
+Optional flags (from terminal):
+
+```powershell
+.\install.cmd -NoGlobal
+.\install.cmd -SkipBuild
+.\install.cmd -SkipTui
+```
+
 ## Uninstall
 
 App only (keeps local config/history):

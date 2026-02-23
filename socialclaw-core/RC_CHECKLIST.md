@@ -1,10 +1,10 @@
 # SocialClaw Release Candidate Checklist
 
 ## Build and Test
-- [ ] `npm ci` completes in `socialclaw-core/`
-- [ ] `npm run lint` passes
-- [ ] `npm test` passes
-- [ ] `npm run build` passes
+- [x] `npm ci` completes in `socialclaw-core/`
+- [x] `npm run lint` passes
+- [x] `npm test` passes
+- [x] `npm run build` passes
 
 ## Runtime Validation
 - [ ] PostgreSQL schema applied from `src/db/schema.sql`

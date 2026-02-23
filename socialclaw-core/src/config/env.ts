@@ -26,4 +26,14 @@ const schema = z.object({
   SENTRY_DSN: z.string().optional()
 });
 
-export const env = schema.parse(process.env);
+const preparedEnv: Record<string, unknown> = { ...process.env };
+const nodeEnv = String(preparedEnv.NODE_ENV || '').trim().toLowerCase();
+
+// Keep production strict while making local test runs deterministic without external services.
+if (nodeEnv === 'test') {
+  preparedEnv.DATABASE_URL = String(preparedEnv.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/socialclaw_test');
+  preparedEnv.REDIS_URL = String(preparedEnv.REDIS_URL || 'redis://localhost:6379');
+  preparedEnv.JWT_SECRET = String(preparedEnv.JWT_SECRET || 'test-secret-123');
+}
+
+export const env = schema.parse(preparedEnv);
