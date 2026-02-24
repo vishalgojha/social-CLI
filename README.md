@@ -76,6 +76,7 @@ social hub ...         # package/connector trust + lifecycle
 - AI interface details: `docs/AI_INTERFACE.md`
 - Chat agent details: `docs/CHAT_AGENT.md`
 - Gateway API details: `docs/GATEWAY_UI.md`
+- Deployment runbook: `DEPLOYMENT.md`
 - TypeScript migration plan: `docs/TYPESCRIPT_MIGRATION.md`
 - Contributor guide: `CONTRIBUTING.md`
 - Publish/release maintainer flow: `SETUP_AND_PUBLISHING.md`
