@@ -1,11 +1,20 @@
-const path = require('path');
-const fs = require('fs');
-const { spawn } = require('child_process');
-const chalk = require('chalk');
-const config = require('../lib/config');
+import path = require('path');
+import fs = require('fs');
+import { spawn } from 'child_process';
+import chalk = require('chalk');
 
-function runSubprocess(command, args, env) {
-  return new Promise((resolve, reject) => {
+const config = require('../../lib/config');
+
+type TuiOptions = {
+  aiProvider?: string;
+  aiModel?: string;
+  aiBaseUrl?: string;
+  aiApiKey?: string;
+  skipOnboardCheck?: boolean;
+};
+
+function runSubprocess(command: string, args: string[], env: NodeJS.ProcessEnv) {
+  return new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: 'inherit',
       env
@@ -22,28 +31,44 @@ function needsOnboarding() {
   return !config.hasCompletedOnboarding();
 }
 
-function registerTuiCommand(program) {
+function registerTuiCommand(program: any) {
   program
     .command('tui')
     .alias('hatch')
     .description('Launch agentic terminal UI (chat-first control plane)')
-    .option('--ai-provider <provider>', 'deterministic|ollama|openai', 'deterministic')
+    .option('--ai-provider <provider>', 'openai', 'openai')
     .option('--ai-model <model>', 'AI model override')
     .option('--ai-base-url <url>', 'AI base URL override')
     .option('--ai-api-key <key>', 'AI API key override')
     .option('--skip-onboard-check', 'Skip onboarding guard and open hatch directly', false)
-    .action(async (opts) => {
-      const rootDir = path.join(__dirname, '..');
+    .action(async (opts: TuiOptions) => {
+      const rootDir = path.join(__dirname, '..', '..', '..');
       const distEntry = path.join(rootDir, 'tools', 'agentic-tui', 'dist', 'index.js');
       const srcEntry = path.join(rootDir, 'tools', 'agentic-tui', 'src', 'index.tsx');
       const binPath = path.join(rootDir, 'bin', 'social.js');
+      const provider = String(opts.aiProvider || process.env.SOCIAL_TUI_AI_PROVIDER || 'openai').trim().toLowerCase();
+      if (provider !== 'openai') {
+        console.error(chalk.red('\nOnly provider "openai" is supported for Hatch UI.\n'));
+        process.exit(1);
+      }
 
-      const env = {
+      const apiKey = String(
+        opts.aiApiKey ||
+          process.env.SOCIAL_TUI_AI_API_KEY ||
+          process.env.OPENAI_API_KEY ||
+          ''
+      ).trim();
+      if (!apiKey) {
+        console.error(chalk.red('\nHatch UI requires a valid API key. Set OPENAI_API_KEY or pass --ai-api-key.\n'));
+        process.exit(1);
+      }
+
+      const env: NodeJS.ProcessEnv = {
         ...process.env,
-        SOCIAL_TUI_AI_PROVIDER: opts.aiProvider || process.env.SOCIAL_TUI_AI_PROVIDER || '',
+        SOCIAL_TUI_AI_PROVIDER: provider,
         SOCIAL_TUI_AI_MODEL: opts.aiModel || process.env.SOCIAL_TUI_AI_MODEL || '',
         SOCIAL_TUI_AI_BASE_URL: opts.aiBaseUrl || process.env.SOCIAL_TUI_AI_BASE_URL || '',
-        SOCIAL_TUI_AI_API_KEY: opts.aiApiKey || process.env.SOCIAL_TUI_AI_API_KEY || ''
+        SOCIAL_TUI_AI_API_KEY: apiKey
       };
 
       try {
@@ -62,11 +87,12 @@ function registerTuiCommand(program) {
         const tsxCli = require.resolve('tsx/dist/cli.mjs');
         await runSubprocess(process.execPath, [tsxCli, srcEntry], env);
       } catch (error) {
-        console.error(chalk.red(`x Failed to start TUI: ${error.message}`));
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(chalk.red(`x Failed to start TUI: ${message}`));
         console.error(chalk.yellow('Build hint: npm run build:social-ts && npm --prefix tools/agentic-tui run build'));
         process.exit(1);
       }
     });
 }
 
-module.exports = registerTuiCommand;
+export = registerTuiCommand;

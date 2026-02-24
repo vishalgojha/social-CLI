@@ -1,28 +1,81 @@
-const chalk = require('chalk');
-const ora = require('ora');
-const inquirer = require('inquirer');
-const config = require('../lib/config');
-const MetaAPIClient = require('../lib/api-client');
-const { formatTable } = require('../lib/formatters');
+import chalk = require('chalk');
+import ora = require('ora');
 
-function getToken() {
-  // Many apps reuse the same user token for FB + IG Graph.
+const inquirer = require('inquirer');
+const config = require('../../lib/config');
+const MetaAPIClient = require('../../lib/api-client');
+const { formatTable } = require('../../lib/formatters');
+
+type IgAccount = {
+  page_id: string;
+  page_name: string;
+  id: string;
+  username?: string;
+};
+
+type AccountsListOptions = {
+  json?: boolean;
+  setDefault?: boolean;
+};
+
+type MediaListOptions = {
+  igUserId?: string;
+  limit?: string;
+  json?: boolean;
+};
+
+type InsightsOptions = {
+  igMediaId: string;
+  metric: string;
+  period?: string;
+  json?: boolean;
+};
+
+type CommentsListOptions = {
+  mediaId: string;
+  limit?: string;
+  json?: boolean;
+};
+
+type CommentsReplyOptions = {
+  commentId: string;
+  message: string;
+  json?: boolean;
+};
+
+type PublishOptions = {
+  containerId: string;
+  igUserId?: string;
+  json?: boolean;
+};
+
+type PageResult = {
+  id: string;
+  name: string;
+  instagram_business_account?: {
+    id?: string;
+    username?: string;
+  };
+};
+
+function getToken(): string {
   return config.getToken('instagram') || config.getToken('facebook') || '';
 }
 
-async function pickIgUser(accounts, defaultId) {
-  const choices = accounts.map((a) => ({
-    name: `${a.username || a.page_name} (${a.id})`,
-    value: a.id
+async function pickIgUser(accounts: IgAccount[], defaultId?: string): Promise<string> {
+  const choices = accounts.map((account) => ({
+    name: `${account.username || account.page_name} (${account.id})`,
+    value: account.id
   }));
-  const idx = defaultId ? choices.findIndex((c) => c.value === defaultId) : -1;
-  const ans = await inquirer.prompt([{ type: 'list', name: 'id', message: 'Select an IG user:', choices, default: idx >= 0 ? idx : 0 }]);
-  return ans.id;
+  const idx = defaultId ? choices.findIndex((choice) => choice.value === defaultId) : -1;
+  const answers = await inquirer.prompt([
+    { type: 'list', name: 'id', message: 'Select an IG user:', choices, default: idx >= 0 ? idx : 0 }
+  ]);
+  return String(answers.id);
 }
 
-function registerInstagramCommands(program) {
+function registerInstagramCommands(program: any) {
   const instagram = program.command('instagram').description('Instagram Graph API helpers');
-
   const accounts = instagram.command('accounts').description('Manage connected Instagram business accounts');
 
   accounts
@@ -30,7 +83,7 @@ function registerInstagramCommands(program) {
     .description('List connected Instagram business accounts')
     .option('--json', 'Output as JSON')
     .option('--set-default', 'Pick and save default IG user id')
-    .action(async (options) => {
+    .action(async (options: AccountsListOptions) => {
       const token = getToken();
       if (!token) {
         console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
@@ -43,41 +96,41 @@ function registerInstagramCommands(program) {
         const pages = await client.getFacebookPages(100);
         spinner.stop();
 
-        const accounts = (pages.data || [])
-          .filter((p) => p.instagram_business_account && p.instagram_business_account.id)
-          .map((p) => ({
-            page_id: p.id,
-            page_name: p.name,
-            id: p.instagram_business_account.id,
-            username: p.instagram_business_account.username
+        const accountRows = (Array.isArray(pages.data) ? (pages.data as PageResult[]) : [])
+          .filter((page) => page.instagram_business_account && page.instagram_business_account.id)
+          .map((page) => ({
+            page_id: page.id,
+            page_name: page.name,
+            id: String(page.instagram_business_account?.id || ''),
+            username: page.instagram_business_account?.username
           }));
 
         if (options.setDefault) {
-          if (!accounts.length) {
+          if (!accountRows.length) {
             console.error(chalk.red('X No connected IG business accounts found.'));
             process.exit(1);
           }
-          const picked = await pickIgUser(accounts, config.getDefaultIgUserId());
+          const picked = await pickIgUser(accountRows, config.getDefaultIgUserId());
           config.setDefaultIgUserId(picked);
           console.log(chalk.green(`OK Default IG user set to: ${picked}\n`));
           return;
         }
 
         if (options.json) {
-          console.log(JSON.stringify({ data: accounts }, null, 2));
+          console.log(JSON.stringify({ data: accountRows }, null, 2));
           return;
         }
 
-        if (!accounts.length) {
+        if (!accountRows.length) {
           console.log(chalk.yellow('\nNo connected IG business accounts found.\n'));
           return;
         }
 
-        console.log(formatTable(accounts, ['username', 'id', 'page_name', 'page_id']));
+        console.log(formatTable(accountRows, ['username', 'id', 'page_name', 'page_id']));
         console.log('');
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['instagram_basic', 'pages_show_list'] });
+        client.handleError(error, { scopes: ['instagram_basic', 'pages_show_list'] });
       }
     });
 
@@ -89,7 +142,7 @@ function registerInstagramCommands(program) {
     .option('--ig-user-id <id>', 'IG user id (defaults to configured)')
     .option('-l, --limit <n>', 'Limit', '10')
     .option('--json', 'Output as JSON')
-    .action(async (options) => {
+    .action(async (options: MediaListOptions) => {
       const token = getToken();
       if (!token) {
         console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
@@ -104,12 +157,12 @@ function registerInstagramCommands(program) {
       const spinner = ora('Fetching media...').start();
       const client = new MetaAPIClient(token, 'instagram');
       try {
-        const result = await client.getInstagramMedia(igUserId, parseInt(options.limit, 10));
+        const result = await client.getInstagramMedia(igUserId, parseInt(String(options.limit || '10'), 10));
         spinner.stop();
         console.log(JSON.stringify(result, null, 2));
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['instagram_basic'] });
+        client.handleError(error, { scopes: ['instagram_basic'] });
       }
     });
 
@@ -120,7 +173,7 @@ function registerInstagramCommands(program) {
     .requiredOption('--metric <metrics>', 'Comma-separated metrics (e.g. reach,impressions)')
     .option('--period <period>', 'Period (if required by metric)')
     .option('--json', 'Output as JSON')
-    .action(async (options) => {
+    .action(async (options: InsightsOptions) => {
       const token = getToken();
       if (!token) {
         console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
@@ -130,13 +183,17 @@ function registerInstagramCommands(program) {
       const spinner = ora('Fetching insights...').start();
       const client = new MetaAPIClient(token, 'instagram');
       try {
-        const metrics = String(options.metric).split(',').map((s) => s.trim()).filter(Boolean).join(',');
+        const metrics = String(options.metric)
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .join(',');
         const result = await client.getInstagramInsights(options.igMediaId, metrics, options.period);
         spinner.stop();
         console.log(JSON.stringify(result, null, 2));
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['instagram_manage_insights'] });
+        client.handleError(error, { scopes: ['instagram_manage_insights'] });
       }
     });
 
@@ -148,7 +205,7 @@ function registerInstagramCommands(program) {
     .requiredOption('--media-id <id>', 'IG media id')
     .option('-l, --limit <n>', 'Limit', '50')
     .option('--json', 'Output as JSON')
-    .action(async (options) => {
+    .action(async (options: CommentsListOptions) => {
       const token = getToken();
       if (!token) {
         console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
@@ -157,12 +214,12 @@ function registerInstagramCommands(program) {
       const spinner = ora('Fetching comments...').start();
       const client = new MetaAPIClient(token, 'instagram');
       try {
-        const result = await client.listInstagramComments(options.mediaId, parseInt(options.limit, 10));
+        const result = await client.listInstagramComments(options.mediaId, parseInt(String(options.limit || '50'), 10));
         spinner.stop();
         console.log(JSON.stringify(result, null, 2));
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['instagram_manage_comments'] });
+        client.handleError(error, { scopes: ['instagram_manage_comments'] });
       }
     });
 
@@ -172,7 +229,7 @@ function registerInstagramCommands(program) {
     .requiredOption('--comment-id <id>', 'Comment id to reply to')
     .requiredOption('--message <text>', 'Reply text')
     .option('--json', 'Output as JSON')
-    .action(async (options) => {
+    .action(async (options: CommentsReplyOptions) => {
       const token = getToken();
       if (!token) {
         console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
@@ -184,9 +241,9 @@ function registerInstagramCommands(program) {
         const result = await client.replyToInstagramComment(options.commentId, options.message);
         spinner.stop();
         console.log(JSON.stringify(result, null, 2));
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['instagram_manage_comments'] });
+        client.handleError(error, { scopes: ['instagram_manage_comments'] });
       }
     });
 
@@ -196,7 +253,7 @@ function registerInstagramCommands(program) {
     .requiredOption('--container-id <id>', 'IG creation container id')
     .option('--ig-user-id <id>', 'IG user id (defaults to configured)')
     .option('--json', 'Output as JSON')
-    .action(async (options) => {
+    .action(async (options: PublishOptions) => {
       const token = getToken();
       if (!token) {
         console.error(chalk.red('X No instagram/facebook token found. Run: social auth login -a facebook'));
@@ -213,11 +270,11 @@ function registerInstagramCommands(program) {
         const result = await client.publishInstagramContainer(igUserId, options.containerId);
         spinner.stop();
         console.log(JSON.stringify(result, null, 2));
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['instagram_basic'] });
+        client.handleError(error, { scopes: ['instagram_basic'] });
       }
     });
 }
 
-module.exports = registerInstagramCommands;
+export = registerInstagramCommands;

@@ -1,7 +1,6 @@
 const MetaAPIClient = require('../lib/api-client');
 const { MetaApiClient } = require('../lib/api');
 const marketing = require('../lib/marketing');
-const axios = require('axios');
 
 function safeInt(v, def) {
   const n = parseInt(v, 10);
@@ -33,70 +32,6 @@ function validatePlanSteps(steps, toolsByName) {
 
 function getToolRegistry() {
   return [
-    {
-      name: 'local.ollama.setup',
-      description: 'Configure Social CLI to use local Ollama. Args: { model?: "llama3.1:8b", baseUrl?: "http://127.0.0.1:11434", pull?: boolean }',
-      risk: 'low',
-      requiresConfirmation: false,
-      execute: async ({ config }, args) => {
-        const model = String(args?.model || 'llama3.1:8b').trim() || 'llama3.1:8b';
-        const baseUrl = String(
-          args?.baseUrl ||
-          process.env.SOCIAL_OLLAMA_BASE_URL ||
-          process.env.OLLAMA_BASE_URL ||
-          'http://127.0.0.1:11434'
-        ).trim().replace(/\/+$/, '');
-
-        let online = false;
-        let installed = false;
-        let pulled = false;
-        let tags = [];
-
-        try {
-          const tagsRes = await axios.get(`${baseUrl}/api/tags`, { timeout: 4000 });
-          tags = Array.isArray(tagsRes?.data?.models) ? tagsRes.data.models.map((m) => String(m.name || '')) : [];
-          installed = tags.includes(model);
-          online = true;
-
-          if (!installed && Boolean(args?.pull)) {
-            await axios.post(`${baseUrl}/api/pull`, { model, stream: false }, { timeout: 15 * 60 * 1000 });
-            pulled = true;
-            installed = true;
-          }
-        } catch (error) {
-          return {
-            configured: false,
-            provider: 'ollama',
-            model,
-            baseUrl,
-            online: false,
-            installed: false,
-            error: String(error?.message || error || ''),
-            next: [
-              'Start Ollama (desktop app or `ollama serve`)',
-              `Pull model after Ollama is up: ollama pull ${model}`,
-              `Then run: social agent setup --provider ollama --model ${model}`
-            ]
-          };
-        }
-
-        config.setAgentProvider('ollama');
-        config.setAgentModel(model);
-        config.setAgentApiKey('');
-
-        return {
-          configured: true,
-          provider: 'ollama',
-          model,
-          baseUrl,
-          online,
-          installed,
-          pulled,
-          availableModels: tags.slice(0, 20),
-          next: installed ? [] : [`Model not found. Run: ollama pull ${model}`]
-        };
-      }
-    },
     {
       name: 'auth.status',
       description: 'Show which tokens/defaults/app credentials are configured (no API calls).',

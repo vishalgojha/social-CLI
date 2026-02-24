@@ -1,11 +1,70 @@
-const chalk = require('chalk');
-const ora = require('ora');
-const inquirer = require('inquirer');
-const config = require('../lib/config');
-const MetaAPIClient = require('../lib/api-client');
-const { sanitizeForLog } = require('../lib/api');
+import chalk = require('chalk');
+import ora = require('ora');
 
-function getTokenOrExit() {
+const inquirer = require('inquirer');
+const config = require('../../lib/config');
+const MetaAPIClient = require('../../lib/api-client');
+const { sanitizeForLog } = require('../../lib/api');
+
+type SendOptions = {
+  to: string;
+  from?: string;
+  type?: string;
+  body?: string;
+  url?: string;
+  caption?: string;
+  json?: boolean;
+  dryRun?: boolean;
+  verbose?: boolean;
+};
+
+type TemplateListOptions = {
+  businessId: string;
+  json?: boolean;
+};
+
+type TemplateCreateOptions = {
+  businessId: string;
+  name: string;
+  language: string;
+  body: string;
+  category?: string;
+  json?: boolean;
+  dryRun?: boolean;
+  verbose?: boolean;
+};
+
+type PhoneNumbersListOptions = {
+  businessId: string;
+  setDefault?: boolean;
+  json?: boolean;
+};
+
+type RequestDebugInput = {
+  endpoint: string;
+  payload: Record<string, unknown>;
+};
+
+type PhoneNumberEntry = {
+  id: string;
+  display_phone_number?: string;
+  verified_name?: string;
+};
+
+type WhatsAppPayload = {
+  messaging_product: 'whatsapp';
+  to: string;
+  type?: 'text' | 'image';
+  text?: {
+    body: string;
+  };
+  image?: {
+    link: string;
+    caption?: string;
+  };
+};
+
+function getTokenOrExit(): string {
   const token = config.getToken('whatsapp');
   if (!token) {
     console.error(chalk.red('X No WhatsApp token found. Run: social auth login -a whatsapp'));
@@ -14,28 +73,34 @@ function getTokenOrExit() {
   return token;
 }
 
-function printRequestDebug({ endpoint, payload }) {
+function printRequestDebug({ endpoint, payload }: RequestDebugInput) {
   console.log(chalk.gray('\nRequest:'));
   console.log(chalk.gray(`  POST ${endpoint}`));
   console.log(JSON.stringify(sanitizeForLog(payload), null, 2));
   console.log('');
 }
 
-async function pickPhoneNumberId(phoneNumbers, defaultId) {
-  const choices = (phoneNumbers || []).map((p) => ({
-    name: `${p.display_phone_number || p.verified_name || p.id} (${p.id})`,
-    value: p.id
+async function pickPhoneNumberId(phoneNumbers: PhoneNumberEntry[], defaultId?: string): Promise<string | null> {
+  const choices = (phoneNumbers || []).map((phone) => ({
+    name: `${phone.display_phone_number || phone.verified_name || phone.id} (${phone.id})`,
+    value: phone.id
   }));
   if (!choices.length) return null;
 
-  const defaultIndex = defaultId ? choices.findIndex((c) => c.value === defaultId) : -1;
+  const defaultIndex = defaultId ? choices.findIndex((choice) => choice.value === defaultId) : -1;
   const answers = await inquirer.prompt([
-    { type: 'list', name: 'id', message: 'Select a WhatsApp Phone Number:', choices, default: defaultIndex >= 0 ? defaultIndex : 0 }
+    {
+      type: 'list',
+      name: 'id',
+      message: 'Select a WhatsApp Phone Number:',
+      choices,
+      default: defaultIndex >= 0 ? defaultIndex : 0
+    }
   ]);
-  return answers.id;
+  return String(answers.id);
 }
 
-function registerWhatsAppCommands(program) {
+function registerWhatsAppCommands(program: any) {
   const whatsapp = program.command('whatsapp').description('WhatsApp Business (Cloud API)');
 
   whatsapp
@@ -50,12 +115,11 @@ function registerWhatsAppCommands(program) {
     .option('--json', 'Output as JSON')
     .option('--dry-run', 'Print payload without calling the API')
     .option('--verbose', 'Print payload without secrets')
-    .action(async (options) => {
+    .action(async (options: SendOptions) => {
       const token = getTokenOrExit();
       const type = String(options.type || 'text').toLowerCase();
       const to = options.to;
-
-      let from = options.from || config.getDefaultWhatsAppPhoneNumberId();
+      const from = options.from || config.getDefaultWhatsAppPhoneNumberId();
 
       if (!from) {
         console.error(chalk.red('X Missing --from phone number id and no default set.'));
@@ -63,7 +127,7 @@ function registerWhatsAppCommands(program) {
         process.exit(1);
       }
 
-      const payload = { messaging_product: 'whatsapp', to };
+      const payload: WhatsAppPayload = { messaging_product: 'whatsapp', to };
 
       if (type === 'text') {
         if (!options.body) {
@@ -104,9 +168,9 @@ function registerWhatsAppCommands(program) {
         if (msgId) console.log(chalk.cyan('  Message ID:'), msgId);
         console.log(chalk.cyan('  To:'), to);
         console.log('');
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['whatsapp_business_messaging'] });
+        client.handleError(error, { scopes: ['whatsapp_business_messaging'] });
       }
     });
 
@@ -117,7 +181,7 @@ function registerWhatsAppCommands(program) {
     .description('List message templates for a WhatsApp Business Account')
     .requiredOption('--business-id <id>', 'WABA ID')
     .option('--json', 'Output as JSON')
-    .action(async (options) => {
+    .action(async (options: TemplateListOptions) => {
       const token = getTokenOrExit();
       const spinner = ora('Fetching templates...').start();
       const client = new MetaAPIClient(token, 'whatsapp');
@@ -125,9 +189,9 @@ function registerWhatsAppCommands(program) {
         const result = await client.listWhatsAppTemplates(options.businessId);
         spinner.stop();
         console.log(JSON.stringify(result, null, 2));
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['whatsapp_business_management'] });
+        client.handleError(error, { scopes: ['whatsapp_business_management'] });
       }
     });
 
@@ -142,7 +206,7 @@ function registerWhatsAppCommands(program) {
     .option('--json', 'Output as JSON')
     .option('--dry-run', 'Print payload without calling the API')
     .option('--verbose', 'Print payload without secrets')
-    .action(async (options) => {
+    .action(async (options: TemplateCreateOptions) => {
       const token = getTokenOrExit();
       const payload = {
         name: options.name,
@@ -167,9 +231,9 @@ function registerWhatsAppCommands(program) {
         const result = await client.createWhatsAppTemplate(options.businessId, payload);
         spinner.stop();
         console.log(JSON.stringify(result, null, 2));
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['whatsapp_business_management'] });
+        client.handleError(error, { scopes: ['whatsapp_business_management'] });
       }
     });
 
@@ -181,14 +245,14 @@ function registerWhatsAppCommands(program) {
     .requiredOption('--business-id <id>', 'WABA ID')
     .option('--set-default', 'Pick and save default phone number id')
     .option('--json', 'Output as JSON')
-    .action(async (options) => {
+    .action(async (options: PhoneNumbersListOptions) => {
       const token = getTokenOrExit();
       const spinner = ora('Fetching phone numbers...').start();
       const client = new MetaAPIClient(token, 'whatsapp');
       try {
         const result = await client.listWhatsAppPhoneNumbers(options.businessId);
         spinner.stop();
-        const items = result?.data || [];
+        const items = Array.isArray(result?.data) ? (result.data as PhoneNumberEntry[]) : [];
 
         if (options.setDefault) {
           const picked = await pickPhoneNumberId(items, config.getDefaultWhatsAppPhoneNumberId());
@@ -200,11 +264,11 @@ function registerWhatsAppCommands(program) {
         }
 
         console.log(JSON.stringify(result, null, 2));
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['whatsapp_business_management'] });
+        client.handleError(error, { scopes: ['whatsapp_business_management'] });
       }
     });
 }
 
-module.exports = registerWhatsAppCommands;
+export = registerWhatsAppCommands;

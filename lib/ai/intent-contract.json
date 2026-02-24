@@ -610,7 +610,7 @@
     "style": "openclaw",
     "steps": [
       { "id": "welcome", "blocking": true, "ui": "screen" },
-      { "id": "provider_select", "blocking": true, "ui": "wizard", "choices": ["ollama", "openai", "anthropic", "openrouter", "xai", "gemini"] },
+      { "id": "provider_select", "blocking": true, "ui": "wizard", "choices": ["openai", "anthropic", "openrouter", "xai", "gemini"] },
       { "id": "auth_connect", "blocking": true, "apis": ["facebook", "instagram", "whatsapp"] },
       { "id": "defaults_setup", "blocking": true, "items": ["profile", "pageId", "igUserId", "wabaId", "whatsappPhoneId"] },
       { "id": "doctor_checks", "blocking": true, "checks": ["token_valid", "scopes", "webhooks", "rate_limit", "ops_storage", "hub_trust"] },

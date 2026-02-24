@@ -2,18 +2,6 @@ const assert = require('node:assert/strict');
 const { aiParseIntent } = require('../lib/ai/parser');
 
 const TOP_PROMPTS = [
-  ['show my facebook pages', 'query_pages'],
-  ['do i have a facebook page', 'query_pages'],
-  ['check my rate limits', 'check_limits'],
-  ['who am i on facebook', 'query_me'],
-  ['list whatsapp phone numbers for business 1234567890', 'query_whatsapp_phone_numbers'],
-  ['post "hello world" to facebook page 12345', 'post_facebook'],
-  ['schedule post "launch soon" tomorrow 10am', 'schedule_post'],
-  ['send whatsapp message "+14155550123" "hi"', 'post_whatsapp'],
-  ['show instagram media for account 178414', 'query_instagram_media'],
-  ['get insights for act_123 last 7 days', 'get_analytics'],
-  ['list campaigns for act_123', 'list_campaigns'],
-  ['create campaign "Spring Sale" objective TRAFFIC budget 5000', 'create_campaign'],
   ['connect facebook account account id act_123', 'connect_account'],
   ['set default account facebook account id act_123', 'set_default_account'],
   ['refresh token for facebook account id act_123', 'refresh_token'],
@@ -26,11 +14,11 @@ const TOP_PROMPTS = [
 
 module.exports = [
   {
-    name: 'prompt regression: top 20 agency prompts map deterministically',
+    name: 'prompt regression: contract prompts map deterministically',
     fn: async () => {
       const oldOpenAI = process.env.OPENAI_API_KEY;
       const oldMeta = process.env.META_AI_KEY;
-      delete process.env.OPENAI_API_KEY;
+      process.env.OPENAI_API_KEY = 'prompt-regression-key';
       delete process.env.META_AI_KEY;
       try {
         // eslint-disable-next-line no-restricted-syntax
@@ -44,8 +32,10 @@ module.exports = [
           );
         }
       } finally {
-        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
-        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+        if (oldOpenAI === undefined) delete process.env.OPENAI_API_KEY;
+        else process.env.OPENAI_API_KEY = oldOpenAI;
+        if (oldMeta === undefined) delete process.env.META_AI_KEY;
+        else process.env.META_AI_KEY = oldMeta;
       }
     }
   }

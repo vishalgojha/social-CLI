@@ -1,9 +1,10 @@
-const path = require('path');
-const { spawn } = require('child_process');
-const chalk = require('chalk');
-const config = require('../lib/config');
-const { PersistentMemory } = require('../lib/chat/memory');
-const { buildSessionTimeline } = require('../lib/chat/timeline');
+import path = require('path');
+import { spawn } from 'child_process';
+import chalk = require('chalk');
+
+const config = require('../../lib/config');
+const { PersistentMemory } = require('../../lib/chat/memory');
+const { buildSessionTimeline } = require('../../lib/chat/timeline');
 
 function printSessions() {
   const sessions = PersistentMemory.list(30);
@@ -12,13 +13,13 @@ function printSessions() {
     return;
   }
   console.log(chalk.bold('\nRecent Chat Sessions:'));
-  sessions.forEach((s) => {
+  sessions.forEach((s: any) => {
     console.log(`- ${chalk.cyan(s.sessionId)} (${s.updatedAt})`);
   });
   console.log('');
 }
 
-function printReplay(sessionId, limit = 120) {
+function printReplay(sessionId: string, limit = 120) {
   const memory = new PersistentMemory(sessionId);
   if (!memory.exists()) {
     console.log(chalk.red(`\nSession not found: ${sessionId}\n`));
@@ -32,7 +33,7 @@ function printReplay(sessionId, limit = 120) {
     return;
   }
   console.log(chalk.bold(`\nSession Replay: ${sessionId}`));
-  timeline.forEach((row) => {
+  timeline.forEach((row: any) => {
     const ts = row.at ? new Date(row.at).toLocaleString() : '-';
     const role = String(row.role || row.type || '').toUpperCase();
     const text = String(row.text || '').trim();
@@ -45,9 +46,9 @@ function needsOnboarding() {
   return !config.hasCompletedOnboarding();
 }
 
-function runSubprocess(args) {
-  return new Promise((resolve, reject) => {
-    const binPath = path.join(__dirname, '..', 'bin', 'social.js');
+function runSubprocess(args: string[]) {
+  return new Promise<void>((resolve, reject) => {
+    const binPath = path.join(__dirname, '..', '..', '..', 'bin', 'social.js');
     const child = spawn(process.execPath, [binPath, '--no-banner', ...args], {
       stdio: 'inherit',
       env: process.env
@@ -60,7 +61,7 @@ function runSubprocess(args) {
   });
 }
 
-function registerChatCommands(program) {
+function registerChatCommands(program: any) {
   const chat = program
     .command('chat')
     .description('Legacy alias to hatch (agentic terminal chat)')
@@ -87,10 +88,10 @@ function registerChatCommands(program) {
     .command('replay <sessionId>')
     .description('Replay timeline for a saved session')
     .option('--limit <n>', 'Max timeline events', '120')
-    .action((sessionId, opts) => {
+    .action((sessionId: string, opts: { limit?: string }) => {
       const limit = Math.max(1, Number(opts.limit || 120));
       printReplay(sessionId, limit);
     });
 }
 
-module.exports = registerChatCommands;
+export = registerChatCommands;

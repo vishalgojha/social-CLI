@@ -7,9 +7,15 @@
     "social": "bin/social.js"
   },
   "scripts": {
-    "test": "node test/run.js",
+    "lint": "eslint --max-warnings=0 bin commands lib test scripts",
+    "build:runtime-ts": "tsc -p tsconfig.runtime.json",
+    "build:tooling-ts": "tsc -p tsconfig.tooling.json",
+    "test": "npm run build:tooling-ts && node .tmp-ts-run/test/run.js",
     "build:social-ts": "tsc -p tsconfig.social.json",
     "test:social-ts": "npm run build:social-ts && node --test --test-isolation=none dist-social/tests/intent-parser.test.js",
+    "smoke:release": "npm run build:tooling-ts && node .tmp-ts-run/scripts/release-smoke.js",
+    "ts:migration-guard": "node scripts/ts-migration-guard.js",
+    "quality:check": "npm run ts:migration-guard && npm run build:runtime-ts && npm run lint && npm run test:social-ts && npm run smoke:release",
     "social:dev": "tsx cli/index.ts",
     "dev": "tsx cli/index.ts"
   },
@@ -37,6 +43,7 @@
   "files": [
     "bin/",
     "commands/",
+    "dist-runtime/",
     "lib/",
     "docs/",
     "tools/",

@@ -1,8 +1,21 @@
-const chalk = require('chalk');
-const { createGatewayServer } = require('../lib/gateway/server');
-const { openUrl } = require('../lib/open-url');
+import chalk = require('chalk');
 
-function registerGatewayCommands(program) {
+const { createGatewayServer } = require('../../lib/gateway/server');
+const { openUrl } = require('../../lib/open-url');
+
+type GatewayOpts = {
+  host: string;
+  port: string;
+  apiKey?: string;
+  requireApiKey?: boolean;
+  corsOrigins?: string;
+  rateLimitMax: string;
+  rateLimitWindowMs: string;
+  open?: boolean;
+  debug?: boolean;
+};
+
+function registerGatewayCommands(program: any) {
   program
     .command('gateway')
     .description('Run localhost API gateway (no bundled frontend UI)')
@@ -15,7 +28,7 @@ function registerGatewayCommands(program) {
     .option('--rate-limit-window-ms <ms>', 'Rate limit window in milliseconds', '60000')
     .option('--open', 'Open the browser automatically', false)
     .option('--debug', 'Enable debug mode for gateway chat processing', false)
-    .action(async (opts) => {
+    .action(async (opts: GatewayOpts) => {
       const server = createGatewayServer({
         host: opts.host,
         port: parseInt(opts.port, 10),
@@ -48,4 +61,4 @@ function registerGatewayCommands(program) {
     });
 }
 
-module.exports = registerGatewayCommands;
+export = registerGatewayCommands;

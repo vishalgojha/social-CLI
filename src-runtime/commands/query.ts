@@ -1,19 +1,38 @@
-const chalk = require('chalk');
-const ora = require('ora');
-const config = require('../lib/config');
-const MetaAPIClient = require('../lib/api-client');
-const { formatTable } = require('../lib/formatters');
+import chalk = require('chalk');
+import ora = require('ora');
 
-function getTokenOrExit(api) {
+const config = require('../../lib/config');
+const MetaAPIClient = require('../../lib/api-client');
+const { formatTable } = require('../../lib/formatters');
+
+type CliOptions = {
+  api: string;
+  fields: string;
+  verbose?: boolean;
+  json?: boolean;
+  table?: boolean;
+  limit: string;
+  igUserId?: string;
+  pageId?: string;
+};
+
+type UnknownRecord = Record<string, unknown>;
+
+function getTokenOrExit(api: string): string {
   const token = config.getToken(api);
   if (!token) {
     console.error(chalk.red(`X No ${api} token found. Run: social auth login -a ${api}`));
     process.exit(1);
   }
-  return token;
+  return token as string;
 }
 
-function registerQueryCommands(program) {
+function asRecordArray(value: unknown): UnknownRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is UnknownRecord => Boolean(item) && typeof item === 'object');
+}
+
+function registerQueryCommands(program: any) {
   const query = program.command('query').description('Read-only queries across Meta APIs');
 
   query
@@ -23,7 +42,7 @@ function registerQueryCommands(program) {
     .option('-f, --fields <fields>', 'Fields to retrieve (comma-separated)', 'id,name')
     .option('--json', 'Output as JSON')
     .option('--verbose', 'Log request details (no secrets)')
-    .action(async (options) => {
+    .action(async (options: CliOptions) => {
       const token = getTokenOrExit(options.api);
       const spinner = ora('Fetching profile...').start();
       const client = new MetaAPIClient(token, options.api);
@@ -34,13 +53,16 @@ function registerQueryCommands(program) {
           console.log(JSON.stringify(data, null, 2));
           return;
         }
+
         console.log(chalk.bold('\nProfile:'));
         console.log(chalk.gray('─'.repeat(50)));
-        Object.entries(data || {}).forEach(([k, v]) => console.log(chalk.cyan(`${k}:`), v));
+        Object.entries((data as UnknownRecord) || {}).forEach(([k, v]) => {
+          console.log(chalk.cyan(`${k}:`), v as string | number | boolean | null);
+        });
         console.log('');
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e);
+        client.handleError(error);
       }
     });
 
@@ -50,7 +72,7 @@ function registerQueryCommands(program) {
     .option('-l, --limit <n>', 'Limit', '25')
     .option('--json', 'Output as JSON')
     .option('--table', 'Output as table')
-    .action(async (options) => {
+    .action(async (options: CliOptions) => {
       const token = getTokenOrExit('facebook');
       const spinner = ora('Fetching pages...').start();
       const client = new MetaAPIClient(token, 'facebook');
@@ -61,29 +83,32 @@ function registerQueryCommands(program) {
           console.log(JSON.stringify(result, null, 2));
           return;
         }
-        const rows = (result.data || []).map((p) => ({
-          id: p.id,
-          name: p.name,
-          category: p.category || '',
-          fan_count: p.fan_count || ''
+
+        const rows = asRecordArray((result as UnknownRecord)?.data).map((page) => ({
+          id: String(page.id || ''),
+          name: String(page.name || ''),
+          category: String(page.category || ''),
+          fan_count: page.fan_count ?? ''
         }));
+
         if (options.table) {
           console.log(formatTable(rows, ['name', 'id', 'category', 'fan_count']));
           console.log('');
           return;
         }
+
         console.log(chalk.bold('\nYour Facebook Pages:'));
         console.log(chalk.gray('─'.repeat(50)));
-        rows.forEach((p, i) => {
-          console.log(chalk.bold(`${i + 1}. ${p.name}`));
-          console.log(chalk.cyan('   ID:'), p.id);
-          if (p.category) console.log(chalk.cyan('   Category:'), p.category);
-          if (p.fan_count !== '') console.log(chalk.cyan('   Fans:'), p.fan_count);
+        rows.forEach((page, i) => {
+          console.log(chalk.bold(`${i + 1}. ${page.name}`));
+          console.log(chalk.cyan('   ID:'), page.id);
+          if (page.category) console.log(chalk.cyan('   Category:'), page.category);
+          if (page.fan_count !== '') console.log(chalk.cyan('   Fans:'), page.fan_count);
         });
         console.log('');
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['pages_show_list'] });
+        client.handleError(error, { scopes: ['pages_show_list'] });
       }
     });
 
@@ -94,7 +119,7 @@ function registerQueryCommands(program) {
     .option('-l, --limit <n>', 'Limit', '10')
     .option('--json', 'Output as JSON')
     .option('--table', 'Output as table')
-    .action(async (options) => {
+    .action(async (options: CliOptions) => {
       // Many setups reuse the same token; fall back to facebook if instagram token missing.
       const token = config.getToken('instagram') || getTokenOrExit('facebook');
       const igUserId = options.igUserId || config.getDefaultIgUserId();
@@ -112,29 +137,32 @@ function registerQueryCommands(program) {
           console.log(JSON.stringify(result, null, 2));
           return;
         }
-        const rows = (result.data || []).map((m) => ({
-          id: m.id,
-          media_type: m.media_type,
-          permalink: m.permalink,
-          timestamp: m.timestamp
+
+        const rows = asRecordArray((result as UnknownRecord)?.data).map((media) => ({
+          id: String(media.id || ''),
+          media_type: String(media.media_type || ''),
+          permalink: String(media.permalink || ''),
+          timestamp: String(media.timestamp || '')
         }));
+
         if (options.table) {
           console.log(formatTable(rows, ['media_type', 'id', 'timestamp', 'permalink']));
           console.log('');
           return;
         }
+
         console.log(chalk.bold('\nInstagram Media:'));
         console.log(chalk.gray('─'.repeat(50)));
-        rows.forEach((m, i) => {
-          console.log(chalk.bold(`${i + 1}. ${m.media_type}`));
-          console.log(chalk.cyan('   ID:'), m.id);
-          console.log(chalk.cyan('   URL:'), m.permalink);
-          console.log(chalk.cyan('   Posted:'), new Date(m.timestamp).toLocaleString());
+        rows.forEach((media, i) => {
+          console.log(chalk.bold(`${i + 1}. ${media.media_type}`));
+          console.log(chalk.cyan('   ID:'), media.id);
+          console.log(chalk.cyan('   URL:'), media.permalink);
+          console.log(chalk.cyan('   Posted:'), new Date(media.timestamp).toLocaleString());
         });
         console.log('');
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['instagram_basic'] });
+        client.handleError(error, { scopes: ['instagram_basic'] });
       }
     });
 
@@ -145,7 +173,7 @@ function registerQueryCommands(program) {
     .option('-l, --limit <n>', 'Limit', '10')
     .option('--json', 'Output as JSON')
     .option('--table', 'Output as table')
-    .action(async (options) => {
+    .action(async (options: CliOptions) => {
       const token = getTokenOrExit('facebook');
       const spinner = ora('Fetching page feed...').start();
       const client = new MetaAPIClient(token, 'facebook');
@@ -159,32 +187,34 @@ function registerQueryCommands(program) {
           console.log(JSON.stringify(result, null, 2));
           return;
         }
-        const rows = (result.data || []).map((p) => ({
-          id: p.id,
-          created_time: p.created_time,
-          message: (p.message || '').slice(0, 80),
-          permalink_url: p.permalink_url || ''
+
+        const rows = asRecordArray((result as UnknownRecord)?.data).map((post) => ({
+          id: String(post.id || ''),
+          created_time: String(post.created_time || ''),
+          message: String(post.message || '').slice(0, 80),
+          permalink_url: String(post.permalink_url || '')
         }));
+
         if (options.table) {
           console.log(formatTable(rows, ['created_time', 'id', 'message']));
           console.log('');
           return;
         }
+
         console.log(chalk.bold('\nPage Feed:'));
         console.log(chalk.gray('─'.repeat(50)));
-        rows.forEach((p, i) => {
-          console.log(chalk.bold(`${i + 1}. ${p.created_time}`));
-          console.log(chalk.cyan('   ID:'), p.id);
-          if (p.message) console.log(chalk.cyan('   Message:'), p.message);
-          if (p.permalink_url) console.log(chalk.cyan('   URL:'), p.permalink_url);
+        rows.forEach((post, i) => {
+          console.log(chalk.bold(`${i + 1}. ${post.created_time}`));
+          console.log(chalk.cyan('   ID:'), post.id);
+          if (post.message) console.log(chalk.cyan('   Message:'), post.message);
+          if (post.permalink_url) console.log(chalk.cyan('   URL:'), post.permalink_url);
         });
         console.log('');
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['pages_read_engagement'] });
+        client.handleError(error, { scopes: ['pages_read_engagement'] });
       }
     });
 }
 
-module.exports = registerQueryCommands;
-
+export = registerQueryCommands;

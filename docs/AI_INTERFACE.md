@@ -50,7 +50,7 @@ LLM parsing:
 
 Behavior:
 
-- If LLM parsing fails/timeouts, parser falls back to heuristics
+- AI mode requires a valid cloud API key; no local/dummy fallback is used
 - Existing profile config defaults are reused:
   - default Facebook page id
   - default IG user id

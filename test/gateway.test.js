@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createGatewayServer } = require('../lib/gateway/server');
+const config = require('../lib/config');
 const opsStorage = require('../lib/ops/storage');
 
 function requestJson({ port, method, pathName, body, headers }) {
@@ -62,6 +63,61 @@ function requestRaw({ port, method, pathName, body, headers }) {
   });
 }
 
+const AI_KEY_ENV_VARS = [
+  'OPENAI_API_KEY',
+  'META_AI_KEY',
+  'SOCIAL_AI_KEY',
+  'SOCIAL_CHAT_API_KEY',
+  'META_CHAT_API_KEY',
+  'SOCIAL_AGENT_API_KEY',
+  'META_AGENT_API_KEY'
+];
+
+function snapshotAiKeyEnv() {
+  return Object.fromEntries(AI_KEY_ENV_VARS.map((k) => [k, process.env[k]]));
+}
+
+function clearAiKeyEnv() {
+  AI_KEY_ENV_VARS.forEach((k) => { delete process.env[k]; });
+}
+
+function restoreAiKeyEnv(prev) {
+  AI_KEY_ENV_VARS.forEach((k) => {
+    if (prev[k] === undefined) delete process.env[k];
+    else process.env[k] = prev[k];
+  });
+}
+
+function snapshotAgentConfig() {
+  const cfg = typeof config.getAgentConfig === 'function' ? config.getAgentConfig() : {};
+  return {
+    provider: String(cfg.provider || 'openai'),
+    model: String(cfg.model || ''),
+    apiKey: String(cfg.apiKey || '')
+  };
+}
+
+function restoreAgentConfig(prev) {
+  if (typeof config.setAgentProvider === 'function') {
+    config.setAgentProvider(String(prev.provider || 'openai'));
+  }
+  if (typeof config.setAgentModel === 'function') {
+    config.setAgentModel(String(prev.model || ''));
+  }
+  if (typeof config.setAgentApiKey === 'function') {
+    config.setAgentApiKey(String(prev.apiKey || ''));
+  }
+}
+
+function clearAgentApiConfig() {
+  if (typeof config.setAgentProvider === 'function') {
+    config.setAgentProvider('openai');
+  }
+  if (typeof config.setAgentApiKey === 'function') {
+    config.setAgentApiKey('');
+  }
+}
+
 module.exports = [
   {
     name: 'gateway health endpoint returns ok',
@@ -85,6 +141,35 @@ module.exports = [
     }
   },
   {
+    name: 'gateway root endpoint reports bundled frontend removal',
+    fn: async () => {
+      const oldHome = process.env.META_CLI_HOME;
+      process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
+      const server = createGatewayServer({ host: '127.0.0.1', port: 0 });
+      try {
+        await server.start();
+        const root = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: '/'
+        });
+        assert.equal(root.status, 410);
+        assert.equal(root.data.ok, false);
+        assert.equal(String(root.data.error || '').toLowerCase().includes('frontend has been removed'), true);
+
+        const missingStatic = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: '/index.html'
+        });
+        assert.equal(missingStatic.status, 410);
+      } finally {
+        await server.stop();
+        process.env.META_CLI_HOME = oldHome;
+      }
+    }
+  },
+  {
     name: 'gateway config endpoint returns sanitized snapshot',
     fn: async () => {
       const oldHome = process.env.META_CLI_HOME;
@@ -100,6 +185,69 @@ module.exports = [
         assert.equal(res.status, 200);
         assert.equal(Boolean(res.data.config), true);
         assert.equal(typeof res.data.config.tokens.facebook.configured, 'boolean');
+        assert.equal(typeof res.data.config.agent.apiKeyConfigured, 'boolean');
+      } finally {
+        await server.stop();
+        process.env.META_CLI_HOME = oldHome;
+      }
+    }
+  },
+  {
+    name: 'gateway config update endpoint saves tokens and agent credentials',
+    fn: async () => {
+      const oldHome = process.env.META_CLI_HOME;
+      process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
+      const server = createGatewayServer({ host: '127.0.0.1', port: 0 });
+      try {
+        await server.start();
+        const saveRes = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/config/update',
+          body: {
+            tokens: {
+              facebook: 'fb_test_token_123456',
+              instagram: 'ig_test_token_123456'
+            },
+            app: {
+              appId: '123456789',
+              appSecret: 'secret_test_value'
+            },
+            defaultApi: 'instagram',
+            agent: {
+              provider: 'openai',
+              model: 'gpt-4.1-mini',
+              apiKey: 'sk-test-1234'
+            }
+          }
+        });
+        assert.equal(saveRes.status, 200);
+        assert.equal(saveRes.data.ok, true);
+        assert.equal(Array.isArray(saveRes.data.updated), true);
+        assert.equal(saveRes.data.updated.includes('tokens.facebook'), true);
+        assert.equal(saveRes.data.updated.includes('tokens.instagram'), true);
+        assert.equal(saveRes.data.updated.includes('app.appId'), true);
+        assert.equal(saveRes.data.updated.includes('app.appSecret'), true);
+        assert.equal(saveRes.data.updated.includes('defaultApi'), true);
+        assert.equal(saveRes.data.updated.includes('agent.provider'), true);
+        assert.equal(saveRes.data.updated.includes('agent.model'), true);
+        assert.equal(saveRes.data.updated.includes('agent.apiKey'), true);
+
+        const configRes = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: '/api/config'
+        });
+        assert.equal(configRes.status, 200);
+        assert.equal(configRes.data.config.tokens.facebook.configured, true);
+        assert.equal(configRes.data.config.tokens.instagram.configured, true);
+        assert.equal(configRes.data.config.tokens.whatsapp.configured, false);
+        assert.equal(configRes.data.config.app.appId, '123456789');
+        assert.equal(configRes.data.config.app.appSecretConfigured, true);
+        assert.equal(configRes.data.config.defaultApi, 'instagram');
+        assert.equal(configRes.data.config.agent.provider, 'openai');
+        assert.equal(configRes.data.config.agent.model, 'gpt-4.1-mini');
+        assert.equal(configRes.data.config.agent.apiKeyConfigured, true);
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;
@@ -233,10 +381,10 @@ module.exports = [
     fn: async () => {
       const oldHome = process.env.META_CLI_HOME;
       process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
-      const oldOpenAI = process.env.OPENAI_API_KEY;
-      const oldMeta = process.env.META_AI_KEY;
-      delete process.env.OPENAI_API_KEY;
-      delete process.env.META_AI_KEY;
+      const oldKeys = snapshotAiKeyEnv();
+      const oldAgent = snapshotAgentConfig();
+      clearAiKeyEnv();
+      clearAgentApiConfig();
 
       const server = createGatewayServer({ host: '127.0.0.1', port: 0 });
       try {
@@ -265,12 +413,13 @@ module.exports = [
         assert.equal(msgRes.data.ok, true);
         assert.equal(typeof msgRes.data.response.message, 'string');
         assert.equal(msgRes.data.response.actions.length, 0);
+        assert.equal(String(msgRes.data.response.message || '').toLowerCase().includes('valid api key'), true);
         assert.equal(Array.isArray(msgRes.data.timeline), true);
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;
-        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
-        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+        restoreAgentConfig(oldAgent);
+        restoreAiKeyEnv(oldKeys);
       }
     }
   },
@@ -279,9 +428,8 @@ module.exports = [
     fn: async () => {
       const oldHome = process.env.META_CLI_HOME;
       process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
-      const oldOpenAI = process.env.OPENAI_API_KEY;
-      const oldMeta = process.env.META_AI_KEY;
-      delete process.env.OPENAI_API_KEY;
+      const oldKeys = snapshotAiKeyEnv();
+      process.env.OPENAI_API_KEY = 'test-gateway-key';
       delete process.env.META_AI_KEY;
 
       const server = createGatewayServer({ host: '127.0.0.1', port: 0 });
@@ -317,8 +465,7 @@ module.exports = [
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;
-        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
-        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+        restoreAiKeyEnv(oldKeys);
       }
     }
   },
@@ -327,10 +474,10 @@ module.exports = [
     fn: async () => {
       const oldHome = process.env.META_CLI_HOME;
       process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
-      const oldOpenAI = process.env.OPENAI_API_KEY;
-      const oldMeta = process.env.META_AI_KEY;
-      delete process.env.OPENAI_API_KEY;
-      delete process.env.META_AI_KEY;
+      const oldKeys = snapshotAiKeyEnv();
+      const oldAgent = snapshotAgentConfig();
+      clearAiKeyEnv();
+      clearAgentApiConfig();
 
       const server = createGatewayServer({ host: '127.0.0.1', port: 0 });
       try {
@@ -361,20 +508,20 @@ module.exports = [
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;
-        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
-        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+        restoreAgentConfig(oldAgent);
+        restoreAiKeyEnv(oldKeys);
       }
     }
   },
   {
-    name: 'gateway chat returns clarification choices and accepts numeric selection',
+    name: 'gateway chat requires API key before ambiguous intent fallback',
     fn: async () => {
       const oldHome = process.env.META_CLI_HOME;
       process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
-      const oldOpenAI = process.env.OPENAI_API_KEY;
-      const oldMeta = process.env.META_AI_KEY;
-      delete process.env.OPENAI_API_KEY;
-      delete process.env.META_AI_KEY;
+      const oldKeys = snapshotAiKeyEnv();
+      const oldAgent = snapshotAgentConfig();
+      clearAiKeyEnv();
+      clearAgentApiConfig();
 
       const server = createGatewayServer({ host: '127.0.0.1', port: 0 });
       try {
@@ -400,27 +547,14 @@ module.exports = [
         });
         assert.equal(first.status, 200);
         assert.equal(first.data.ok, true);
-        assert.equal(Array.isArray(first.data.response?.clarificationChoices), true);
-        assert.equal(first.data.response.clarificationChoices.length > 0, true);
-
-        const second = await requestJson({
-          port: server.port,
-          method: 'POST',
-          pathName: '/api/chat/message',
-          body: {
-            sessionId: startRes.data.sessionId,
-            message: '1'
-          }
-        });
-        assert.equal(second.status, 200);
-        assert.equal(second.data.ok, true);
-        assert.equal(Array.isArray(second.data.response?.actions), true);
-        assert.equal(second.data.response.actions.length, 1);
+        assert.equal(Array.isArray(first.data.response?.actions), true);
+        assert.equal(first.data.response.actions.length, 0);
+        assert.equal(String(first.data.response?.message || '').toLowerCase().includes('valid api key'), true);
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;
-        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
-        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+        restoreAgentConfig(oldAgent);
+        restoreAiKeyEnv(oldKeys);
       }
     }
   },

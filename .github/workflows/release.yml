@@ -25,8 +25,11 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Test
+      - name: Unit Tests
         run: npm test
+
+      - name: Quality Gates
+        run: npm run quality:check
 
       - name: Verify Tag Matches package.json
         run: |

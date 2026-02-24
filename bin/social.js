@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+const fs = require('fs');
+const path = require('path');
 const { Command } = require('commander');
 const packageJson = require('../package.json');
 const { getBanner } = require('../lib/banner');
@@ -8,6 +10,14 @@ const { startLauncherMenu } = require('../lib/ui/launcher-menu');
 const i18n = require('../lib/i18n');
 
 const program = new Command();
+
+function loadCommandModule(name) {
+  const distPath = path.join(__dirname, '..', 'dist-runtime', 'commands', `${name}.js`);
+  if (fs.existsSync(distPath)) {
+    return require(distPath); // eslint-disable-line global-require
+  }
+  return require(`../commands/${name}`); // eslint-disable-line global-require
+}
 
 function getArgValue(name) {
   // Supports: --flag value, --flag=value
@@ -94,25 +104,25 @@ program
   .version(packageJson.version);
 
 // Import command modules (after profile override is applied)
-const authCommands = require('../commands/auth');
-const queryCommands = require('../commands/query');
-const appCommands = require('../commands/app');
-const limitsCommands = require('../commands/limits');
-const postCommands = require('../commands/post');
-const whatsappCommands = require('../commands/whatsapp');
-const instagramCommands = require('../commands/instagram');
-const utilsCommands = require('../commands/utils');
+const authCommands = loadCommandModule('auth');
+const queryCommands = loadCommandModule('query');
+const appCommands = loadCommandModule('app');
+const limitsCommands = loadCommandModule('limits');
+const postCommands = loadCommandModule('post');
+const whatsappCommands = loadCommandModule('whatsapp');
+const instagramCommands = loadCommandModule('instagram');
+const utilsCommands = loadCommandModule('utils');
 const doctorCommands = require('../commands/doctor');
-const agentCommands = require('../commands/agent');
+const agentCommands = loadCommandModule('agent');
 const marketingCommands = require('../commands/marketing');
 const accountsCommands = require('../commands/accounts');
 const batchCommands = require('../commands/batch');
 const aiCommands = require('../commands/ai');
-const chatCommands = require('../commands/chat');
-const gatewayCommands = require('../commands/gateway');
+const chatCommands = loadCommandModule('chat');
+const gatewayCommands = loadCommandModule('gateway');
 const opsCommands = require('../commands/ops');
 const hubCommands = require('../commands/hub');
-const tuiCommands = require('../commands/tui');
+const tuiCommands = loadCommandModule('tui');
 const onboardCommands = require('../commands/onboard');
 const integrationsCommands = require('../commands/integrations');
 const policyCommands = require('../commands/policy');

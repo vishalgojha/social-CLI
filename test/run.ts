@@ -1,6 +1,13 @@
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+type TestCase = {
+  name: string;
+  fn: () => Promise<void> | void;
+};
+
+const repoRoot = path.resolve(__dirname, '..', '..');
 
 function setupIsolatedHome() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'social-cli-test-home-'));
@@ -20,25 +27,25 @@ async function run() {
   const cleanupHome = setupIsolatedHome();
   try {
     const files = [
-      './api.test.js',
-      './config.test.js',
-      './marketing-export.test.js',
-      './batch.test.js',
-      './ai.test.js',
-      './prompt-regression.test.js',
-      './intent-engine.test.js',
-      './chat.test.js',
-      './onboarding-ready.test.js',
-      './gateway.test.js',
-      './policy.test.js',
-      './ops.test.js',
-      './hub.test.js'
+      'api.test.js',
+      'config.test.js',
+      'marketing-export.test.js',
+      'batch.test.js',
+      'ai.test.js',
+      'prompt-regression.test.js',
+      'intent-engine.test.js',
+      'chat.test.js',
+      'onboarding-ready.test.js',
+      'gateway.test.js',
+      'policy.test.js',
+      'ops.test.js',
+      'hub.test.js'
     ];
 
-    const tests = [];
+    const tests: TestCase[] = [];
     files.forEach((f) => {
-      // eslint-disable-next-line global-require, import/no-dynamic-require
-      const mod = require(path.join(__dirname, f));
+      // eslint-disable-next-line global-require, @typescript-eslint/no-var-requires
+      const mod = require(path.join(repoRoot, 'test', f)) as TestCase[];
       (mod || []).forEach((t) => tests.push(t));
     });
 
@@ -49,7 +56,6 @@ async function run() {
     console.log(`Running ${tests.length} tests...\n`);
 
     // Run sequentially for determinism and to avoid sandbox spawn restrictions.
-    // eslint-disable-next-line no-restricted-syntax
     for (const t of tests) {
       const name = t.name || '(unnamed)';
       try {
@@ -63,7 +69,7 @@ async function run() {
         // eslint-disable-next-line no-console
         console.log(`not ok - ${name}`);
         // eslint-disable-next-line no-console
-        console.log(`  ${e && e.stack ? e.stack : String(e)}`);
+        console.log(`  ${e && (e as Error).stack ? (e as Error).stack : String(e)}`);
       }
     }
 
@@ -80,6 +86,6 @@ async function run() {
 
 run().catch((e) => {
   // eslint-disable-next-line no-console
-  console.error(e && e.stack ? e.stack : String(e));
+  console.error(e && (e as Error).stack ? (e as Error).stack : String(e));
   process.exit(1);
 });

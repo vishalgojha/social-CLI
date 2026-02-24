@@ -1,17 +1,50 @@
-const chalk = require('chalk');
-const inquirer = require('inquirer');
-const ora = require('ora');
-const config = require('../lib/config');
-const MetaAPIClient = require('../lib/api-client');
-const { openUrl } = require('../lib/open-url');
-const { oauthLogin, exchangeForLongLivedToken } = require('../lib/oauth');
+import chalk = require('chalk');
+import ora = require('ora');
 
-const SCOPES = {
+const inquirer = require('inquirer');
+const config = require('../../lib/config');
+const MetaAPIClient = require('../../lib/api-client');
+const { openUrl } = require('../../lib/open-url');
+const { oauthLogin, exchangeForLongLivedToken } = require('../../lib/oauth');
+
+type ApiName = 'facebook' | 'instagram' | 'whatsapp';
+
+type ScopeMap = Record<ApiName, string[]>;
+
+type AuthLoginOptions = {
+  api: string;
+  token?: string;
+  oauth?: boolean;
+  scopes?: boolean;
+  scope?: string;
+  longLived?: boolean;
+  open?: boolean;
+};
+
+type AuthAppOptions = {
+  id?: string;
+  secret?: string;
+};
+
+type AuthLogoutOptions = {
+  api: string;
+};
+
+type AuthDebugOptions = {
+  token?: string;
+};
+
+type BrowserReadyPrompt = {
+  api: ApiName;
+  url: string;
+  canOpen: boolean;
+};
+
+const SCOPES: ScopeMap = {
   facebook: [
     'pages_show_list',
     'pages_read_engagement',
     'pages_manage_posts',
-    // Marketing API
     'ads_read',
     'ads_management'
   ],
@@ -28,12 +61,12 @@ const SCOPES = {
   ]
 };
 
-function isValidApi(api) {
+function isValidApi(api: string): api is ApiName {
   return ['facebook', 'instagram', 'whatsapp'].includes(api);
 }
 
-async function promptScopes(api) {
-  const choices = (SCOPES[api] || []).map((s) => ({ name: s, value: s, checked: true }));
+async function promptScopes(api: ApiName): Promise<string[]> {
+  const choices = (SCOPES[api] || []).map((scope) => ({ name: scope, value: scope, checked: true }));
   if (!choices.length) return [];
   const answers = await inquirer.prompt([
     {
@@ -46,15 +79,12 @@ async function promptScopes(api) {
   return answers.scopes || [];
 }
 
-function tokenHelpUrl(api, apiVersion) {
+function tokenHelpUrl(api: ApiName, apiVersion: string): string {
   if (api === 'whatsapp') return '';
-  // Explorer supports picking permissions in UI; we keep it simple.
   return `https://developers.facebook.com/tools/explorer/?version=${encodeURIComponent(apiVersion)}`;
 }
 
-async function confirmBrowserReady({ api, url, canOpen }) {
-  // Explicit gate helps users who are logged out and must first login/register in browser.
-  // We don't move to token prompt until they confirm completion.
+async function confirmBrowserReady({ api, url, canOpen }: BrowserReadyPrompt) {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const answers = await inquirer.prompt([
@@ -91,19 +121,19 @@ async function confirmBrowserReady({ api, url, canOpen }) {
   }
 }
 
-function registerAuthCommands(program) {
+function registerAuthCommands(program: any) {
   const auth = program.command('auth').description('Authentication and token management');
 
   auth
     .command('scopes')
     .description('List recommended scopes')
     .option('-a, --api <api>', 'API (facebook, instagram, whatsapp)')
-    .action((options) => {
+    .action((options: { api?: string }) => {
       const apis = options.api ? [options.api] : ['facebook', 'instagram', 'whatsapp'];
-      apis.forEach((api) => {
-        if (!isValidApi(api)) return;
-        console.log(chalk.bold(`\n${api} scopes:`));
-        (SCOPES[api] || []).forEach((s) => console.log('  - ' + s));
+      apis.forEach((apiName) => {
+        if (!isValidApi(apiName)) return;
+        console.log(chalk.bold(`\n${apiName} scopes:`));
+        (SCOPES[apiName] || []).forEach((scope) => console.log(`  - ${scope}`));
       });
       console.log('');
     });
@@ -118,7 +148,7 @@ function registerAuthCommands(program) {
     .option('--scope <scopes>', 'Comma-separated scopes (overrides --scopes)')
     .option('--long-lived', 'Exchange for long-lived token (OAuth only; requires app secret)')
     .option('--no-open', 'Do not open the token page in your browser')
-    .action(async (options) => {
+    .action(async (options: AuthLoginOptions) => {
       const api = options.api;
       if (!isValidApi(api)) {
         console.error(chalk.red('X Invalid API. Choose: facebook, instagram, whatsapp'));
@@ -127,9 +157,12 @@ function registerAuthCommands(program) {
 
       const apiVersion = config.getApiVersion();
 
-      let scopes = [];
+      let scopes: string[] = [];
       if (options.scope) {
-        scopes = String(options.scope).split(',').map((s) => s.trim()).filter(Boolean);
+        scopes = String(options.scope)
+          .split(',')
+          .map((scope) => scope.trim())
+          .filter(Boolean);
       } else if (options.scopes) {
         scopes = await promptScopes(api);
       }
@@ -165,8 +198,9 @@ function registerAuthCommands(program) {
             });
             token = exchanged.access_token;
           }
-        } catch (e) {
-          console.error(chalk.red(`X OAuth failed: ${e.message}`));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(chalk.red(`X OAuth failed: ${message}`));
           process.exit(1);
         }
       }
@@ -199,7 +233,7 @@ function registerAuthCommands(program) {
             type: 'password',
             name: 'token',
             message: `Enter your ${api} access token:`,
-            validate: (input) => input.length > 0 || 'Token cannot be empty'
+            validate: (input: string) => input.length > 0 || 'Token cannot be empty'
           }
         ]);
         token = answers.token;
@@ -232,7 +266,7 @@ function registerAuthCommands(program) {
     .description('Configure app credentials (App ID and Secret)')
     .option('--id <appId>', 'App ID')
     .option('--secret <appSecret>', 'App Secret')
-    .action(async (options) => {
+    .action(async (options: AuthAppOptions) => {
       let { id, secret } = options;
 
       if (!id || !secret) {
@@ -242,14 +276,14 @@ function registerAuthCommands(program) {
             name: 'appId',
             message: 'Enter your App ID:',
             when: !id,
-            validate: (input) => input.length > 0 || 'App ID cannot be empty'
+            validate: (input: string) => input.length > 0 || 'App ID cannot be empty'
           },
           {
             type: 'password',
             name: 'appSecret',
             message: 'Enter your App Secret:',
             when: !secret,
-            validate: (input) => input.length > 0 || 'App Secret cannot be empty'
+            validate: (input: string) => input.length > 0 || 'App Secret cannot be empty'
           }
         ]);
 
@@ -266,14 +300,15 @@ function registerAuthCommands(program) {
     .command('logout')
     .description('Remove stored tokens')
     .option('-a, --api <api>', 'API to logout from (or "all")', 'all')
-    .action((options) => {
-      const api = options.api;
+    .action((options: AuthLogoutOptions) => {
+      const { api } = options;
       if (api === 'all') {
         config.clearAllTokens();
         console.log(chalk.green('OK All tokens removed'));
         console.log('');
         return;
       }
+
       if (!isValidApi(api)) {
         console.error(chalk.red('X Invalid API. Choose: facebook, instagram, whatsapp, or all'));
         process.exit(1);
@@ -287,11 +322,11 @@ function registerAuthCommands(program) {
     .command('debug')
     .description('Debug a token (requires app secret for best results)')
     .option('-t, --token <token>', 'Token to debug (defaults to stored facebook token)')
-    .action(async (options) => {
+    .action(async (options: AuthDebugOptions) => {
       const { appId, appSecret } = config.getAppCredentials();
       const appAccessToken = appId && appSecret ? `${appId}|${appSecret}` : '';
-
       const inputToken = options.token || config.getToken('facebook');
+
       if (!inputToken) {
         console.error(chalk.red('X No token provided and no stored facebook token found.'));
         process.exit(1);
@@ -306,12 +341,11 @@ function registerAuthCommands(program) {
       try {
         const debugInfo = await client.debugToken(inputToken);
         console.log(JSON.stringify(debugInfo, null, 2));
-      } catch (e) {
-        client.handleError(e);
+      } catch (error) {
+        client.handleError(error);
       }
     });
 
-  // Back-compat: auth status reads ~/.social-cli/config.json and falls back to legacy ~/.meta-cli/config.json.
   auth
     .command('status')
     .description('Show authentication/config status')
@@ -320,4 +354,4 @@ function registerAuthCommands(program) {
     });
 }
 
-module.exports = registerAuthCommands;
+export = registerAuthCommands;

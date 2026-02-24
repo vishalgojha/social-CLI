@@ -1,14 +1,82 @@
-const chalk = require('chalk');
-const ora = require('ora');
-const axios = require('axios');
-const inquirer = require('inquirer');
-const fs = require('fs');
-const path = require('path');
-const FormData = require('form-data');
-const config = require('../lib/config');
-const MetaAPIClient = require('../lib/api-client');
+import chalk = require('chalk');
+import ora = require('ora');
+import axios from 'axios';
+import fs = require('fs');
+import path = require('path');
 
-function parseScheduleToUnixSeconds(input) {
+const inquirer = require('inquirer');
+const FormData = require('form-data');
+const config = require('../../lib/config');
+const MetaAPIClient = require('../../lib/api-client');
+
+type PageRecord = {
+  id: string;
+  name: string;
+  access_token?: string;
+};
+
+type PageContext = {
+  pages: PageRecord[];
+  pageId: string;
+  pageName: string;
+  pageAccessToken: string;
+};
+
+type RequestDebugInput = {
+  method: string;
+  endpoint: string;
+  payload?: Record<string, unknown>;
+};
+
+type PostPagesOptions = {
+  json?: boolean;
+  setDefault?: boolean;
+};
+
+type PostCreateOptions = {
+  page?: string;
+  pageId?: string;
+  message?: string;
+  link?: string;
+  draft?: boolean;
+  schedule?: string;
+  json?: boolean;
+  dryRun?: boolean;
+  verbose?: boolean;
+};
+
+type PostPhotoOptions = {
+  page?: string;
+  pageId?: string;
+  url?: string;
+  file?: string;
+  caption?: string;
+  draft?: boolean;
+  json?: boolean;
+  dryRun?: boolean;
+  verbose?: boolean;
+};
+
+type PostVideoOptions = {
+  page?: string;
+  pageId?: string;
+  path: string;
+  title?: string;
+  description?: string;
+  json?: boolean;
+  dryRun?: boolean;
+  verbose?: boolean;
+};
+
+type PostDeleteOptions = {
+  id: string;
+  pageId?: string;
+  json?: boolean;
+  dryRun?: boolean;
+  verbose?: boolean;
+};
+
+function parseScheduleToUnixSeconds(input: unknown): number | null {
   if (!input) return null;
   const trimmed = String(input).trim();
   if (/^\d+$/.test(trimmed)) return parseInt(trimmed, 10);
@@ -17,15 +85,13 @@ function parseScheduleToUnixSeconds(input) {
   return Math.floor(ms / 1000);
 }
 
-async function pickFacebookPage(pages, defaultPageId) {
-  const choices = pages.map((p) => ({
-    name: `${p.name} (${p.id})`,
-    value: p.id
+async function pickFacebookPage(pages: PageRecord[], defaultPageId?: string): Promise<string> {
+  const choices = pages.map((page) => ({
+    name: `${page.name} (${page.id})`,
+    value: page.id
   }));
 
-  const defaultIndex = defaultPageId
-    ? pages.findIndex((p) => p.id === defaultPageId)
-    : -1;
+  const defaultIndex = defaultPageId ? pages.findIndex((page) => page.id === defaultPageId) : -1;
 
   const answers = await inquirer.prompt([
     {
@@ -37,16 +103,16 @@ async function pickFacebookPage(pages, defaultPageId) {
     }
   ]);
 
-  return answers.pageId;
+  return String(answers.pageId);
 }
 
-async function loadFacebookPages(userToken) {
+async function loadFacebookPages(userToken: string): Promise<PageRecord[]> {
   const spinner = ora('Loading Pages...').start();
   const userClient = new MetaAPIClient(userToken, 'facebook');
   const pagesResult = await userClient.getFacebookPages();
   spinner.stop();
 
-  const pages = pagesResult?.data || [];
+  const pages = Array.isArray(pagesResult?.data) ? (pagesResult.data as PageRecord[]) : [];
   if (!pages.length) {
     console.error(chalk.red('X No Pages found for this token.'));
     console.error(chalk.gray('  Try: social query pages --json'));
@@ -56,7 +122,7 @@ async function loadFacebookPages(userToken) {
   return pages;
 }
 
-async function resolvePageContext(userToken, pageArg) {
+async function resolvePageContext(userToken: string, pageArg?: string): Promise<PageContext> {
   const pages = await loadFacebookPages(userToken);
 
   const defaultPageId = config.getDefaultFacebookPageId();
@@ -68,7 +134,7 @@ async function resolvePageContext(userToken, pageArg) {
     console.log(chalk.gray(`\nSaved default page: ${pageId}\n`));
   }
 
-  const selected = pages.find((p) => p.id === pageId);
+  const selected = pages.find((page) => page.id === pageId);
   if (!selected) {
     console.error(chalk.red(`X Page not found in /me/accounts: ${pageId}`));
     console.error(chalk.gray('  Run: social post pages'));
@@ -90,7 +156,7 @@ async function resolvePageContext(userToken, pageArg) {
   };
 }
 
-function printRequestDebug({ method, endpoint, payload }) {
+function printRequestDebug({ method, endpoint, payload }: RequestDebugInput) {
   console.log(chalk.gray('\nRequest:'));
   console.log(chalk.gray(`  ${method} ${endpoint}`));
   if (payload && Object.keys(payload).length) {
@@ -100,13 +166,13 @@ function printRequestDebug({ method, endpoint, payload }) {
   console.log('');
 }
 
-function registerPostCommands(program) {
+function registerPostCommands(program: any) {
   const post = program.command('post').description('Create and manage Facebook Page posts');
 
   post
     .command('set-default <pageId>')
     .description('Set the default Facebook Page ID used for posting')
-    .action((pageId) => {
+    .action((pageId: string) => {
       config.setDefaultFacebookPageId(pageId);
       console.log(chalk.green(`OK Default Facebook Page set to: ${pageId}`));
       console.log('');
@@ -117,7 +183,7 @@ function registerPostCommands(program) {
     .description('List Facebook Pages available to your token')
     .option('--json', 'Output as JSON')
     .option('--set-default', 'Interactively pick and save a default Page')
-    .action(async (options) => {
+    .action(async (options: PostPagesOptions) => {
       const token = config.getToken('facebook');
       if (!token) {
         console.error(chalk.red('X No Facebook token found. Run: social auth login -a facebook'));
@@ -142,11 +208,11 @@ function registerPostCommands(program) {
 
       console.log(chalk.bold('\nYour Facebook Pages:'));
       console.log(chalk.gray('─'.repeat(50)));
-      pages.forEach((p, i) => {
-        const isDefault = defaultPageId && p.id === defaultPageId;
+      pages.forEach((page, i) => {
+        const isDefault = defaultPageId && page.id === defaultPageId;
         const marker = isDefault ? chalk.green('*') : ' ';
-        console.log(`${marker} ${chalk.bold(`${i + 1}. ${p.name}`)}`);
-        console.log(chalk.cyan('   ID:'), p.id);
+        console.log(`${marker} ${chalk.bold(`${i + 1}. ${page.name}`)}`);
+        console.log(chalk.cyan('   ID:'), page.id);
       });
       console.log('');
     });
@@ -163,7 +229,7 @@ function registerPostCommands(program) {
     .option('--json', 'Output as JSON')
     .option('--dry-run', 'Print request details without calling the API')
     .option('--verbose', 'Print request details')
-    .action(async (options) => {
+    .action(async (options: PostCreateOptions) => {
       const token = config.getToken('facebook');
       if (!token) {
         console.error(chalk.red('X No Facebook token found. Run: social auth login -a facebook'));
@@ -185,8 +251,7 @@ function registerPostCommands(program) {
       }
 
       const { pageId, pageName, pageAccessToken } = await resolvePageContext(token, pageArg);
-
-      const payload = {};
+      const payload: Record<string, unknown> = {};
       if (message) payload.message = message;
       if (link) payload.link = link;
 
@@ -236,7 +301,7 @@ function registerPostCommands(program) {
     .option('--json', 'Output as JSON')
     .option('--dry-run', 'Print request details without calling the API')
     .option('--verbose', 'Print request details')
-    .action(async (options) => {
+    .action(async (options: PostPhotoOptions) => {
       const token = config.getToken('facebook');
       if (!token) {
         console.error(chalk.red('X No Facebook token found. Run: social auth login -a facebook'));
@@ -254,13 +319,11 @@ function registerPostCommands(program) {
       }
 
       const { pageId, pageName, pageAccessToken } = await resolvePageContext(token, pageArg);
-
       const endpoint = `/${pageId}/photos`;
       const pageClient = new MetaAPIClient(pageAccessToken, 'facebook');
 
-      // URL mode (simple JSON payload)
       if (hasUrl) {
-        const payload = { url };
+        const payload: Record<string, unknown> = { url };
         if (caption) payload.caption = caption;
         if (draft) payload.published = false;
 
@@ -286,7 +349,6 @@ function registerPostCommands(program) {
         return;
       }
 
-      // File mode (multipart form-data with "source")
       const absPath = path.resolve(String(file));
       if (!fs.existsSync(absPath)) {
         console.error(chalk.red(`X File not found: ${absPath}`));
@@ -313,19 +375,14 @@ function registerPostCommands(program) {
 
       const spinner = ora('Uploading photo...').start();
       try {
-        const response = await axios.post(
-          `${pageClient.baseUrl}${endpoint}`,
-          form,
-          {
-            params: { access_token: pageAccessToken },
-            headers: form.getHeaders(),
-            maxBodyLength: Infinity
-          }
-        );
+        const response = await axios.post(`${pageClient.baseUrl}${endpoint}`, form, {
+          params: { access_token: pageAccessToken },
+          headers: form.getHeaders(),
+          maxBodyLength: Infinity
+        });
         spinner.stop();
 
         const result = response.data;
-
         if (json) {
           console.log(JSON.stringify(result, null, 2));
           return;
@@ -353,7 +410,7 @@ function registerPostCommands(program) {
     .option('--json', 'Output as JSON')
     .option('--dry-run', 'Print request details without calling the API')
     .option('--verbose', 'Print request details')
-    .action(async (options) => {
+    .action(async (options: PostVideoOptions) => {
       const token = config.getToken('facebook');
       if (!token) {
         console.error(chalk.red('X No Facebook token found. Run: social auth login -a facebook'));
@@ -382,7 +439,6 @@ function registerPostCommands(program) {
       if (options.dryRun) return;
 
       const pageClient = new MetaAPIClient(pageAccessToken, 'facebook');
-
       const form = new FormData();
       form.append('source', fs.createReadStream(absPath));
       if (options.title) form.append('title', options.title);
@@ -390,15 +446,11 @@ function registerPostCommands(program) {
 
       const spinner = ora('Uploading video...').start();
       try {
-        const response = await axios.post(
-          `${pageClient.baseUrl}${endpoint}`,
-          form,
-          {
-            params: { access_token: pageAccessToken },
-            headers: form.getHeaders(),
-            maxBodyLength: Infinity
-          }
-        );
+        const response = await axios.post(`${pageClient.baseUrl}${endpoint}`, form, {
+          params: { access_token: pageAccessToken },
+          headers: form.getHeaders(),
+          maxBodyLength: Infinity
+        });
         spinner.stop();
 
         const result = response.data;
@@ -411,9 +463,9 @@ function registerPostCommands(program) {
         if (result?.id) console.log(chalk.cyan('  ID:'), result.id);
         console.log(chalk.cyan('  Page:'), `${pageName} (${pageId})`);
         console.log('');
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        pageClient.handleError(e);
+        pageClient.handleError(error);
       }
     });
 
@@ -425,7 +477,7 @@ function registerPostCommands(program) {
     .option('--json', 'Output as JSON')
     .option('--dry-run', 'Print request details without calling the API')
     .option('--verbose', 'Print request details')
-    .action(async (options) => {
+    .action(async (options: PostDeleteOptions) => {
       const token = config.getToken('facebook');
       if (!token) {
         console.error(chalk.red('X No Facebook token found. Run: social auth login -a facebook'));
@@ -433,10 +485,10 @@ function registerPostCommands(program) {
       }
 
       let deleteToken = token;
-      let ctx = null;
+      let context: PageContext | null = null;
       if (options.pageId) {
-        ctx = await resolvePageContext(token, options.pageId);
-        deleteToken = ctx.pageAccessToken;
+        context = await resolvePageContext(token, options.pageId);
+        deleteToken = context.pageAccessToken;
       }
 
       const endpoint = `/${options.id}`;
@@ -455,13 +507,13 @@ function registerPostCommands(program) {
           return;
         }
         console.log(chalk.green('OK Deleted'));
-        if (ctx) console.log(chalk.cyan('  Page:'), `${ctx.pageName} (${ctx.pageId})`);
+        if (context) console.log(chalk.cyan('  Page:'), `${context.pageName} (${context.pageId})`);
         console.log('');
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e, { scopes: ['pages_manage_posts'] });
+        client.handleError(error, { scopes: ['pages_manage_posts'] });
       }
     });
 }
 
-module.exports = registerPostCommands;
+export = registerPostCommands;

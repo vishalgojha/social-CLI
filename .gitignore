@@ -40,6 +40,7 @@ coverage
 # Build outputs
 dist/
 build/
+.tmp-ts-run/
 
 # Editor directories and files
 .idea

@@ -1,0 +1,30 @@
+{
+  "root": true,
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "ignorePatterns": [
+    "node_modules/**",
+    "dist-social/**",
+    "tools/agentic-tui/**",
+    "core/**",
+    "socialclaw-core/**",
+    "undefined/**"
+  ],
+  "rules": {
+    "no-unused-vars": "off",
+    "no-constant-condition": "off",
+    "no-control-regex": "off",
+    "no-useless-escape": "off",
+    "no-empty": [
+      "error",
+      {
+        "allowEmptyCatch": true
+      }
+    ]
+  }
+}

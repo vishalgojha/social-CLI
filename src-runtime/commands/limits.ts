@@ -1,11 +1,25 @@
-const chalk = require('chalk');
-const ora = require('ora');
-const axios = require('axios');
-const config = require('../lib/config');
-const MetaAPIClient = require('../lib/api-client');
+import chalk = require('chalk');
+import ora = require('ora');
+import axios from 'axios';
 
-function parseHeaderJson(value) {
-  if (!value) return null;
+const config = require('../../lib/config');
+const MetaAPIClient = require('../../lib/api-client');
+
+type UsageMetric = {
+  call_count?: number;
+  total_time?: number;
+  total_cputime?: number;
+};
+
+type BusinessUsage = Record<string, UsageMetric>;
+
+type LimitsOptions = {
+  api: string;
+  json?: boolean;
+};
+
+function parseHeaderJson(value: unknown): unknown | null {
+  if (!value || typeof value !== 'string') return null;
   try {
     return JSON.parse(value);
   } catch {
@@ -13,7 +27,35 @@ function parseHeaderJson(value) {
   }
 }
 
-async function checkRateLimits(options) {
+function printUsageMetric(prefix: string, key: keyof UsageMetric, value: unknown) {
+  if (value === undefined || value === null) return;
+  const pct = Number(value);
+  const color = pct > 75 ? chalk.red : pct > 50 ? chalk.yellow : chalk.green;
+  const label = key === 'call_count' ? 'Call Count' : key === 'total_time' ? 'Total Time' : 'Total CPU Time';
+  console.log(chalk.cyan(`${prefix}${label}:`), color(`${pct}%`));
+}
+
+function asUsageMetric(value: unknown): UsageMetric | null {
+  if (!value || typeof value !== 'object') return null;
+  const data = value as Record<string, unknown>;
+  return {
+    call_count: data.call_count === undefined ? undefined : Number(data.call_count),
+    total_time: data.total_time === undefined ? undefined : Number(data.total_time),
+    total_cputime: data.total_cputime === undefined ? undefined : Number(data.total_cputime)
+  };
+}
+
+function asBusinessUsage(value: unknown): BusinessUsage | null {
+  if (!value || typeof value !== 'object') return null;
+  const output: BusinessUsage = {};
+  Object.entries(value as Record<string, unknown>).forEach(([key, usageValue]) => {
+    const usage = asUsageMetric(usageValue);
+    if (usage) output[key] = usage;
+  });
+  return output;
+}
+
+async function checkRateLimits(options: LimitsOptions) {
   const { api, json } = options;
   const token = config.getToken(api);
 
@@ -34,11 +76,11 @@ async function checkRateLimits(options) {
 
     spinner.stop();
 
-    const headers = response.headers || {};
-    const usage = parseHeaderJson(headers['x-app-usage']);
-    const businessUsage = parseHeaderJson(headers['x-business-use-case-usage']);
-
+    const headers = (response && response.headers) || {};
+    const usage = asUsageMetric(parseHeaderJson(headers['x-app-usage']));
+    const businessUsage = asBusinessUsage(parseHeaderJson(headers['x-business-use-case-usage']));
     const payload = { usage, businessUsage };
+
     if (json) {
       console.log(JSON.stringify(payload, null, 2));
       return;
@@ -49,32 +91,21 @@ async function checkRateLimits(options) {
 
     if (usage) {
       console.log(chalk.bold('\nApp Usage:'));
-      const keys = ['call_count', 'total_time', 'total_cputime'];
-      keys.forEach((k) => {
-        if (usage[k] === undefined) return;
-        const pct = Number(usage[k]);
-        const color = pct > 75 ? chalk.red : pct > 50 ? chalk.yellow : chalk.green;
-        const label = k === 'call_count' ? 'Call Count' : k === 'total_time' ? 'Total Time' : 'Total CPU Time';
-        console.log(chalk.cyan(`  ${label}:`), color(`${pct}%`));
-      });
+      printUsageMetric('  ', 'call_count', usage.call_count);
+      printUsageMetric('  ', 'total_time', usage.total_time);
+      printUsageMetric('  ', 'total_cputime', usage.total_cputime);
     } else {
       console.log(chalk.yellow('\nNo rate limit information available in response.'));
       console.log(chalk.gray('(Rate limits are typically returned after making API calls)'));
     }
 
-    if (businessUsage && typeof businessUsage === 'object') {
+    if (businessUsage) {
       console.log(chalk.bold('\nBusiness Usage:'));
       Object.entries(businessUsage).forEach(([key, value]) => {
         console.log(chalk.cyan(`  ${key}:`));
-        if (!value || typeof value !== 'object') return;
-        const keys = ['call_count', 'total_time', 'total_cputime'];
-        keys.forEach((k) => {
-          if (value[k] === undefined) return;
-          const pct = Number(value[k]);
-          const color = pct > 75 ? chalk.red : pct > 50 ? chalk.yellow : chalk.green;
-          const label = k === 'call_count' ? 'Call Count' : k === 'total_time' ? 'Total Time' : 'Total CPU Time';
-          console.log(chalk.cyan(`    ${label}:`), color(`${pct}%`));
-        });
+        printUsageMetric('    ', 'call_count', value.call_count);
+        printUsageMetric('    ', 'total_time', value.total_time);
+        printUsageMetric('    ', 'total_cputime', value.total_cputime);
       });
     }
 
@@ -84,10 +115,9 @@ async function checkRateLimits(options) {
     console.log(chalk.gray('  User/app limits vary by app tier and endpoints.'));
     console.log('');
 
-    const nearLimit = usage && (
-      Number(usage.call_count) > 75 ||
-      Number(usage.total_time) > 75 ||
-      Number(usage.total_cputime) > 75
+    const nearLimit = Boolean(
+      usage &&
+      (Number(usage.call_count) > 75 || Number(usage.total_time) > 75 || Number(usage.total_cputime) > 75)
     );
     if (nearLimit) {
       console.log(chalk.red('! Warning: You are approaching rate limits.'));
@@ -119,7 +149,7 @@ function showRateLimitDocs() {
   console.log('');
 }
 
-function registerLimitsGroup(cmd) {
+function registerLimitsGroup(cmd: any) {
   cmd
     .command('check')
     .description('Check current rate limit status')
@@ -140,7 +170,7 @@ function registerLimitsGroup(cmd) {
     .action(showRateLimitDocs);
 }
 
-function registerLimitsCommands(program) {
+function registerLimitsCommands(program: any) {
   const limits = program.command('limits').description('Check rate limits and usage');
   registerLimitsGroup(limits);
 
@@ -148,5 +178,4 @@ function registerLimitsCommands(program) {
   registerLimitsGroup(limit);
 }
 
-module.exports = registerLimitsCommands;
-
+export = registerLimitsCommands;

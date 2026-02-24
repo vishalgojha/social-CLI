@@ -1,0 +1,28 @@
+{
+  "max_js_files": 70,
+  "scan_roots": [
+    "bin",
+    "commands",
+    "lib",
+    "scripts",
+    "test",
+    "tests",
+    "tools",
+    "index.js",
+    "install.cmd",
+    "install.ps1"
+  ],
+  "exclude_prefixes": [
+    "node_modules/",
+    ".git/",
+    "dist-social/",
+    "tools/agentic-tui/dist/",
+    "socialclaw-core/"
+  ],
+  "disallowed_js_roots": [
+    "cli",
+    "core",
+    "executors",
+    "utils"
+  ]
+}

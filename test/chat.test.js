@@ -8,6 +8,8 @@ const { PersistentMemory } = require('../lib/chat/memory');
 const { AutonomousAgent } = require('../lib/chat/agent');
 const opsStorage = require('../lib/ops/storage');
 
+process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'chat-test-key';
+
 module.exports = [
   {
     name: 'chat context stores facts and pending actions',
@@ -59,36 +61,27 @@ module.exports = [
   {
     name: 'chat agent creates pending action then executes on yes',
     fn: async () => {
-      const oldOpenAI = process.env.OPENAI_API_KEY;
-      const oldMeta = process.env.META_AI_KEY;
-      delete process.env.OPENAI_API_KEY;
-      delete process.env.META_AI_KEY;
-      try {
-        const ctx = new ConversationContext();
-        const agent = new AutonomousAgent({
-          context: ctx,
-          config: {
-            getDefaultApi: () => 'facebook',
-            getToken: () => '',
-            getDefaultWhatsAppPhoneNumberId: () => '',
-            getDefaultFacebookPageId: () => '',
-            getDefaultIgUserId: () => ''
-          },
-          options: {}
-        });
+      const ctx = new ConversationContext();
+      const agent = new AutonomousAgent({
+        context: ctx,
+        config: {
+          getDefaultApi: () => 'facebook',
+          getToken: () => '',
+          getDefaultWhatsAppPhoneNumberId: () => '',
+          getDefaultFacebookPageId: () => '',
+          getDefaultIgUserId: () => ''
+        },
+        options: {}
+      });
 
-        const first = await agent.process('check my rate limit');
-        assert.equal(first.actions.length, 1);
-        assert.equal(ctx.hasPendingActions(), true);
-        assert.equal(first.needsInput, true);
+      const first = await agent.process('check auth status for this profile');
+      assert.equal(first.actions.length, 1);
+      assert.equal(ctx.hasPendingActions(), true);
+      assert.equal(first.needsInput, true);
 
-        const second = await agent.process('yes');
-        assert.equal(second.actions.length, 1);
-        assert.equal(ctx.hasPendingActions(), false);
-      } finally {
-        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
-        if (oldMeta) process.env.META_AI_KEY = oldMeta;
-      }
+      const second = await agent.process('yes');
+      assert.equal(second.actions.length, 1);
+      assert.equal(ctx.hasPendingActions(), false);
     }
   },
   {
@@ -218,28 +211,19 @@ module.exports = [
   {
     name: 'chat agent replaces stale pending actions for new deterministic command',
     fn: async () => {
-      const oldOpenAI = process.env.OPENAI_API_KEY;
-      const oldMeta = process.env.META_AI_KEY;
-      delete process.env.OPENAI_API_KEY;
-      delete process.env.META_AI_KEY;
-      try {
-        const ctx = new ConversationContext();
-        ctx.setPendingActions([{ tool: 'query_me', params: {}, description: 'Old pending' }]);
-        const agent = new AutonomousAgent({
-          context: ctx,
-          config: { getDefaultApi: () => 'facebook' },
-          options: {}
-        });
+      const ctx = new ConversationContext();
+      ctx.setPendingActions([{ tool: 'query_me', params: {}, description: 'Old pending' }]);
+      const agent = new AutonomousAgent({
+        context: ctx,
+        config: { getDefaultApi: () => 'facebook' },
+        options: {}
+      });
 
-        const res = await agent.process('social auth status');
-        assert.equal(res.actions.length, 1);
-        assert.equal(res.actions[0].tool, 'auth.status');
-        assert.equal(res.needsInput, false);
-        assert.equal(ctx.hasPendingActions(), false);
-      } finally {
-        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
-        if (oldMeta) process.env.META_AI_KEY = oldMeta;
-      }
+      const res = await agent.process('social auth status');
+      assert.equal(res.actions.length, 1);
+      assert.equal(res.actions[0].tool, 'auth.status');
+      assert.equal(res.needsInput, false);
+      assert.equal(ctx.hasPendingActions(), false);
     }
   },
   {
@@ -263,64 +247,19 @@ module.exports = [
     }
   },
   {
-    name: 'chat agent asks clarification for ambiguous unknown input',
+    name: 'chat agent requires API key and returns guidance when missing',
     fn: async () => {
-      const oldOpenAI = process.env.OPENAI_API_KEY;
-      const oldMeta = process.env.META_AI_KEY;
-      delete process.env.OPENAI_API_KEY;
-      delete process.env.META_AI_KEY;
-      try {
-        const ctx = new ConversationContext();
-        const agent = new AutonomousAgent({
-          context: ctx,
-          config: { getDefaultApi: () => 'facebook', getAgentConfig: () => ({ provider: 'openai', apiKey: '' }) },
-          options: {}
-        });
-        const res = await agent.process('blabla random text');
-        assert.equal(res.actions.length, 0);
-        assert.equal(res.needsInput, true);
-        assert.equal(res.message.toLowerCase().includes('did you mean'), true);
-        assert.equal(Array.isArray(res.clarificationChoices), true);
-        assert.equal(res.clarificationChoices.length > 0, true);
-      } finally {
-        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
-        if (oldMeta) process.env.META_AI_KEY = oldMeta;
-      }
-    }
-  },
-  {
-    name: 'chat agent routes numeric clarification choice to deterministic action',
-    fn: async () => {
-      const oldOpenAI = process.env.OPENAI_API_KEY;
-      const oldMeta = process.env.META_AI_KEY;
-      delete process.env.OPENAI_API_KEY;
-      delete process.env.META_AI_KEY;
-      try {
-        const ctx = new ConversationContext();
-        const agent = new AutonomousAgent({
-          context: ctx,
-          config: { getDefaultApi: () => 'facebook', getAgentConfig: () => ({ provider: 'openai', apiKey: '' }) },
-          options: {}
-        });
-        const first = await agent.process('random words that do not map');
-        assert.equal(first.actions.length, 0);
-        assert.equal(first.needsInput, true);
-        const second = await agent.process('1');
-        assert.equal(second.actions.length, 1);
-        assert.equal(second.actions[0].tool, 'query_pages');
-      } finally {
-        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
-        if (oldMeta) process.env.META_AI_KEY = oldMeta;
-      }
-    }
-  },
-  {
-    name: 'chat agent suggests ollama setup when no cloud key is available',
-    fn: async () => {
-      const oldOpenAI = process.env.OPENAI_API_KEY;
-      const oldMeta = process.env.META_AI_KEY;
-      delete process.env.OPENAI_API_KEY;
-      delete process.env.META_AI_KEY;
+      const keyVars = [
+        'OPENAI_API_KEY',
+        'META_AI_KEY',
+        'SOCIAL_AI_KEY',
+        'SOCIAL_CHAT_API_KEY',
+        'META_CHAT_API_KEY',
+        'SOCIAL_AGENT_API_KEY',
+        'META_AGENT_API_KEY'
+      ];
+      const prev = Object.fromEntries(keyVars.map((k) => [k, process.env[k]]));
+      keyVars.forEach((k) => { delete process.env[k]; });
       try {
         const ctx = new ConversationContext();
         const agent = new AutonomousAgent({
@@ -329,29 +268,17 @@ module.exports = [
           options: {}
         });
         const res = await agent.process('show my pages');
+        assert.equal(res.actions.length, 0);
+        assert.equal(res.needsInput, true);
+        assert.equal(res.message.toLowerCase().includes('requires a valid api key'), true);
         const joined = (res.suggestions || []).join('\n').toLowerCase();
-        assert.equal(joined.includes('ollama'), true);
-        assert.equal(joined.includes('llama3.1:8b'), true);
-        assert.equal(joined.includes('social agent setup --provider ollama'), true);
+        assert.equal(joined.includes('social agent setup --provider openai --api-key'), true);
       } finally {
-        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
-        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+        keyVars.forEach((k) => {
+          if (prev[k] === undefined) delete process.env[k];
+          else process.env[k] = prev[k];
+        });
       }
-    }
-  },
-  {
-    name: 'chat agent maps setup ollama intent to local.ollama.setup tool',
-    fn: async () => {
-      const ctx = new ConversationContext();
-      const agent = new AutonomousAgent({
-        context: ctx,
-        config: { getDefaultApi: () => 'facebook' },
-        options: {}
-      });
-      const res = await agent.process('setup ollama llama3.1:8b');
-      assert.equal(res.actions.length, 1);
-      assert.equal(res.actions[0].tool, 'local.ollama.setup');
-      assert.equal(res.actions[0].params.model, 'llama3.1:8b');
     }
   },
   {

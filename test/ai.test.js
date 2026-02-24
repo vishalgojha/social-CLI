@@ -63,18 +63,29 @@ module.exports = [
     }
   },
   {
-    name: 'parser: aiParseIntent falls back to heuristics when no API key',
+    name: 'parser: aiParseIntent requires API key',
     fn: async () => {
-      const oldOpenAI = process.env.OPENAI_API_KEY;
-      const oldMeta = process.env.META_AI_KEY;
-      delete process.env.OPENAI_API_KEY;
-      delete process.env.META_AI_KEY;
+      const keyVars = [
+        'OPENAI_API_KEY',
+        'META_AI_KEY',
+        'SOCIAL_AI_KEY',
+        'SOCIAL_CHAT_API_KEY',
+        'META_CHAT_API_KEY',
+        'SOCIAL_AGENT_API_KEY',
+        'META_AGENT_API_KEY'
+      ];
+      const prev = Object.fromEntries(keyVars.map((k) => [k, process.env[k]]));
+      keyVars.forEach((k) => { delete process.env[k]; });
       try {
-        const intent = await aiParseIntent("what are my Facebook pages?", { debug: false });
-        assert.equal(intent.action, 'query_pages');
+        await assert.rejects(
+          () => aiParseIntent("what are my Facebook pages?", { debug: false }),
+          /Missing AI API key/i
+        );
       } finally {
-        if (oldOpenAI) process.env.OPENAI_API_KEY = oldOpenAI;
-        if (oldMeta) process.env.META_AI_KEY = oldMeta;
+        keyVars.forEach((k) => {
+          if (prev[k] === undefined) delete process.env[k];
+          else process.env[k] = prev[k];
+        });
       }
     }
   },

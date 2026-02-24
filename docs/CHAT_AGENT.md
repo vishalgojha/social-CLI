@@ -8,7 +8,7 @@ Core flow:
 
 1. User sends free-form message
 2. Agent updates context (messages + extracted facts)
-3. Agent proposes tool actions (LLM-first, heuristic fallback)
+3. Agent proposes tool actions (LLM-driven, API-key required)
 4. User confirms (`yes`) or rejects (`no`)
 5. Agent executes approved actions safely
 6. Session is persisted and resumable
@@ -62,17 +62,17 @@ Agent: Perfect. I will execute that now.
 - High-risk actions are confirmation-gated
 - Session data stores context only (no access tokens)
 
-## LLM + Fallback
+## LLM Requirements
 
 Decision strategy:
 
-- LLM mode (if `OPENAI_API_KEY` / `SOCIAL_AI_KEY` available)
-- Heuristic fallback when LLM is unavailable
+- Chat planning requires a valid cloud API key.
+- If key/config is missing, agent returns setup guidance and does not execute actions.
 
 LLM endpoint config:
 
 - `OPENAI_BASE_URL` (default: `https://api.openai.com/v1`)
-- `SOCIAL_CHAT_MODEL` (fallback: `SOCIAL_AI_MODEL`, then `gpt-4o-mini`)
+- `SOCIAL_CHAT_MODEL` (resolution order: `SOCIAL_CHAT_MODEL`, then `SOCIAL_AI_MODEL`, then `gpt-4o-mini`)
 
 ## CLI Options
 

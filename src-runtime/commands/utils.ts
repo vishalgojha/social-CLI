@@ -1,10 +1,16 @@
-const chalk = require('chalk');
-const ora = require('ora');
-const axios = require('axios');
-const config = require('../lib/config');
-const MetaAPIClient = require('../lib/api-client');
+import chalk = require('chalk');
+import ora = require('ora');
+import axios from 'axios';
 
-function getTokenOrExit(api) {
+const config = require('../../lib/config');
+const MetaAPIClient = require('../../lib/api-client');
+
+type LimitsCheckOptions = {
+  api: string;
+  json?: boolean;
+};
+
+function getTokenOrExit(api: string): string {
   const token = config.getToken(api);
   if (!token) {
     console.error(chalk.red(`X No ${api} token found. Run: social auth login -a ${api}`));
@@ -13,15 +19,15 @@ function getTokenOrExit(api) {
   return token;
 }
 
-function registerUtilsCommands(program) {
+function registerUtilsCommands(program: any) {
   const utils = program.command('utils').description('Utilities: config, version, limits');
 
   const version = utils.command('version').description('API version management');
   version
     .command('set <apiVersion>')
     .description('Set Graph API version (e.g. v19.0 or v20.0)')
-    .action((apiVersion) => {
-      if (!/^v\\d+\\.\\d+$/.test(apiVersion)) {
+    .action((apiVersion: string) => {
+      if (!/^v\d+\.\d+$/.test(apiVersion)) {
         console.error(chalk.red('X Invalid version format. Use like v20.0'));
         process.exit(1);
       }
@@ -38,7 +44,7 @@ function registerUtilsCommands(program) {
   cfg
     .command('set-default-page <pageId>')
     .description('Set default Facebook Page ID')
-    .action((pageId) => {
+    .action((pageId: string) => {
       config.setDefaultFacebookPageId(pageId);
       console.log(chalk.green(`OK Default Facebook Page set to: ${pageId}\n`));
     });
@@ -46,7 +52,7 @@ function registerUtilsCommands(program) {
   cfg
     .command('set-default-ig-user <igUserId>')
     .description('Set default Instagram user ID')
-    .action((igUserId) => {
+    .action((igUserId: string) => {
       config.setDefaultIgUserId(igUserId);
       console.log(chalk.green(`OK Default IG user set to: ${igUserId}\n`));
     });
@@ -54,7 +60,7 @@ function registerUtilsCommands(program) {
   cfg
     .command('set-default-whatsapp-phone <phoneNumberId>')
     .description('Set default WhatsApp Phone Number ID')
-    .action((phoneNumberId) => {
+    .action((phoneNumberId: string) => {
       config.setDefaultWhatsAppPhoneNumberId(phoneNumberId);
       console.log(chalk.green(`OK Default WhatsApp phone set to: ${phoneNumberId}\n`));
     });
@@ -65,7 +71,7 @@ function registerUtilsCommands(program) {
     .description('Check current rate limit status (from response headers)')
     .option('-a, --api <api>', 'API to use', config.getDefaultApi())
     .option('--json', 'Output as JSON')
-    .action(async (options) => {
+    .action(async (options: LimitsCheckOptions) => {
       const token = getTokenOrExit(options.api);
       const spinner = ora('Checking rate limits...').start();
       const client = new MetaAPIClient(token, options.api);
@@ -77,10 +83,10 @@ function registerUtilsCommands(program) {
         });
         spinner.stop();
 
-        const headers = response.headers;
-        const usage = headers['x-app-usage'] ? JSON.parse(headers['x-app-usage']) : null;
+        const headers = response.headers || {};
+        const usage = headers['x-app-usage'] ? JSON.parse(String(headers['x-app-usage'])) : null;
         const businessUsage = headers['x-business-use-case-usage']
-          ? JSON.parse(headers['x-business-use-case-usage'])
+          ? JSON.parse(String(headers['x-business-use-case-usage']))
           : null;
 
         const payload = { usage, businessUsage };
@@ -93,21 +99,20 @@ function registerUtilsCommands(program) {
         console.log(chalk.gray('─'.repeat(50)));
         if (usage) {
           console.log(chalk.bold('\nApp Usage:'));
-          Object.entries(usage).forEach(([k, v]) => {
-            const pct = Number(v);
+          Object.entries(usage as Record<string, unknown>).forEach(([key, value]) => {
+            const pct = Number(value);
             const color = pct > 75 ? chalk.red : pct > 50 ? chalk.yellow : chalk.green;
-            console.log(chalk.cyan(`  ${k}:`), color(`${pct}%`));
+            console.log(chalk.cyan(`  ${key}:`), color(`${pct}%`));
           });
         } else {
           console.log(chalk.yellow('\nNo rate limit info available (headers missing).'));
         }
         console.log('');
-      } catch (e) {
+      } catch (error) {
         spinner.stop();
-        client.handleError(e);
+        client.handleError(error);
       }
     });
 }
 
-module.exports = registerUtilsCommands;
-
+export = registerUtilsCommands;
