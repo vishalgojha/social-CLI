@@ -7,7 +7,7 @@ type TestCase = {
   fn: () => Promise<void> | void;
 };
 
-const repoRoot = path.resolve(__dirname, '..', '..');
+const testsRoot = __dirname;
 
 function setupIsolatedHome() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'social-cli-test-home-'));
@@ -27,25 +27,28 @@ async function run() {
   const cleanupHome = setupIsolatedHome();
   try {
     const files = [
-      'api.test.js',
-      'config.test.js',
-      'marketing-export.test.js',
-      'batch.test.js',
-      'ai.test.js',
-      'prompt-regression.test.js',
-      'intent-engine.test.js',
-      'chat.test.js',
-      'onboarding-ready.test.js',
-      'gateway.test.js',
-      'policy.test.js',
-      'ops.test.js',
-      'hub.test.js'
+      'api.test',
+      'config.test',
+      'marketing-export.test',
+      'batch.test',
+      'ai.test',
+      'prompt-regression.test',
+      'intent-engine.test',
+      'chat.test',
+      'onboarding-ready.test',
+      'gateway.test',
+      'policy.test',
+      'ops.test',
+      'hub.test'
     ];
 
     const tests: TestCase[] = [];
-    files.forEach((f) => {
+    files.forEach((stem) => {
+      const jsPath = path.join(testsRoot, `${stem}.js`);
+      const tsPath = path.join(testsRoot, `${stem}.ts`);
+      const targetPath = fs.existsSync(jsPath) ? jsPath : tsPath;
       // eslint-disable-next-line global-require, @typescript-eslint/no-var-requires
-      const mod = require(path.join(repoRoot, 'test', f)) as TestCase[];
+      const mod = require(targetPath) as TestCase[];
       (mod || []).forEach((t) => tests.push(t));
     });
 

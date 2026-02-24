@@ -88,7 +88,7 @@ social hub ...         # package/connector trust + lifecycle
 - Run local CLI directly from repo root:
 
 ```powershell
-node .\bin\social.js --help
+node .\dist-legacy\bin\social.js --help
 ```
 
 ### PowerShell blocks npm scripts (`npm.ps1` policy issue)
@@ -104,7 +104,7 @@ npm.cmd link
 
 - Run terminal as Administrator, or
 - Enable Windows Developer Mode, or
-- Use repo-local execution (`node .\bin\social.js ...`) instead of global link.
+- Use repo-local execution (`node .\dist-legacy\bin\social.js ...`) instead of global link.
 
 ## Safety Notes
 

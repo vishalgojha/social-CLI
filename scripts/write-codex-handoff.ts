@@ -265,7 +265,7 @@ function main() {
     mdList('Files Changed In Push', files),
     '## Next Agent Notes',
     '- Start by reading this file and then run `git status`.',
-    '- If tests are required, run `node test/run.js`.',
+    '- If tests are required, run `npm test`.',
     ''
   ].join('\n');
 

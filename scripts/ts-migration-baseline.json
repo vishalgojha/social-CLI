@@ -1,5 +1,5 @@
 {
-  "max_js_files": 70,
+  "max_js_files": 0,
   "scan_roots": [
     "bin",
     "commands",
@@ -8,7 +8,7 @@
     "test",
     "tests",
     "tools",
-    "index.js",
+    "index.ts",
     "install.cmd",
     "install.ps1"
   ],

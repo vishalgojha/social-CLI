@@ -48,7 +48,7 @@ function needsOnboarding() {
 
 function runSubprocess(args: string[]) {
   return new Promise<void>((resolve, reject) => {
-    const binPath = path.join(__dirname, '..', '..', '..', 'bin', 'social.js');
+    const binPath = path.join(__dirname, '..', '..', '..', 'dist-legacy', 'bin', 'social.js');
     const child = spawn(process.execPath, [binPath, '--no-banner', ...args], {
       stdio: 'inherit',
       env: process.env

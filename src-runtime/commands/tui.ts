@@ -45,7 +45,7 @@ function registerTuiCommand(program: any) {
       const rootDir = path.join(__dirname, '..', '..', '..');
       const distEntry = path.join(rootDir, 'tools', 'agentic-tui', 'dist', 'index.js');
       const srcEntry = path.join(rootDir, 'tools', 'agentic-tui', 'src', 'index.tsx');
-      const binPath = path.join(rootDir, 'bin', 'social.js');
+      const binPath = path.join(rootDir, 'dist-legacy', 'bin', 'social.js');
       const provider = String(opts.aiProvider || process.env.SOCIAL_TUI_AI_PROVIDER || 'openai').trim().toLowerCase();
       if (provider !== 'openai') {
         console.error(chalk.red('\nOnly provider "openai" is supported for Hatch UI.\n'));

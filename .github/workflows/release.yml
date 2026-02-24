@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 25
           registry-url: "https://registry.npmjs.org"
           cache: npm
 
@@ -44,7 +44,7 @@ jobs:
       - name: Prepare Release Notes
         run: |
           VERSION="$(node -p "require('./package.json').version")"
-          node scripts/extract-changelog.js "$VERSION" --allow-missing > release-notes.md
+          node dist-legacy/scripts/extract-changelog.js "$VERSION" --allow-missing > release-notes.md
 
       - name: Publish To npm
         env:

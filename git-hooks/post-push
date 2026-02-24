@@ -5,10 +5,10 @@ REMOTE_NAME="${1:-origin}"
 REMOTE_URL="${2:-}"
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-SCRIPT_PATH="$REPO_ROOT/scripts/write-codex-handoff.js"
-if [ ! -f "$SCRIPT_PATH" ]; then
+SCRIPT_PATH_DIST="$REPO_ROOT/dist-legacy/scripts/write-codex-handoff.js"
+if [ ! -f "$SCRIPT_PATH_DIST" ]; then
   exit 0
 fi
 
 cd "$REPO_ROOT"
-node "$SCRIPT_PATH" --remote "$REMOTE_NAME" --url "$REMOTE_URL"
+node "$SCRIPT_PATH_DIST" --remote "$REMOTE_NAME" --url "$REMOTE_URL"

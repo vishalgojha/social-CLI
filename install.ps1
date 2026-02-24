@@ -170,6 +170,7 @@ try {
 
   if (-not $SkipBuild) {
     Write-Step "Building social TypeScript targets"
+    Invoke-Npm -NpmPath $npmPath -Args @("run", "build:legacy-ts")
     Invoke-Npm -NpmPath $npmPath -Args @("run", "build:social-ts")
     if (-not $SkipTui) {
       Write-Step "Building agentic TUI"
@@ -206,7 +207,7 @@ try {
     if ($socialCmd) {
       & $socialCmd.Source --version
     } else {
-      & node .\bin\social.js --version
+      & node .\dist-legacy\bin\social.js --version
     }
     if ($LASTEXITCODE -ne 0) {
       throw "Unable to run social --version after install."
@@ -219,7 +220,7 @@ try {
 
   Write-Host "`nDone. Social CLI installer finished successfully." -ForegroundColor Green
   if ($NoGlobal) {
-    Write-Host "Run locally: node .\bin\social.js --help" -ForegroundColor Gray
+    Write-Host "Run locally: node .\dist-legacy\bin\social.js --help" -ForegroundColor Gray
   } else {
     Write-Host "Use: social --help" -ForegroundColor Gray
   }

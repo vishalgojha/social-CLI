@@ -39,6 +39,7 @@ coverage
 
 # Build outputs
 dist/
+dist-legacy/
 build/
 .tmp-ts-run/
 

@@ -25,8 +25,8 @@ if not defined NODE_EXE (
   echo WARNING: Node.js executable was not found after install.
   echo Guided setup is unavailable in this shell.
   echo Open a new terminal and run:
-  echo   node "%~dp0bin\social.js" auth login -a facebook
-  echo   node "%~dp0bin\social.js" hatch
+  echo   node "%~dp0dist-legacy\bin\social.js" auth login -a facebook
+  echo   node "%~dp0dist-legacy\bin\social.js" hatch
 )
 
 echo.
@@ -84,12 +84,12 @@ goto :end
 
 :launch_hatch_new
 echo Launching Hatch in a new window...
-start "Social CLI Hatch" cmd /k ""%NODE_EXE%" "%~dp0bin\social.js" hatch"
+start "Social CLI Hatch" cmd /k ""%NODE_EXE%" "%~dp0dist-legacy\bin\social.js" hatch"
 goto :end
 
 :launch_studio_new
 echo Launching Social Studio in a new window...
-start "Social Studio" cmd /k ""%NODE_EXE%" "%~dp0bin\social.js" studio"
+start "Social Studio" cmd /k ""%NODE_EXE%" "%~dp0dist-legacy\bin\social.js" studio"
 goto :end
 
 :refresh_path_from_registry
@@ -109,7 +109,7 @@ exit /b 0
 :run_social
 if not defined NODE_EXE call :resolve_node
 if not defined NODE_EXE exit /b 9009
-"%NODE_EXE%" "%~dp0bin\social.js" %*
+"%NODE_EXE%" "%~dp0dist-legacy\bin\social.js" %*
 exit /b %ERRORLEVEL%
 
 :end

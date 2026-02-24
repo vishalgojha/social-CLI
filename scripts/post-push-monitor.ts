@@ -68,7 +68,7 @@ function remoteShaForRef(remoteTarget, ref) {
 
 function emitHandoff({ repoRoot, remote, url, updates }) {
   if (!updates.length) return;
-  const writer = path.join(repoRoot, 'scripts', 'write-codex-handoff.js');
+  const writer = path.join(repoRoot, 'dist-legacy', 'scripts', 'write-codex-handoff.js');
   if (!fs.existsSync(writer)) return;
   const input = `${updates.map((u) => u.line).join('\n')}\n`;
   try {

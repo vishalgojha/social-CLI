@@ -5,9 +5,9 @@ REMOTE_NAME="${1:-origin}"
 REMOTE_URL="${2:-}"
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-MONITOR_SCRIPT="$REPO_ROOT/scripts/post-push-monitor.js"
+MONITOR_SCRIPT_DIST="$REPO_ROOT/dist-legacy/scripts/post-push-monitor.js"
 
-if [ ! -f "$MONITOR_SCRIPT" ]; then
+if [ ! -f "$MONITOR_SCRIPT_DIST" ]; then
   exit 0
 fi
 
@@ -26,5 +26,5 @@ if [ ! -s "$TMP_FILE" ]; then
 fi
 
 cd "$REPO_ROOT"
-node "$MONITOR_SCRIPT" --remote "$REMOTE_NAME" --url "$REMOTE_URL" --updates-file "$TMP_FILE" >/dev/null 2>&1 &
+node "$MONITOR_SCRIPT_DIST" --remote "$REMOTE_NAME" --url "$REMOTE_URL" --updates-file "$TMP_FILE" >/dev/null 2>&1 &
 exit 0

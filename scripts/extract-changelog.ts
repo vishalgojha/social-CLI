@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 function usage() {
-  console.error('Usage: node scripts/extract-changelog.js <version> [--allow-missing]');
+  console.error('Usage: node dist-legacy/scripts/extract-changelog.js <version> [--allow-missing]');
   process.exit(2);
 }
 
@@ -14,7 +14,10 @@ if (!version) usage();
 
 const allowMissing = process.argv.includes('--allow-missing');
 
-const changelogPath = path.join(__dirname, '..', 'CHANGELOG.md');
+const rootFromDist = path.resolve(__dirname, '..', '..');
+const rootFromSource = path.resolve(__dirname, '..');
+const repoRoot = fs.existsSync(path.join(rootFromSource, 'CHANGELOG.md')) ? rootFromSource : rootFromDist;
+const changelogPath = path.join(repoRoot, 'CHANGELOG.md');
 const text = fs.readFileSync(changelogPath, 'utf8');
 
 // Match "## x.y.z" section until next "## " header.

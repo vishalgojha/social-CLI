@@ -10,13 +10,38 @@ const { startLauncherMenu } = require('../lib/ui/launcher-menu');
 const i18n = require('../lib/i18n');
 
 const program = new Command();
+const localRoot = path.resolve(__dirname, '..');
+const repoRoot = fs.existsSync(path.join(localRoot, 'dist-runtime'))
+  ? localRoot
+  : path.resolve(localRoot, '..');
 
 function loadCommandModule(name) {
-  const distPath = path.join(__dirname, '..', 'dist-runtime', 'commands', `${name}.js`);
+  const localRuntimePath = path.join(localRoot, 'src-runtime', 'commands', `${name}.js`);
+  if (fs.existsSync(localRuntimePath)) {
+    return require(localRuntimePath); // eslint-disable-line global-require
+  }
+
+  const distPath = path.join(repoRoot, 'dist-runtime', 'commands', `${name}.js`);
   if (fs.existsSync(distPath)) {
     return require(distPath); // eslint-disable-line global-require
   }
-  return require(`../commands/${name}`); // eslint-disable-line global-require
+
+  const compiledLegacyPath = path.join(localRoot, 'commands', `${name}.js`);
+  if (fs.existsSync(compiledLegacyPath)) {
+    return require(compiledLegacyPath); // eslint-disable-line global-require
+  }
+
+  const sourceLegacyPath = path.join(repoRoot, 'commands', `${name}.ts`);
+  if (fs.existsSync(sourceLegacyPath)) {
+    return require(sourceLegacyPath); // eslint-disable-line global-require
+  }
+
+  const sourceRuntimePath = path.join(repoRoot, 'src-runtime', 'commands', `${name}.ts`);
+  if (fs.existsSync(sourceRuntimePath)) {
+    return require(sourceRuntimePath); // eslint-disable-line global-require
+  }
+
+  throw new Error(`Command module not found: ${name}`);
 }
 
 function getArgValue(name) {
@@ -112,20 +137,20 @@ const postCommands = loadCommandModule('post');
 const whatsappCommands = loadCommandModule('whatsapp');
 const instagramCommands = loadCommandModule('instagram');
 const utilsCommands = loadCommandModule('utils');
-const doctorCommands = require('../commands/doctor');
+const doctorCommands = loadCommandModule('doctor');
 const agentCommands = loadCommandModule('agent');
-const marketingCommands = require('../commands/marketing');
-const accountsCommands = require('../commands/accounts');
-const batchCommands = require('../commands/batch');
-const aiCommands = require('../commands/ai');
+const marketingCommands = loadCommandModule('marketing');
+const accountsCommands = loadCommandModule('accounts');
+const batchCommands = loadCommandModule('batch');
+const aiCommands = loadCommandModule('ai');
 const chatCommands = loadCommandModule('chat');
 const gatewayCommands = loadCommandModule('gateway');
-const opsCommands = require('../commands/ops');
-const hubCommands = require('../commands/hub');
+const opsCommands = loadCommandModule('ops');
+const hubCommands = loadCommandModule('hub');
 const tuiCommands = loadCommandModule('tui');
-const onboardCommands = require('../commands/onboard');
-const integrationsCommands = require('../commands/integrations');
-const policyCommands = require('../commands/policy');
+const onboardCommands = loadCommandModule('onboard');
+const integrationsCommands = loadCommandModule('integrations');
+const policyCommands = loadCommandModule('policy');
 
 // Register command groups
 authCommands(program);

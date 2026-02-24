@@ -4,9 +4,9 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
-const repoRoot = path.resolve(__dirname, '..', '..');
+const distRoot = path.resolve(__dirname, '..');
 // eslint-disable-next-line global-require, @typescript-eslint/no-var-requires
-const { createGatewayServer } = require(path.join(repoRoot, 'lib', 'gateway', 'server'));
+const { createGatewayServer } = require(path.join(distRoot, 'lib', 'gateway', 'server'));
 
 type JsonResponse = {
   status: number | undefined;
@@ -45,7 +45,7 @@ function requestJson({ port, method, pathName }: {
 }
 
 function runCliHelpSmoke() {
-  const cliPath = path.join(repoRoot, 'bin', 'social.js');
+  const cliPath = path.join(distRoot, 'bin', 'social.js');
   const src = fs.readFileSync(cliPath, 'utf8');
   assert.match(src, /const gatewayCommands = loadCommandModule\('gateway'\);/);
   assert.match(src, /gatewayCommands\(program\);/);

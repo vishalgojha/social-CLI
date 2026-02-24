@@ -3,8 +3,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const repoRoot = path.resolve(__dirname, '..');
-const baselinePath = path.resolve(__dirname, 'ts-migration-baseline.json');
+const rootFromDist = path.resolve(__dirname, '..', '..');
+const rootFromSource = path.resolve(__dirname, '..');
+const repoRoot = fs.existsSync(path.join(rootFromSource, 'scripts', 'ts-migration-baseline.json'))
+  ? rootFromSource
+  : rootFromDist;
+const baselinePath = path.resolve(repoRoot, 'scripts', 'ts-migration-baseline.json');
 
 function loadBaseline() {
   const raw = fs.readFileSync(baselinePath, 'utf8');

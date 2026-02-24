@@ -17,7 +17,7 @@
 ## For Local Development
 
 ### 1. Prerequisites
-- Node.js 14+ installed
+- Node.js 25+ installed
 - npm (comes with Node.js)
 
 ### 2. Setup
