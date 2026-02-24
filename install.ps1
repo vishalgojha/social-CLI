@@ -38,6 +38,66 @@ function Invoke-Npm {
   }
 }
 
+function Normalize-PathEntry([string]$Value) {
+  if (-not $Value) { return "" }
+  return $Value.Trim().Trim('"').TrimEnd('\').ToLowerInvariant()
+}
+
+function Test-PathContainsEntry {
+  param(
+    [string]$PathValue,
+    [Parameter(Mandatory = $true)][string]$Entry
+  )
+
+  $target = Normalize-PathEntry $Entry
+  if (-not $target) { return $false }
+  if (-not $PathValue) { return $false }
+
+  $parts = $PathValue -split ';'
+  foreach ($part in $parts) {
+    if ((Normalize-PathEntry $part) -eq $target) {
+      return $true
+    }
+  }
+  return $false
+}
+
+function Ensure-NpmPrefixOnPath {
+  param(
+    [Parameter(Mandatory = $true)][string]$NpmPath
+  )
+
+  $prefixLine = (& $NpmPath config get prefix 2>$null | Select-Object -First 1)
+  if ($LASTEXITCODE -ne 0) { return }
+
+  $prefix = [string]$prefixLine
+  if (-not $prefix) { return }
+  $prefix = $prefix.Trim()
+  if (-not $prefix -or $prefix -eq "undefined") { return }
+  if (-not (Test-Path $prefix)) { return }
+
+  if (-not (Test-PathContainsEntry -PathValue $env:Path -Entry $prefix)) {
+    if ([string]::IsNullOrWhiteSpace($env:Path)) {
+      $env:Path = $prefix
+    } else {
+      $env:Path = "$env:Path;$prefix"
+    }
+    Write-WarnLine "Added npm global bin to current PATH: $prefix"
+  }
+
+  $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+  if (-not (Test-PathContainsEntry -PathValue $userPath -Entry $prefix)) {
+    $newUserPath = if ([string]::IsNullOrWhiteSpace($userPath)) { $prefix } else { "$userPath;$prefix" }
+    try {
+      [Environment]::SetEnvironmentVariable("Path", $newUserPath, "User")
+      Write-WarnLine "Added npm global bin to User PATH: $prefix"
+      Write-WarnLine "Open a new terminal window to use 'social'."
+    } catch {
+      Write-WarnLine "Could not update User PATH automatically. Add this path manually: $prefix"
+    }
+  }
+}
+
 function Try-AutoInstallNode {
   if ($SkipNodeAutoInstall) { return }
   $winget = Get-Command winget -ErrorAction SilentlyContinue
@@ -124,6 +184,7 @@ try {
     } catch {
       Install-GlobalFallback -NpmPath $npmPath -RepoRoot $repoRoot
     }
+    Ensure-NpmPrefixOnPath -NpmPath $npmPath
   } else {
     Write-Step "Skipping global install (-NoGlobal)"
   }
