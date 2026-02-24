@@ -23,17 +23,9 @@ choice /C YN /N /T 20 /D N /M "Start guided setup now? [Y/N] (auto N in 20s): " 
 if errorlevel 3 goto :end
 if errorlevel 2 goto :end
 
-set "HAS_SOCIAL=0"
-where social.cmd >nul 2>nul
-if "%ERRORLEVEL%"=="0" set "HAS_SOCIAL=1"
-
 echo.
 echo Step 1/2: Authenticate Facebook access token
-if "%HAS_SOCIAL%"=="1" (
-  call social.cmd auth login -a facebook
-) else (
-  call node "%~dp0bin\social.js" auth login -a facebook
-)
+call node "%~dp0bin\social.js" auth login -a facebook
 set "AUTH_CODE=%ERRORLEVEL%"
 
 if not "%AUTH_CODE%"=="0" (
@@ -45,35 +37,51 @@ if not "%AUTH_CODE%"=="0" (
 
 echo.
 echo Step 2/2: Choose interface
-echo   [1] Terminal UI ^(Hatch^)
-echo   [2] Agentic Frontend ^(Social Studio web UI^)
-echo   [3] Exit
-choice /C 123 /N /M "Select [1/2/3]: "
-if errorlevel 3 goto :end
-if errorlevel 2 goto :launch_studio
-if errorlevel 1 goto :launch_hatch
+echo   [1] Terminal UI ^(Hatch, this window^)
+echo   [2] Agentic Frontend ^(Studio, this window^)
+echo   [3] Terminal UI ^(Hatch, new window^)
+echo   [4] Agentic Frontend ^(Studio, new window^)
+echo   [5] Exit
+choice /C 12345 /N /T 30 /D 1 /M "Select [1/2/3/4/5] ^(auto 1 in 30s^): "
+if errorlevel 5 goto :end
+if errorlevel 4 goto :launch_studio_new
+if errorlevel 3 goto :launch_hatch_new
+if errorlevel 2 goto :launch_studio_here
+if errorlevel 1 goto :launch_hatch_here
 goto :end
 
-:launch_hatch
-if "%HAS_SOCIAL%"=="1" (
-  echo Launching Hatch in a new window...
-  start "Social CLI Hatch" cmd /k social.cmd hatch
-) else (
-  echo social command not on PATH yet. Launching local Hatch in a new window...
-  start "Social CLI Hatch" cmd /k node "%~dp0bin\social.js" hatch
+:launch_hatch_here
+echo Launching Hatch in this window...
+call node "%~dp0bin\social.js" hatch
+set "UI_CODE=%ERRORLEVEL%"
+if not "%UI_CODE%"=="0" (
+  echo.
+  echo Hatch exited with code %UI_CODE%.
 )
 goto :end
 
-:launch_studio
-if "%HAS_SOCIAL%"=="1" (
-  echo Launching Social Studio in a new window...
-  start "Social Studio" cmd /k social.cmd studio
-) else (
-  echo social command not on PATH yet. Launching local Studio in a new window...
-  start "Social Studio" cmd /k node "%~dp0bin\social.js" studio
+:launch_studio_here
+echo Launching Social Studio in this window...
+call node "%~dp0bin\social.js" studio
+set "UI_CODE=%ERRORLEVEL%"
+if not "%UI_CODE%"=="0" (
+  echo.
+  echo Studio exited with code %UI_CODE%.
 )
+goto :end
+
+:launch_hatch_new
+echo Launching Hatch in a new window...
+start "Social CLI Hatch" cmd /k node "%~dp0bin\social.js" hatch
+goto :end
+
+:launch_studio_new
+echo Launching Social Studio in a new window...
+start "Social Studio" cmd /k node "%~dp0bin\social.js" studio
 goto :end
 
 :end
-pause
+echo.
+echo Setup finished.
+choice /C X /N /M "Press X to close this installer window: "
 exit /b 0
