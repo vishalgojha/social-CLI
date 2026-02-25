@@ -4,6 +4,16 @@ A command-line and localhost control plane for Meta APIs (Facebook, Instagram, W
 
 Built for developers and agencies that want one consistent workflow for auth, posting, analytics, and guarded automation.
 
+## Do This First
+
+```bash
+npm ci
+npm run build
+npm start
+npm run quality:check
+railway up
+```
+
 ## Why Use Social CLI
 
 - One auth surface across Meta APIs
