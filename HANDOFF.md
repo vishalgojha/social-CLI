@@ -73,3 +73,18 @@ Still in `commands/`:
 1. Continue migrating remaining `commands/*.js` modules in pairs and reduce baseline by 2 each batch.
 2. After command migration completes, remove runtime fallback path to `commands/` in `bin/social.js`.
 3. Keep `quality:check` and `npm test` green after each migration batch.
+
+## Product Roadmap To 9/10 (Added 2026-02-26)
+
+Priority order for reducing friction and improving beginner usability across terminal + frontend:
+
+1. One true entrypoint (`social start-here`) that completes provider + API key + model + token + health in one guided flow.
+2. Conversation-first operation by default; commands should be optional, not required.
+3. Always show 1-3 next best actions after every response.
+4. Unstuck state machine: no phase lock, no shortcut collisions, clear cancel/back behavior.
+5. Complete domain skills: `facebook`, `instagram`, `waba`, `marketing`, `setup-auth`.
+6. Human-readable error translation with exact fix commands.
+7. Dry-run and approval UX before mutating actions.
+8. Studio parity with terminal readiness and guided flows.
+9. Friction telemetry: capture top setup/intent drop-off points weekly.
+10. Golden-path E2E release hardening: new user to first successful action.
