@@ -6,6 +6,7 @@ export function HeaderBar(props: {
   title: string;
   connected: number;
   total: number;
+  runtime?: string;
   phase?: string;
   risk?: string;
   account?: string;
@@ -22,6 +23,9 @@ export function HeaderBar(props: {
       </Box>
       <Box marginTop={1} justifyContent="space-between">
         <Box>
+          <Text color={theme.muted}>Runtime </Text>
+          <Text color={theme.text}>{props.runtime || "ready"}</Text>
+          <Text color={theme.muted}>  </Text>
           <Text color={theme.muted}>Phase </Text>
           <Text color={theme.text}>{props.phase || "INPUT"}</Text>
           <Text color={theme.muted}>  Risk </Text>

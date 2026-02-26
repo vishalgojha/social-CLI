@@ -11,10 +11,15 @@ type TuiOptions = {
   aiModel?: string;
   aiBaseUrl?: string;
   aiApiKey?: string;
+  verbose?: boolean;
   skipOnboardCheck?: boolean;
 };
 
 type HatchProvider = 'openai' | 'openrouter' | 'xai';
+type PromptedAiSetup = {
+  apiKey: string;
+  model: string;
+};
 
 const SUPPORTED_PROVIDERS: HatchProvider[] = ['openai', 'openrouter', 'xai'];
 
@@ -157,13 +162,15 @@ async function promptForProvider(defaultProvider: HatchProvider): Promise<HatchP
   return normalizeProvider(String(answers.provider || defaultProvider));
 }
 
-async function promptForApiKey(provider: HatchProvider): Promise<string> {
-  if (!process.stdout.isTTY || !process.stdin.isTTY) return '';
+async function promptForApiKey(provider: HatchProvider, suggestedModel: string): Promise<PromptedAiSetup> {
+  if (!process.stdout.isTTY || !process.stdin.isTTY) {
+    return { apiKey: '', model: suggestedModel };
+  }
 
   const label = providerLabel(provider);
   const article = /^[aeiou]/i.test(label) ? 'an' : 'a';
   console.log(chalk.yellow(`\nHatch UI needs ${article} ${label} API key.`));
-  console.log(chalk.gray('Enter it once now (input hidden). You can choose whether to save it.\n'));
+  console.log(chalk.gray('Enter API key and model once now. You can choose whether to save both.\n'));
 
   const answers = await inquirer.prompt([
     {
@@ -174,21 +181,32 @@ async function promptForApiKey(provider: HatchProvider): Promise<string> {
       validate: (value: string) => Boolean(String(value || '').trim()) || 'API key cannot be empty'
     },
     {
+      type: 'input',
+      name: 'model',
+      default: suggestedModel,
+      message: `Enter ${label} model (or press Enter for ${suggestedModel}):`,
+      filter: (value: string) => String(value || '').trim()
+    },
+    {
       type: 'confirm',
       name: 'save',
       default: true,
-      message: `Save this ${label} key to active profile for future hatch runs?`
+      message: `Save this ${label} key + model to active profile for future hatch runs?`
     }
   ]);
 
   const key = String(answers.key || '').trim();
+  const model = String(answers.model || suggestedModel || '').trim() || suggestedModel;
   if (key && answers.save && typeof config.setAgentApiKey === 'function') {
     config.setAgentProvider(provider);
     config.setAgentApiKey(key);
-    console.log(chalk.green(`Saved ${label} API key for active profile.\n`));
+    if (typeof config.setAgentModel === 'function') {
+      config.setAgentModel(model);
+    }
+    console.log(chalk.green(`Saved ${label} API key + model (${model}) for active profile.\n`));
   }
 
-  return key;
+  return { apiKey: key, model };
 }
 
 function registerTuiCommand(program: any) {
@@ -200,6 +218,7 @@ function registerTuiCommand(program: any) {
     .option('--ai-model <model>', 'AI model override')
     .option('--ai-base-url <url>', 'AI base URL override')
     .option('--ai-api-key <key>', 'AI API key override')
+    .option('--verbose', 'Show verbose diagnostic panels in Hatch UI', false)
     .option('--skip-onboard-check', 'Skip onboarding guard and open hatch directly', false)
     .action(async (opts: TuiOptions) => {
       const rootDir = path.join(__dirname, '..', '..', '..');
@@ -220,18 +239,24 @@ function registerTuiCommand(program: any) {
           process.env.SOCIAL_TUI_AI_PROVIDER ||
           'openai'
       );
+      let resolvedModel = resolveModel(provider, opts);
 
       let resolvedApiKey = resolveApiKey(provider, opts);
       if (!resolvedApiKey) {
         const allowProviderPrompt = !explicitProvider && !opts.aiApiKey && process.stdout.isTTY && process.stdin.isTTY;
         if (allowProviderPrompt) {
           provider = await promptForProvider(provider);
+          resolvedModel = resolveModel(provider, opts);
           resolvedApiKey = resolveApiKey(provider, opts);
         }
       }
 
       if (!resolvedApiKey) {
-        resolvedApiKey = await promptForApiKey(provider);
+        const prompted = await promptForApiKey(provider, resolvedModel);
+        resolvedApiKey = prompted.apiKey;
+        if (!opts.aiModel) {
+          resolvedModel = prompted.model;
+        }
       }
 
       if (!resolvedApiKey) {
@@ -246,9 +271,10 @@ function registerTuiCommand(program: any) {
         ...process.env,
         SOCIAL_TUI_AI_PROVIDER: runtimeProvider,
         SOCIAL_TUI_AI_VENDOR: provider,
-        SOCIAL_TUI_AI_MODEL: resolveModel(provider, opts),
+        SOCIAL_TUI_AI_MODEL: resolvedModel,
         SOCIAL_TUI_AI_BASE_URL: resolveBaseUrl(provider, opts),
-        SOCIAL_TUI_AI_API_KEY: resolvedApiKey
+        SOCIAL_TUI_AI_API_KEY: resolvedApiKey,
+        SOCIAL_TUI_VERBOSE: opts.verbose ? '1' : String(process.env.SOCIAL_TUI_VERBOSE || '')
       };
 
       try {

@@ -65,8 +65,8 @@ function registerChatCommands(program) {
         .action(async () => {
         if (needsOnboarding()) {
             console.log(chalk.yellow('\nFirst-run setup required before chat.'));
-            console.log(chalk.gray('Guided path: onboard -> auth login -> doctor checks.\n'));
-            await runSubprocess(['onboard']);
+            console.log(chalk.gray('Guided path: setup -> status -> hatch.\n'));
+            await runSubprocess(['setup', '--no-start']);
             return;
         }
         console.log(chalk.cyan('\n`social chat` is now routed to Hatch UI. Use `social hatch` directly.\n'));

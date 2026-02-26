@@ -95,14 +95,8 @@ function showBanner() {
   const banner = getBanner(style);
 
   const lines = String(banner).split('\n');
-  const palette = [
-    (s) => chalk.hex('#66FFCC')(s),
-    (s) => chalk.hex('#57E7BE')(s),
-    (s) => chalk.hex('#48D0AF')(s),
-    (s) => chalk.hex('#3ABA9F')(s),
-    (s) => chalk.hex('#66FFCC')(s)
-  ];
-  const colored = lines.map((l, i) => palette[i % palette.length](l)).join('\n');
+  const mintBanner = (s) => chalk.hex('#66FFCC')(s);
+  const colored = lines.map((l) => mintBanner(l)).join('\n');
   let activeProfile = 'default';
   let defaultApi = 'facebook';
   try {

@@ -39,7 +39,7 @@ async function pickPhoneNumberId(phoneNumbers, defaultId) {
     return String(answers.id);
 }
 function registerWhatsAppCommands(program) {
-    const whatsapp = program.command('whatsapp').description('WhatsApp Business (Cloud API)');
+    const whatsapp = program.command('whatsapp').alias('waba').alias('wa').description('WhatsApp Business (Cloud API)');
     whatsapp
         .command('send')
         .description('Send a WhatsApp message (text or image)')

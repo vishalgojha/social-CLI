@@ -1,5 +1,7 @@
 # Social Flow
 
+![Social Flow Mint Logo](docs/assets/social-flow-logo-mint.svg)
+
 A command-line and localhost control plane for Meta APIs (Facebook, Instagram, WhatsApp, and Marketing API).
 
 Built for developers and agencies that want one consistent workflow for auth, posting, analytics, and guarded automation.
@@ -83,6 +85,7 @@ social hub ...         # package/connector trust + lifecycle
 
 - Fast walkthrough: `QUICKSTART.md`
 - Example commands: `EXAMPLES.md`
+- Domain skills: `skills/README.md`
 - AI interface details: `docs/AI_INTERFACE.md`
 - Chat agent details: `docs/CHAT_AGENT.md`
 - Gateway API details: `docs/GATEWAY_UI.md`

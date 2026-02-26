@@ -30,9 +30,11 @@ function registerGatewayCommands(program) {
         });
         await server.start();
         const url = server.url();
-        console.log(chalk.green('\nSocial API Gateway is running.'));
+        console.log(chalk.green('\nSocial Flow API Gateway is running.'));
         console.log(chalk.cyan(`Gateway: ${url}`));
         console.log(chalk.gray(`Health: ${url}/api/health`));
+        console.log(chalk.gray('Frontend note: this gateway serves API/WebSocket only (no bundled web UI).'));
+        console.log(chalk.gray('Tip: use `social start` for managed background mode.'));
         console.log(chalk.gray('Press Ctrl+C to stop.\n'));
         if (opts.open) {
             await openUrl(`${url}/api/status`);

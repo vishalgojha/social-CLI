@@ -14,7 +14,7 @@ export const INITIAL_STATE: AppState = {
   input: "",
   editInput: "",
   approvalReason: "",
-  showDetails: false,
+  showDetails: /^(1|true|on|yes)$/i.test(String(process.env.SOCIAL_TUI_VERBOSE || "")),
   currentIntent: null,
   currentRisk: null,
   missingSlots: [],

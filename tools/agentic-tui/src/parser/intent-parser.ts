@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { validateIntent } from "../schema/validate-intent.js";
 import type { ParseResult, ParsedIntent } from "../types.js";
 
-type AiProvider = "ollama" | "openai";
+type AiProvider = "ollama" | "openai" | "openrouter" | "xai";
 
 type CoreIntent = {
   action: "onboard" | "doctor" | "status" | "config" | "get" | "create" | "list" | "logs" | "replay";
@@ -30,6 +30,28 @@ type CoreConfig = {
   };
 };
 
+function normalizeAiProvider(value: string): AiProvider {
+  const raw = String(value || "").trim().toLowerCase();
+  if (raw === "openrouter") return "openrouter";
+  if (raw === "xai" || raw === "grok") return "xai";
+  if (raw === "openai") return "openai";
+  return "ollama";
+}
+
+function defaultModel(provider: AiProvider): string {
+  if (provider === "openai") return "gpt-4o-mini";
+  if (provider === "openrouter") return "openai/gpt-4o-mini";
+  if (provider === "xai") return "grok-2-latest";
+  return "qwen2.5:7b";
+}
+
+function defaultBaseUrl(provider: AiProvider): string {
+  if (provider === "openai") return "https://api.openai.com/v1";
+  if (provider === "openrouter") return "https://openrouter.ai/api/v1";
+  if (provider === "xai") return "https://api.x.ai/v1";
+  return "http://127.0.0.1:11434";
+}
+
 function extractPhone(input: string): string | undefined {
   const match = input.match(/(\+?\d[\d -]{7,}\d)/);
   if (!match) return undefined;
@@ -44,6 +66,9 @@ function extractQuoted(input: string): string | undefined {
 
 function inferAction(input: string): ParsedIntent["action"] {
   const s = input.toLowerCase();
+  if (/\bsocial\s+hatch\b/.test(s) || /\bsocial\s+tui\b/.test(s)) return "help";
+  if (/\b(help|what can you do|what do you do|show commands|how do i use|start here)\b/.test(s)) return "help";
+  if (/\b(hi|hello|hey|yo|hola|good morning|good evening|good afternoon)\b/.test(s)) return "status";
   if (/^\s*onboard\b/.test(s) || /\bsetup\b.*\bsocial\b/.test(s)) return "onboard";
   if (/\bdoctor\b|\bdiagnostic\b|\bhealth check\b/.test(s)) return "doctor";
   if (/\bstatus\b/.test(s)) return "status";
@@ -61,6 +86,11 @@ function inferAction(input: string): ParsedIntent["action"] {
   if (/\b(do i have|have (a|any)|show|list)\b.*\b(facebook\s+)?pages?\b/.test(s)) return "get_profile";
   if (/\b(list|show|fetch)\b.*\bads?\b/.test(s)) return "list_ads";
   if (/\b(status|health|ping|uptime)\b/.test(s)) return "get_status";
+  if (
+    /^(who|what|how|can you|help|menu|options|commands)\b/.test(s)
+    && s.split(/\s+/).length <= 4
+    && !/\b(post|ads?|profile|config|status|doctor|logs|replay|onboard|setup)\b/.test(s)
+  ) return "help";
   return "unknown";
 }
 
@@ -128,7 +158,7 @@ function buildDeterministicIntent(input: string): ParsedIntent {
   if (action === "onboard") {
     return { action, params: { ...params } };
   }
-  if (action === "doctor" || action === "status" || action === "config") {
+  if (action === "help" || action === "doctor" || action === "status" || action === "config") {
     return { action, params: {} };
   }
   if (action === "logs") {
@@ -179,8 +209,21 @@ export async function parseNaturalLanguageWithOptionalAi(input: string): Promise
   const explicitAi = raw.toLowerCase().startsWith("/ai ");
   const cleanInput = explicitAi ? raw.slice(4).trim() : raw;
   const autoAiEnabled = !/^(0|false|off|no)$/i.test(String(process.env.SOCIAL_TUI_AI_AUTO || "1"));
-  const hasApiKey = Boolean(String(process.env.SOCIAL_TUI_AI_API_KEY || process.env.OPENAI_API_KEY || "").trim());
-  const shouldUseAi = explicitAi || (autoAiEnabled && hasApiKey);
+  const configuredProvider = normalizeAiProvider(
+    process.env.SOCIAL_TUI_AI_PROVIDER
+    || process.env.SOCIAL_TUI_AI_VENDOR
+    || process.env.SOCIAL_AI_PROVIDER
+    || ""
+  );
+  const hasApiKey = Boolean(String(
+    process.env.SOCIAL_TUI_AI_API_KEY
+    || process.env.OPENAI_API_KEY
+    || process.env.OPENROUTER_API_KEY
+    || process.env.XAI_API_KEY
+    || ""
+  ).trim());
+  const needsApiKey = configuredProvider !== "ollama";
+  const shouldUseAi = explicitAi || (autoAiEnabled && (!needsApiKey || hasApiKey));
   if (!cleanInput) {
     return parseNaturalLanguage(cleanInput);
   }
@@ -201,10 +244,20 @@ export async function parseNaturalLanguageWithOptionalAi(input: string): Promise
     }
 
     const cfg = await cfgMod.readConfig();
-    const provider = (process.env.SOCIAL_TUI_AI_PROVIDER || cfg.ai?.provider || "ollama") as AiProvider;
-    const model = process.env.SOCIAL_TUI_AI_MODEL || cfg.ai?.model || (provider === "openai" ? "gpt-4o-mini" : "qwen2.5:7b");
-    const baseUrl = process.env.SOCIAL_TUI_AI_BASE_URL || cfg.ai?.baseUrl || (provider === "openai" ? "https://api.openai.com/v1" : "http://127.0.0.1:11434");
-    const apiKey = process.env.SOCIAL_TUI_AI_API_KEY || process.env.OPENAI_API_KEY || cfg.ai?.apiKey || "";
+    const provider = normalizeAiProvider(
+      process.env.SOCIAL_TUI_AI_PROVIDER
+      || process.env.SOCIAL_TUI_AI_VENDOR
+      || cfg.ai?.provider
+      || "ollama"
+    );
+    const model = process.env.SOCIAL_TUI_AI_MODEL || cfg.ai?.model || defaultModel(provider);
+    const baseUrl = process.env.SOCIAL_TUI_AI_BASE_URL || cfg.ai?.baseUrl || defaultBaseUrl(provider);
+    const apiKey = process.env.SOCIAL_TUI_AI_API_KEY
+      || process.env.OPENAI_API_KEY
+      || process.env.OPENROUTER_API_KEY
+      || process.env.XAI_API_KEY
+      || cfg.ai?.apiKey
+      || "";
 
     const aiIntent = await aiMod.parseIntentWithAi(cleanInput, { provider, model, baseUrl, apiKey });
     const mapped = normalizeIntent(toParsedIntentFromCore(aiIntent));

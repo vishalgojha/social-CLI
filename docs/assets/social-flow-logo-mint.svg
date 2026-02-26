@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="250" viewBox="0 0 980 250" role="img" aria-labelledby="title desc">
+  <title id="title">Social Flow Mint Logo</title>
+  <desc id="desc">Mint green ASCII style Social Flow terminal logo.</desc>
+  <rect x="0" y="0" width="980" height="250" rx="14" fill="#042722"/>
+  <text
+    x="26"
+    y="58"
+    fill="#66FFCC"
+    font-size="24"
+    font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+    xml:space="preserve"
+  >
+    <tspan x="26" dy="0"> ____   ___   ____ ___    _    _       _____ _     _____        __ </tspan>
+    <tspan x="26" dy="36">/ ___| / _ \ / ___|_ _|  / \  | |     |  ___| |   / _ \ \      / /</tspan>
+    <tspan x="26" dy="36">\___ \| | | | |    | |  / _ \ | |     | |_  | |  | | | \ \ /\ / / </tspan>
+    <tspan x="26" dy="36"> ___) | |_| | |___ | | / ___ \| |___  |  _| | |__| |_| |\ V  V /  </tspan>
+    <tspan x="26" dy="36">|____/ \___/ \____|___/_/   \_\_____| |_|   |_____\___/  \_/\_/   </tspan>
+  </text>
+</svg>

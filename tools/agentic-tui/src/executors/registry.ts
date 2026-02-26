@@ -200,6 +200,29 @@ const executors: Record<ParsedIntent["action"], RegisteredExecutor> = {
       };
     }
   },
+  help: {
+    action: "help",
+    risk: "LOW",
+    execute: async () => ({
+      ok: true,
+      output: {
+        message: "I can run setup checks, status/diagnostics, profile lookups, posting, ad listing, logs, and replay flows.",
+        suggestions: [
+          "status",
+          "doctor",
+          "get my facebook profile",
+          "create post \"Hello\" page 12345",
+          "list ads account act_123",
+          "logs",
+          "replay latest"
+        ]
+      },
+      rollback: {
+        note: "Read-only help action. No rollback required.",
+        status: "DONE"
+      }
+    })
+  },
   doctor: {
     action: "doctor",
     risk: "LOW",
@@ -369,11 +392,11 @@ const executors: Record<ParsedIntent["action"], RegisteredExecutor> = {
   },
   unknown: {
     action: "unknown",
-    risk: "MEDIUM",
+    risk: "LOW",
     execute: async () => ({
       ok: false,
       output: {
-        error: "Unknown intent. Use explicit commands like 'doctor', 'status', 'create post \"...\"', or '/ai ...'."
+        error: "I could not map that request yet. Try: help, status, doctor, logs, or /ai <intent>."
       }
     })
   }

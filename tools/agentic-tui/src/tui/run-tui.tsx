@@ -1,18 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { Box, Text, useApp, useInput } from "ink";
-import { Select, StatusMessage } from "@inkjs/ui";
+import { Select } from "@inkjs/ui";
 import TextInput from "ink-text-input";
 
 import { getExecutor } from "../executors/registry.js";
 import { applySlotEdits, parseNaturalLanguageWithOptionalAi } from "../parser/intent-parser.js";
 import { INITIAL_STATE, reducer } from "../state/machine.js";
-import type { ActionQueueItem, LogEntry, ParsedIntent } from "../types.js";
-import { FooterBar } from "../ui/components/FooterBar.js";
-import { HeaderBar } from "../ui/components/HeaderBar.js";
-import { Panel } from "../ui/components/Panel.js";
+import type { ActionQueueItem, ExecutionResult, LogEntry, ParsedIntent } from "../types.js";
 import { ThemeProvider, useTheme } from "../ui/theme.js";
 import { handleSlashCommand } from "./tui-command-handlers.js";
 import { handleShortcut } from "./tui-event-handlers.js";
+import { buildActionBarHint } from "./action-bar.js";
+import { detectDomainSkill } from "./domain-skills.js";
 import {
   accountOptionsFromConfig,
   loadConfigSnapshot,
@@ -83,6 +82,68 @@ function formatToolCall(intent: ParsedIntent): string {
     .map(([key, value]) => `${key}=${JSON.stringify(String(value))}`)
     .join(", ");
   return `tool_call: ${intent.action}(${args})`;
+}
+
+function describeAction(action: ParsedIntent["action"]): string {
+  if (action === "help") return "show available capabilities";
+  if (action === "doctor") return "run diagnostics";
+  if (action === "status" || action === "get_status") return "check runtime status";
+  if (action === "config") return "show sanitized config";
+  if (action === "logs") return "fetch recent logs";
+  if (action === "replay") return "replay a previous action";
+  if (action === "get_profile") return "get profile information";
+  if (action === "create_post") return "create a post draft/publish flow";
+  if (action === "list_ads") return "list ad account data";
+  return "process that request";
+}
+
+function summarizeExecutionForChat(intent: ParsedIntent, result: ExecutionResult): string {
+  const output = (result.output || {}) as Record<string, unknown>;
+
+  if (!result.ok) {
+    const error = String(output.error || "").trim();
+    if (intent.action === "unknown") {
+      return "I could not map that request yet. Try `what can you do`, `status`, or `/help`.";
+    }
+    return error ? `I could not complete that: ${error}` : "I could not complete that request.";
+  }
+
+  if (intent.action === "help") {
+    const suggestions = Array.isArray(output.suggestions)
+      ? output.suggestions.map((x) => String(x)).filter(Boolean).slice(0, 4)
+      : [];
+    return suggestions.length
+      ? `I can help with status, diagnostics, profiles, posts, ads, logs, and replay. Try: ${suggestions.join(" | ")}`
+      : "I can help with status, diagnostics, profiles, posts, ads, logs, and replay.";
+  }
+
+  if (intent.action === "status" || intent.action === "get_status") {
+    return "Status check complete. Runtime is responsive.";
+  }
+
+  if (intent.action === "doctor") {
+    const ok = Boolean(output.ok);
+    return ok ? "Diagnostics complete. No major issues detected." : "Diagnostics found issues. Run `doctor` details in verbose mode.";
+  }
+
+  if (intent.action === "logs") {
+    const count = Number(output.count || 0);
+    return `Fetched logs. Entries available: ${Number.isFinite(count) ? count : 0}.`;
+  }
+
+  if (intent.action === "create_post") {
+    return "Post action completed.";
+  }
+
+  if (intent.action === "get_profile") {
+    return "Profile lookup completed.";
+  }
+
+  if (intent.action === "list_ads") {
+    return "Ad listing completed.";
+  }
+
+  return "Done. Action completed successfully.";
 }
 
 function explainPlan(intent: ParsedIntent | null, risk: string | null): string {
@@ -207,11 +268,11 @@ function HatchRuntime(): JSX.Element {
     dispatch({ type: "QUEUE_UPDATE", id: current.id, status: "RUNNING" });
     dispatch({ type: "MARK_EXECUTING" });
     dispatch({ type: "LOG_ADD", entry: newLog("INFO", `Executing ${state.currentIntent.action}`) });
-    await streamPhase("Executing", state.currentIntent.action);
+    if (state.showDetails) await streamPhase("Executing", state.currentIntent.action);
 
     try {
       const executor = getExecutor(state.currentIntent.action);
-      await streamPhase("Validating", "risk gate and required fields");
+      if (state.showDetails) await streamPhase("Validating", "risk gate and required fields");
       const res = await executor.execute(state.currentIntent);
       dispatch({ type: "QUEUE_UPDATE", id: current.id, status: res.ok ? "DONE" : "FAILED" });
       dispatch({ type: "SET_RESULT", result: res.output });
@@ -219,12 +280,16 @@ function HatchRuntime(): JSX.Element {
         type: "LOG_ADD",
         entry: newLog(res.ok ? "SUCCESS" : "ERROR", res.ok ? "Execution completed." : "Execution failed.")
       });
-      await streamAssistantTurn(res.ok ? "Done. I executed that successfully." : "Execution failed. Check logs/results.");
-      await streamAssistantTurn(`tool_result: ${state.currentIntent.action} -> ${res.ok ? "ok" : "failed"}`);
-      const summaryKeys = Object.keys(res.output || {}).slice(0, 5);
-      await streamAssistantTurn(
-        `Execution summary: queue=${current.id}, status=${res.ok ? "success" : "failed"}, output_keys=${summaryKeys.join(", ") || "none"}.`
-      );
+      if (state.showDetails) {
+        await streamAssistantTurn(res.ok ? "Done. I executed that successfully." : "Execution failed. Check logs/results.");
+        await streamAssistantTurn(`tool_result: ${state.currentIntent.action} -> ${res.ok ? "ok" : "failed"}`);
+        const summaryKeys = Object.keys(res.output || {}).slice(0, 5);
+        await streamAssistantTurn(
+          `Execution summary: queue=${current.id}, status=${res.ok ? "success" : "failed"}, output_keys=${summaryKeys.join(", ") || "none"}.`
+        );
+      } else {
+        await streamAssistantTurn(summarizeExecutionForChat(state.currentIntent, res));
+      }
       if (res.rollback) {
         dispatch({
           type: "ROLLBACK_ADD",
@@ -237,13 +302,19 @@ function HatchRuntime(): JSX.Element {
         });
       }
       void refreshLogs();
+      dispatch({ type: "RESET_FLOW" });
     } catch (error) {
       dispatch({ type: "QUEUE_UPDATE", id: current.id, status: "FAILED" });
       dispatch({ type: "SET_RESULT", result: { ok: false, error: String((error as Error)?.message || error) } });
       dispatch({ type: "LOG_ADD", entry: newLog("ERROR", `Execution error: ${String((error as Error)?.message || error)}`) });
-      await streamAssistantTurn(`Execution error: ${String((error as Error)?.message || error)}`);
+      if (state.showDetails) {
+        await streamAssistantTurn(`Execution error: ${String((error as Error)?.message || error)}`);
+      } else {
+        await streamAssistantTurn("I could not complete that action. Try /help or run in verbose mode for diagnostics.");
+      }
+      dispatch({ type: "RESET_FLOW" });
     }
-  }, [refreshLogs, state.currentIntent, streamAssistantTurn]);
+  }, [refreshLogs, state.currentIntent, state.showDetails, streamAssistantTurn, streamPhase]);
 
   const parseAndQueueIntent = useCallback(async (raw: string): Promise<void> => {
     addTurn("user", raw);
@@ -260,19 +331,48 @@ function HatchRuntime(): JSX.Element {
       return;
     }
 
-    await streamPhase("Reading request");
-    await streamPhase("Parsing intent");
+    if (state.showDetails) await streamPhase("Reading request");
+    if (state.showDetails) await streamPhase("Parsing intent");
     const parsed = await parseNaturalLanguageWithOptionalAi(raw);
-    await streamPhase("Planning", parsed.intent.action);
-    await streamAssistantTurn(formatToolCall(parsed.intent));
+    const executor = getExecutor(parsed.intent.action);
+    const parsedRisk = executor.risk;
+    const domainSkill = detectDomainSkill(raw, parsed.intent.action);
+    if (state.showDetails) await streamPhase("Planning", parsed.intent.action);
+    dispatch({ type: "LOG_ADD", entry: newLog("INFO", `${(parsed.source || "deterministic").toUpperCase()} parsed intent: ${JSON.stringify(parsed.intent)}`) });
+    dispatch({ type: "LOG_ADD", entry: newLog("INFO", `Skill route: ${domainSkill.id}`) });
+
+    if (parsed.intent.action === "unknown") {
+      dispatch({ type: "LOG_ADD", entry: newLog("WARN", "Intent unresolved. Waiting for clearer instruction.") });
+      await streamAssistantTurn(
+        `${domainSkill.purpose} Try: ${domainSkill.suggestions.map((x) => `\`${x}\``).join(" | ")}`
+      );
+      if (state.showDetails) {
+        await streamAssistantTurn(`skill_route: ${domainSkill.id}`);
+        await streamAssistantTurn("No tool call queued because intent was unresolved.");
+      }
+      return;
+    }
+
+    if (state.showDetails) {
+      await streamAssistantTurn(`skill_route: ${domainSkill.id}`);
+      await streamAssistantTurn(formatToolCall(parsed.intent));
+    } else {
+      if (domainSkill.id !== "general") {
+        await streamAssistantTurn(`Routing to ${domainSkill.name} skill.`);
+      }
+      await streamAssistantTurn(`Understood. I can ${describeAction(parsed.intent.action)}.`);
+    }
     dispatch({
       type: "PARSE_READY",
       intent: parsed.intent,
-      risk: getExecutor(parsed.intent.action).risk,
+      risk: parsedRisk,
       missingSlots: parsed.missingSlots
     });
-    dispatch({ type: "LOG_ADD", entry: newLog("INFO", `${(parsed.source || "deterministic").toUpperCase()} parsed intent: ${JSON.stringify(parsed.intent)}`) });
-    await streamAssistantTurn(summarizeIntent(parsed.intent, getExecutor(parsed.intent.action).risk, parsed.missingSlots));
+    await streamAssistantTurn(
+      state.showDetails
+        ? summarizeIntent(parsed.intent, parsedRisk, parsed.missingSlots)
+        : `Proposed action: ${parsed.intent.action} (${parsedRisk.toLowerCase()} risk).`
+    );
 
     if (!parsed.valid) {
       dispatch({ type: "LOG_ADD", entry: newLog("WARN", parsed.errors.join("; ") || "Intent parsed with warnings.") });
@@ -281,14 +381,14 @@ function HatchRuntime(): JSX.Element {
       addTurn("assistant", `I need these fields: ${parsed.missingSlots.join(", ")}. Press e to edit slots.`);
       return;
     }
-    if (getExecutor(parsed.intent.action).risk === "LOW") {
+    if (parsedRisk === "LOW") {
       dispatch({ type: "APPROVED", auto: true });
       await streamAssistantTurn("Low-risk action. Auto-executing.");
       await runExecution();
       return;
     }
     await streamAssistantTurn("Awaiting approval. Press Enter or a to continue.");
-  }, [addTurn, runExecution, state.currentIntent, state.currentRisk, streamAssistantTurn, streamPhase]);
+  }, [addTurn, runExecution, state.currentIntent, state.currentRisk, state.showDetails, streamAssistantTurn, streamPhase]);
 
   const confirmOrExecute = useCallback(async (): Promise<void> => {
     if (state.phase === "INPUT") {
@@ -359,6 +459,12 @@ function HatchRuntime(): JSX.Element {
   }, [logsState.data, state.input, state.phase]);
 
   useInput((input, key) => {
+    const draftInput = state.phase === "EDIT_SLOTS"
+      ? state.editInput
+      : state.phase === "HIGH_RISK_APPROVAL"
+        ? state.approvalReason
+        : state.input;
+
     if (showPalette) {
       if (key.escape || input === "/" || input === "q") setShowPalette(false);
       return;
@@ -403,7 +509,11 @@ function HatchRuntime(): JSX.Element {
         void refreshLogs();
         addTurn("system", "Refreshed config/log state.");
       },
-      onDetails: () => dispatch({ type: "TOGGLE_DETAILS" }),
+      onDetails: () => {
+        const next = !state.showDetails;
+        dispatch({ type: "TOGGLE_DETAILS" });
+        addTurn("system", next ? "Verbose diagnostics enabled." : "Verbose diagnostics hidden.");
+      },
       onEdit: () => {
         if (state.currentIntent) {
           dispatch({ type: "REQUEST_EDIT" });
@@ -422,6 +532,9 @@ function HatchRuntime(): JSX.Element {
       onReplayUp: () => setReplaySuggestionIndex((prev) => (prev === 0 ? replaySuggestions.length - 1 : prev - 1)),
       onReplayDown: () => setReplaySuggestionIndex((prev) => (prev + 1) % replaySuggestions.length),
       onQuit: () => exit()
+    }, {
+      phase: state.phase,
+      hasDraftText: Boolean(String(draftInput || "").trim())
     });
 
     if (consumed) return;
@@ -472,91 +585,77 @@ function HatchRuntime(): JSX.Element {
     scopes: [],
     tokenMap: { facebook: false, instagram: false, whatsapp: false }
   });
+  const verboseMode = state.showDetails;
+  const runtimeLabel = state.phase === "EXECUTING" ? "executing" : "ready";
+  const actionHint = buildActionBarHint({
+    phase: state.phase,
+    hasIntent: Boolean(state.currentIntent),
+    hasReplaySuggestions: replaySuggestions.length > 0,
+    verboseMode
+  });
 
-  const queueLines = state.actionQueue.length
-    ? state.actionQueue.map((x) => (
-      <Text key={x.id} color={x.status === "FAILED" ? theme.error : x.status === "RUNNING" ? theme.accent : theme.text}>
-        {shortTime(x.createdAt)} {x.action} [{x.status}]
-      </Text>
-    ))
-    : [<Text key="q0" color={theme.muted}>No queued actions.</Text>];
-  const liveLogLines = state.liveLogs.length
-    ? state.liveLogs.slice(-12).map((x, idx) => (
-      <Text key={`l-${idx}`} color={logLevelColor(x.level)}>
-        [{shortTime(x.at)}] {logLevelGlyph(x.level)} {x.message}
-      </Text>
-    ))
-    : [<Text key="l0" color={theme.muted}>No runtime logs yet.</Text>];
-  const resultLines = state.results
-    ? [<Text key="r0" color={theme.text}>{JSON.stringify(state.results, null, 2)}</Text>]
-    : [<Text key="r1" color={theme.muted}>No results yet.</Text>];
+  const recentQueue = state.actionQueue.slice(-5);
+  const recentLogs = state.liveLogs.slice(-10);
+  const recentRollbacks = state.rollbackHistory.slice(-5);
+  const resultPreview = state.results ? JSON.stringify(state.results, null, 2) : "";
 
   return (
-    <Box flexDirection="column" height={30}>
-      <HeaderBar
-        title="Social Flow Hatch"
-        connected={connectedCount}
-        total={3}
-        phase={state.phase}
-        risk={state.currentRisk || "LOW"}
-        account={selectedAccount}
-        ai={aiLabel}
-      />
-      <Box marginY={1} justifyContent="space-between">
-        <Text color={phaseTone}>phase: {state.phase.toLowerCase()}</Text>
-        <Text color={riskTone}>risk: {(state.currentRisk || "LOW").toLowerCase()}</Text>
-        <Text color={theme.muted}>latest: {topActivity ? `${shortTime(topActivity.at)} ${topActivity.message.slice(0, 44)}` : "idle"}</Text>
+    <Box flexDirection="column">
+      <Text color={theme.accent}>
+        Social Flow Hatch | runtime {runtimeLabel} | phase {state.phase.toLowerCase()} | risk {(state.currentRisk || "LOW").toLowerCase()} | account {selectedAccount} | ai {aiLabel} | connected {connectedCount}/3
+      </Text>
+      <Text color={theme.muted}>
+        latest: {topActivity ? `${shortTime(topActivity.at)} ${topActivity.message.slice(0, 72)}` : "idle"}
+      </Text>
+      <Text color={theme.muted}>Type naturally. Press ? for help, / for command palette, q to quit.</Text>
+
+      <Box marginTop={1} flexDirection="column">
+        {chatTurns.slice(-20).map((turn) => (
+          <Text key={turn.id} color={turn.role === "user" ? theme.accent : turn.role === "assistant" ? theme.text : theme.muted}>
+            [{shortTime(turn.at)}] {roleGlyph(turn.role)}: {turn.text || "..."}
+          </Text>
+        ))}
       </Box>
 
-      <Box flexGrow={1} flexDirection="row">
-        <Box width={rightRailCollapsed ? "100%" : "68%"} marginRight={rightRailCollapsed ? 0 : 1} flexDirection="column">
-          <Panel title="CHAT" subtitle="conversation stream" focused>
-            {chatTurns.slice(-16).map((turn) => (
-              <Text key={turn.id} color={turn.role === "user" ? theme.accent : turn.role === "assistant" ? theme.text : theme.muted}>
-                [{shortTime(turn.at)}] {roleGlyph(turn.role)}: {turn.text || "..."}
-              </Text>
-            ))}
-          </Panel>
-          <Panel title="LIVE_LOGS" subtitle="runtime telemetry">{liveLogLines}</Panel>
-          <Panel title="RESULTS" subtitle="last execution output">{resultLines}</Panel>
+      {verboseMode ? (
+        <Box marginTop={1} flexDirection="column">
+          <Text color={theme.accent}>diagnostics</Text>
+          <Text color={phaseTone}>phase={state.phase} risk={state.currentRisk || "LOW"} action={state.currentIntent?.action || "none"} missing={state.missingSlots.join(", ") || "none"}</Text>
+          {configState.loading ? <Text color={theme.muted}>config: loading...</Text> : null}
+          {configState.error ? <Text color={theme.error}>config error: {configState.error}</Text> : null}
+          <Text color={theme.muted}>graph={config?.graphVersion || "v20.0"} account={selectedAccount}</Text>
+          <Select options={accountOptions} onChange={(value) => setSelectedAccount(value)} />
+          {rightRailCollapsed ? (
+            <Text color={theme.muted}>details collapsed (press x to expand queue/log/result view)</Text>
+          ) : (
+            <>
+              <Text color={theme.muted}>queue:</Text>
+              {recentQueue.length ? recentQueue.map((x) => (
+                <Text key={x.id} color={x.status === "FAILED" ? theme.error : x.status === "RUNNING" ? theme.accent : theme.text}>
+                  [{shortTime(x.createdAt)}] {x.action} {x.status}
+                </Text>
+              )) : <Text color={theme.muted}>no queued actions</Text>}
+              <Text color={theme.muted}>logs:</Text>
+              {recentLogs.length ? recentLogs.map((x, idx) => (
+                <Text key={`l-${idx}`} color={logLevelColor(x.level)}>
+                  [{shortTime(x.at)}] {logLevelGlyph(x.level)} {x.message}
+                </Text>
+              )) : <Text color={theme.muted}>no runtime logs</Text>}
+              <Text color={theme.muted}>rollback:</Text>
+              {recentRollbacks.length ? recentRollbacks.map((x) => (
+                <Text key={`${x.at}_${x.action}`} color={theme.text}>
+                  [{shortTime(x.at)}] {x.action} {x.status}
+                </Text>
+              )) : <Text color={theme.muted}>no rollback entries</Text>}
+              <Text color={theme.muted}>result:</Text>
+              <Text color={resultPreview ? theme.text : theme.muted}>{resultPreview || "no results yet"}</Text>
+            </>
+          )}
         </Box>
-
-        {!rightRailCollapsed ? (
-          <Box width="32%" flexDirection="column">
-            <Panel title="PLAN" subtitle="intent + approval context">
-              <Text color={theme.text}>Action: {state.currentIntent?.action || "none"}</Text>
-              <Text color={riskTone}>Risk: {state.currentRisk || "none"}</Text>
-              <Text color={theme.muted}>Missing: {state.missingSlots.join(", ") || "none"}</Text>
-              <Text color={phaseTone}>Phase: {state.phase}</Text>
-            </Panel>
-            <Panel title="ACTIONS_QUEUE" subtitle="recent operations">{queueLines}</Panel>
-            <Panel title="APPROVALS" subtitle="risk policy">
-              <Text color={theme.muted}>LOW auto | MEDIUM confirm | HIGH reason + confirm</Text>
-              <Text color={theme.muted}>Shortcuts: Enter/a/r/e/d</Text>
-            </Panel>
-            <Panel title="ROLLBACK" subtitle="safety trail">
-              {state.rollbackHistory.length
-                ? state.rollbackHistory.slice(-5).map((x) => <Text key={`${x.at}_${x.action}`} color={theme.text}>{x.action} {x.status}</Text>)
-                : <Text color={theme.muted}>No rollback entries.</Text>}
-            </Panel>
-            <Panel title="SESSION" subtitle="workspace context">
-              {configState.loading ? <StatusMessage variant="info">Loading config...</StatusMessage> : null}
-              {configState.error ? <StatusMessage variant="error">{configState.error}</StatusMessage> : null}
-              <Text color={theme.muted}>Graph: {config?.graphVersion || "v20.0"}</Text>
-              <Text color={theme.muted}>Account: {selectedAccount}</Text>
-              <Select options={accountOptions} onChange={(value) => setSelectedAccount(value)} />
-            </Panel>
-          </Box>
-        ) : null}
-      </Box>
-
-      <Box borderStyle="round" borderColor={theme.accent} paddingX={1} marginBottom={1}>
-        <Text color={theme.accent}>{inputLabel}</Text>
-        <TextInput value={inputValue} onChange={setInputValue} focus />
-      </Box>
+      ) : null}
 
       {replaySuggestions.length > 0 ? (
-        <Box marginBottom={1} borderStyle="single" borderColor={theme.muted} paddingX={1} flexDirection="column">
+        <Box marginTop={1} flexDirection="column">
           <Text color={theme.muted}>replay suggestions (up/down):</Text>
           {replaySuggestions.map((item, idx) => (
             <Text key={item.id} color={idx === replaySuggestionIndex ? theme.accent : theme.text}>
@@ -567,7 +666,8 @@ function HatchRuntime(): JSX.Element {
       ) : null}
 
       {showPalette ? (
-        <Panel title="COMMAND_PALETTE" subtitle="quick actions" focused>
+        <Box marginTop={1} flexDirection="column">
+          <Text color={theme.accent}>command palette</Text>
           <Select
             options={[
               { label: "Doctor", value: "doctor" },
@@ -586,19 +686,24 @@ function HatchRuntime(): JSX.Element {
               void parseAndQueueIntent(value);
             }}
           />
-        </Panel>
+        </Box>
       ) : null}
 
       {showHelp ? (
-        <Panel title="HELP" subtitle="keyboard map" focused>
-          <Text color={theme.text}>Workflow: describe, plan, approve, execute, and review.</Text>
+        <Box marginTop={1} flexDirection="column">
+          <Text color={theme.accent}>help</Text>
+          <Text color={theme.text}>Workflow: describe, plan, approve, execute, review.</Text>
           <Text color={theme.text}>Commands: /help /doctor /status /config /logs /replay /why /ai ...</Text>
-          <Text color={theme.text}>Keys: Enter send/confirm, a approve, r reject, e edit slots, d details.</Text>
-          <Text color={theme.muted}>UI: / palette, x toggle right rail, up/down history or replay suggestions, q quit.</Text>
-        </Panel>
+          <Text color={theme.text}>Keys: Enter send/confirm, a approve, r reject, e edit slots, d diagnostics.</Text>
+          <Text color={theme.muted}>UI: / palette, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
+        </Box>
       ) : null}
 
-      <FooterBar hint="enter send/confirm | / palette | a approve | r reject | e edit | d details | x rail | q quit" />
+      <Box marginTop={1}>
+        <Text color={theme.accent}>{inputLabel}</Text>
+        <TextInput value={inputValue} onChange={setInputValue} focus />
+      </Box>
+      <Text color={state.currentRisk === "HIGH" ? riskTone : theme.muted}>{actionHint}</Text>
     </Box>
   );
 }

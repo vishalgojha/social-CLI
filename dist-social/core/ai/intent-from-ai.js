@@ -42,6 +42,56 @@ function systemPrompt() {
         "No markdown. No explanation. Return JSON only."
     ].join(" ");
 }
+function extractAssistantContent(data) {
+    const root = (data && typeof data === "object") ? data : {};
+    const choices = Array.isArray(root.choices) ? root.choices : [];
+    const first = (choices[0] && typeof choices[0] === "object") ? choices[0] : {};
+    const message = (first.message && typeof first.message === "object") ? first.message : {};
+    const content = message.content;
+    if (typeof content === "string")
+        return content;
+    if (Array.isArray(content)) {
+        const merged = content
+            .map((part) => {
+            if (typeof part === "string")
+                return part;
+            if (part && typeof part === "object") {
+                const text = part.text;
+                return typeof text === "string" ? text : "";
+            }
+            return "";
+        })
+            .filter(Boolean)
+            .join(" ")
+            .trim();
+        if (merged)
+            return merged;
+    }
+    const fallbackText = first.text;
+    return typeof fallbackText === "string" ? fallbackText : "";
+}
+function stringifyData(value) {
+    if (typeof value === "string")
+        return value;
+    try {
+        return JSON.stringify(value);
+    }
+    catch {
+        return String(value ?? "");
+    }
+}
+function shouldRetryWithoutResponseFormat(error) {
+    if (!axios_1.default.isAxiosError(error))
+        return false;
+    const status = Number(error.response?.status || 0);
+    if (status !== 400 && status !== 422)
+        return false;
+    const detail = `${error.message || ""} ${stringifyData(error.response?.data)}`.toLowerCase();
+    return detail.includes("response_format")
+        || detail.includes("json_object")
+        || detail.includes("unsupported")
+        || detail.includes("invalid_request");
+}
 async function inferWithOllama(text, opts) {
     const base = opts.baseUrl || "http://127.0.0.1:11434";
     const { data } = await axios_1.default.post(`${base.replace(/\/+$/, "")}/api/chat`, {
@@ -60,24 +110,40 @@ async function inferWithOpenAICompatible(text, opts) {
     const key = opts.apiKey || "";
     if (!key)
         throw new Error("Missing API key for openai provider.");
-    const { data } = await axios_1.default.post(`${base.replace(/\/+$/, "")}/chat/completions`, {
+    const url = `${base.replace(/\/+$/, "")}/chat/completions`;
+    const commonPayload = {
         model: opts.model || "gpt-4o-mini",
         temperature: 0,
-        response_format: { type: "json_object" },
         messages: [
             { role: "system", content: systemPrompt() },
             { role: "user", content: text }
         ]
-    }, {
+    };
+    const requestOptions = {
         timeout: 30_000,
-        headers: { Authorization: `Bearer ${key}` }
-    });
-    return String(data?.choices?.[0]?.message?.content || "");
+        headers: {
+            Authorization: `Bearer ${key}`,
+            "Content-Type": "application/json"
+        }
+    };
+    try {
+        const { data } = await axios_1.default.post(url, {
+            ...commonPayload,
+            response_format: { type: "json_object" }
+        }, requestOptions);
+        return extractAssistantContent(data);
+    }
+    catch (error) {
+        if (!shouldRetryWithoutResponseFormat(error))
+            throw error;
+        const { data } = await axios_1.default.post(url, commonPayload, requestOptions);
+        return extractAssistantContent(data);
+    }
 }
 async function parseIntentWithAi(text, opts) {
-    const raw = opts.provider === "openai"
-        ? await inferWithOpenAICompatible(text, opts)
-        : await inferWithOllama(text, opts);
+    const raw = opts.provider === "ollama"
+        ? await inferWithOllama(text, opts)
+        : await inferWithOpenAICompatible(text, opts);
     const jsonText = extractJsonObject(raw);
     let parsed;
     try {

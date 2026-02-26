@@ -20,7 +20,7 @@ async function pickIgUser(accounts, defaultId) {
     return String(answers.id);
 }
 function registerInstagramCommands(program) {
-    const instagram = program.command('instagram').description('Instagram Graph API helpers');
+    const instagram = program.command('instagram').alias('insta').alias('ig').description('Instagram Graph API helpers');
     const accounts = instagram.command('accounts').description('Manage connected Instagram business accounts');
     accounts
         .command('list')

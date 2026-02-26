@@ -82,6 +82,51 @@ async function confirmBrowserReady({ api, url, canOpen }) {
         }
     }
 }
+async function waitForAppSecretReveal(appId, canOpen) {
+    const appSettingsUrl = `https://developers.facebook.com/apps/${encodeURIComponent(appId)}/settings/basic/`;
+    if (canOpen) {
+        console.log(chalk.gray('\nOpening your app Basic settings page...'));
+        const opened = await openUrl(appSettingsUrl);
+        if (!opened) {
+            console.log(chalk.yellow('Could not auto-open browser. Open this URL manually:'));
+        }
+    }
+    else {
+        console.log(chalk.gray('\nApp Basic settings URL:'));
+    }
+    console.log(chalk.cyan(`  ${appSettingsUrl}`));
+    console.log(chalk.gray('  Find: App Secret -> click "Show" -> complete password/2FA -> copy secret.\n'));
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        const ready = await inquirer.prompt([
+            {
+                type: 'confirm',
+                name: 'ok',
+                message: 'Were you able to reveal App Secret and are ready to paste it?',
+                default: true
+            }
+        ]);
+        if (ready.ok)
+            return;
+        console.log(chalk.yellow('\nNo problem. Quick path:'));
+        console.log(chalk.gray('  1) Open App Dashboard'));
+        console.log(chalk.gray('  2) Go to Settings -> Basic'));
+        console.log(chalk.gray('  3) Click Show beside App Secret'));
+        console.log(chalk.gray('  4) Complete password/2FA and copy\n'));
+        const reopen = await inquirer.prompt([
+            {
+                type: 'confirm',
+                name: 'again',
+                message: 'Re-open the App Basic settings page now?',
+                default: true
+            }
+        ]);
+        if (reopen.again && canOpen) {
+            // eslint-disable-next-line no-await-in-loop
+            await openUrl(appSettingsUrl);
+        }
+    }
+}
 function registerAuthCommands(program) {
     const auth = program.command('auth').description('Authentication and token management');
     auth
@@ -217,27 +262,46 @@ function registerAuthCommands(program) {
         .description('Configure app credentials (App ID and Secret)')
         .option('--id <appId>', 'App ID')
         .option('--secret <appSecret>', 'App Secret')
+        .option('--no-open', 'Do not open Meta App Dashboard in browser')
         .action(async (options) => {
         let { id, secret } = options;
         if (!id || !secret) {
-            const answers = await inquirer.prompt([
-                {
-                    type: 'input',
-                    name: 'appId',
-                    message: 'Enter your App ID:',
-                    when: !id,
-                    validate: (input) => input.length > 0 || 'App ID cannot be empty'
-                },
-                {
-                    type: 'password',
-                    name: 'appSecret',
-                    message: 'Enter your App Secret:',
-                    when: !secret,
-                    validate: (input) => input.length > 0 || 'App Secret cannot be empty'
+            const appsUrl = 'https://developers.facebook.com/apps/';
+            if (options.open !== false) {
+                console.log(chalk.gray('\nOpening Meta App Dashboard...'));
+                const opened = await openUrl(appsUrl);
+                if (!opened) {
+                    console.log(chalk.yellow('Could not auto-open browser. Open this URL manually:'));
                 }
-            ]);
-            id = id || answers.appId;
-            secret = secret || answers.appSecret;
+            }
+            else {
+                console.log(chalk.gray('\nMeta App Dashboard URL:'));
+            }
+            console.log(chalk.cyan(`  ${appsUrl}`));
+            console.log(chalk.gray('  Steps: Select your app -> Settings -> Basic -> copy App ID.\n'));
+            if (!id) {
+                const answers = await inquirer.prompt([
+                    {
+                        type: 'input',
+                        name: 'appId',
+                        message: 'Enter your App ID:',
+                        validate: (input) => input.length > 0 || 'App ID cannot be empty'
+                    }
+                ]);
+                id = answers.appId;
+            }
+            if (!secret) {
+                await waitForAppSecretReveal(String(id || '').trim(), options.open !== false);
+                const answers = await inquirer.prompt([
+                    {
+                        type: 'password',
+                        name: 'appSecret',
+                        message: 'Enter your App Secret:',
+                        validate: (input) => input.length > 0 || 'App Secret cannot be empty'
+                    }
+                ]);
+                secret = answers.appSecret;
+            }
         }
         config.setAppCredentials(id, secret);
         console.log(chalk.green('OK App credentials saved'));
