@@ -2,9 +2,9 @@
 
 ![Social Flow Mint Logo](docs/assets/social-flow-logo-mint.svg)
 
-A command-line and localhost control plane for Meta APIs (Facebook, Instagram, WhatsApp, and Marketing API).
+An agentic operations platform for Meta APIs (Facebook, Instagram, WhatsApp, and Marketing API), with a terminal command surface, API/WebSocket gateway, and external frontend support.
 
-Built for developers and agencies that want one consistent workflow for auth, posting, analytics, and guarded automation.
+Built for developers and agencies that want one consistent system for auth, execution, analytics, and guarded automation.
 
 ## Do This First
 
@@ -22,7 +22,8 @@ railway up
 - Profile-based multi-account workflows
 - Deterministic commands for posting/querying/marketing
 - Agent + chat workflows with risk-aware execution
-- Localhost API gateway (`social gateway`) with live session events
+- API/WebSocket gateway (`social gateway`) for local and remote operation
+- External frontend integration using secured gateway access (`x-gateway-key`)
 - Ops control-plane commands for approvals, invites, handoff, and runbooks
 
 ## Install
@@ -45,7 +46,7 @@ What installer does:
 - installs dependencies
 - builds required targets
 - links global `social` command (with fallback)
-- verifies CLI health
+- verifies runtime health
 
 ## Quick Start
 
@@ -59,7 +60,18 @@ social hatch
 
 If `social` is not recognized in your current terminal, open a new terminal and retry.
 
-## Core Commands
+## Railway + Frontend (Agentic)
+
+- Deploy gateway on Railway (API/WebSocket only, no bundled web UI)
+- Set `SOCIAL_GATEWAY_API_KEY` and `SOCIAL_GATEWAY_CORS_ORIGINS`
+- Connect your frontend with `x-gateway-key` header on REST and `?gatewayKey=` on `/ws`
+- Optional launcher:
+
+```bash
+social studio --url https://<railway-domain> --frontend-url https://<frontend-domain>
+```
+
+## Command Surface
 
 ```bash
 social auth ...        # token/app credential management
@@ -83,7 +95,7 @@ social hub ...         # package/connector trust + lifecycle
 - AI interface details: `docs/AI_INTERFACE.md`
 - Chat agent details: `docs/CHAT_AGENT.md`
 - Gateway API details: `docs/GATEWAY_UI.md`
-- CLI v2 simplification map: `docs/CLI_V2_MIGRATION.md`
+- Command-surface v2 simplification map: `docs/CLI_V2_MIGRATION.md`
 - Deployment runbook: `DEPLOYMENT.md`
 - TypeScript migration plan: `docs/TYPESCRIPT_MIGRATION.md`
 - Contributor guide: `CONTRIBUTING.md`

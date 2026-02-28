@@ -59,7 +59,8 @@ function getRuntimeRows() {
     `${mint('social status')}  ${chalk.gray('# readiness + health')}`,
     `${mint('social logs --lines 120')}  ${chalk.gray('# troubleshoot')}`,
     `${mint('social stop')}  ${chalk.gray('# stop gateway')}`,
-    `${mint('social studio')}  ${chalk.gray('# open status page flow')}`
+    `${mint('social studio')}  ${chalk.gray('# open status page flow')}`,
+    `${mint('social studio --url https://api.example.com --frontend-url https://studio.example.com')}  ${chalk.gray('# remote gateway + external frontend')}`
   ];
 }
 

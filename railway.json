@@ -4,6 +4,6 @@
     "buildCommand": "npm run build"
   },
   "deploy": {
-    "startCommand": "npm start"
+    "startCommand": "node bin/social.js --no-banner gateway --host 0.0.0.0 --port $PORT --require-api-key"
   }
 }

@@ -44,6 +44,7 @@ function registerStudioCommand(program) {
     .command('studio')
     .description('Launch studio flow (ensure gateway is up and open status page)')
     .option('--url <url>', 'Gateway base URL', 'http://127.0.0.1:1310')
+    .option('--frontend-url <url>', 'External Studio/frontend URL to open instead of gateway status page', process.env.SOCIAL_STUDIO_URL || '')
     .option('--no-open', 'Do not open Studio status page in browser')
     .option('--no-auto-start', 'Do not auto-start gateway when health is down')
     .action(async (opts) => {
@@ -51,6 +52,7 @@ function registerStudioCommand(program) {
       const healthUrl = new URL('/api/health', baseUrl).toString();
       const statusUrl = new URL('/api/status?doctor=1', baseUrl).toString();
       const rootUrl = new URL('/', baseUrl).toString();
+      const frontendUrl = String(opts.frontendUrl || '').trim();
       const host = String(baseUrl.hostname || '127.0.0.1').trim();
       const fallbackPort = baseUrl.protocol === 'https:' ? 443 : 80;
       const port = Number(baseUrl.port || fallbackPort);
@@ -72,6 +74,7 @@ function registerStudioCommand(program) {
         rows.push(chalk.green(`Gateway reachable: ${baseUrl.toString().replace(/\/$/, '')}`));
         rows.push(chalk.gray(`Health endpoint: ${healthUrl}`));
         rows.push(chalk.gray(`Studio status page: ${statusUrl}`));
+        if (frontendUrl) rows.push(chalk.gray(`External frontend: ${frontendUrl}`));
         if (autoStarted) rows.push(chalk.green('Gateway auto-started for Studio flow.'));
       } else {
         rows.push(chalk.red(`Gateway not reachable at ${baseUrl.toString().replace(/\/$/, '')}`));
@@ -103,7 +106,7 @@ function registerStudioCommand(program) {
       console.log('');
 
       if (opts.open !== false && health.status === 200 && health.data && health.data.ok) {
-        await openUrl(statusUrl);
+        await openUrl(frontendUrl || statusUrl);
       }
     });
 }

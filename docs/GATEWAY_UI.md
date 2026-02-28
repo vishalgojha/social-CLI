@@ -20,6 +20,8 @@ Supported workflow categories:
 - Marketing/content operations (posts, campaigns, analytics)
 - Developer operations (auth status, token debug, webhook subscription checks)
 
+For remote hosting (Railway + external frontend), run gateway with a real API key and explicit CORS origins.
+
 ## Endpoints
 
 - `GET /api/health`
@@ -46,6 +48,20 @@ Sessions are persisted through the chat memory layer:
 - No shell execution in gateway action flow
 - Uses `lib/chat/agent.js` + `lib/ai/executor.js`
 - Pending actions require explicit conversational confirmation (`yes`/`no`)
+
+## Railway + Frontend
+
+Recommended env vars on Railway:
+
+- `SOCIAL_GATEWAY_API_KEY=<long-random-secret>`
+- `SOCIAL_GATEWAY_REQUIRE_API_KEY=true`
+- `SOCIAL_GATEWAY_CORS_ORIGINS=https://<your-frontend-domain>`
+
+Frontend requirements:
+
+- Send `x-gateway-key` on REST requests.
+- Use `wss://<gateway-domain>/ws?gatewayKey=<SOCIAL_GATEWAY_API_KEY>` for WebSocket auth.
+- Health route (`/api/health`) remains public for platform probes.
 
 ## Files
 

@@ -248,6 +248,7 @@ program.on('--help', () => {
   console.log(`  ${cmd('status')}                  ` + chalk.gray('# Runtime status + setup readiness'));
   console.log(`  ${cmd('logs --lines 120')}        ` + chalk.gray('# Show gateway logs'));
   console.log(`  ${cmd('studio')}                  ` + chalk.gray('# Launch Studio flow (ensure gateway + open status page)'));
+  console.log(`  ${cmd('studio --url https://api.example.com --frontend-url https://studio.example.com')}  ` + chalk.gray('# Open external frontend with remote gateway'));
   console.log(`  ${cmd('guide')}                   ` + chalk.gray('# Universal step-by-step guidance sequence'));
   console.log(`  ${cmd('start-here')}              ` + chalk.gray('# Unified setup: AI config + tokens + health verification'));
   console.log(`  ${cmd('industry detect')}         ` + chalk.gray('# Hybrid industry detection + confidence'));
