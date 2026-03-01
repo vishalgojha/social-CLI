@@ -1,11 +1,11 @@
 # Quick Start Guide
 
-Get up and running with social-cli in 5 minutes.
+Get up and running with Social Flow in 5 minutes.
 
 ## Step 1: Install
 
 ```bash
-npm install -g @vishalgojha/social-cli
+npm install -g @vishalgojha/social-flow
 ```
 
 Windows one-click (from repo source):
@@ -16,7 +16,7 @@ Windows one-click (from repo source):
 
 Or use it without installing:
 ```bash
-npx @vishalgojha/social-cli
+npx @vishalgojha/social-flow
 ```
 
 ## Step 2: Get Your Access Token
@@ -117,7 +117,7 @@ social auth app
 ```
 
 ### 4. Save your tokens securely
-social-cli stores tokens in your system's config directory:
+Social Flow stores tokens in your system's config directory:
 - macOS: `~/Library/Preferences/social-cli/`
 - Linux: `~/.config/social-cli/`
 - Windows: `%APPDATA%\social-cli\`
@@ -142,7 +142,7 @@ alias ma='social auth status'
 → You're making too many requests. Check with `social limits check` and wait.
 
 ### "Command not found: social"
-→ Install globally: `npm install -g @vishalgojha/social-cli`
+→ Install globally: `npm install -g @vishalgojha/social-flow`
 
 ## Next Steps
 

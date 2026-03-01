@@ -31,8 +31,14 @@ railway up
 ### npm (recommended)
 
 ```bash
-npm install -g @vishalgojha/social-cli
+npm install -g @vishalgojha/social-flow
 social --help
+```
+
+Optional executable alias:
+
+```bash
+social-flow --help
 ```
 
 ### One-click installer (Windows, from repo)
@@ -87,6 +93,13 @@ social ops ...         # agency ops workflows + reports/handoff
 social hub ...         # package/connector trust + lifecycle
 ```
 
+Agency portfolio view:
+
+```bash
+social marketing portfolio --preset last_7d --target-daily 250
+social marketing portfolio --targets-file ./agency-targets.json --include-missing
+```
+
 ## Docs Index
 
 - Fast walkthrough: `QUICKSTART.md`
@@ -134,6 +147,18 @@ High-risk operations (campaign mutation, budget updates, bulk sends, etc.) shoul
 - `social doctor`
 - plan-first flows in `social ai` / `social agent`
 - approvals in `social ops` for team workflows
+
+## Maintainer Release
+
+```bash
+npm run release:patch
+```
+
+Other options:
+
+- `npm run release:minor`
+- `npm run release:major`
+- `npm run release:dry-run`
 
 ## License
 

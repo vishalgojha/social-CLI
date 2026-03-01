@@ -1,4 +1,4 @@
-# social-cli: Project Summary
+# Social Flow CLI: Project Summary
 
 ## What We Built
 
@@ -22,7 +22,7 @@ A complete, production-ready CLI tool for Meta's APIs (Facebook, Instagram, What
 ## File Structure
 
 ```
-social-cli/
+social-flow/
 ├── bin/
 │   └── meta.js                    # CLI entry point
 ├── commands/
@@ -135,7 +135,7 @@ social-cli/
 ### Quick Start
 ```bash
 # Install
-npm install -g @vishalgojha/social-cli
+npm install -g @vishalgojha/social-flow
 
 # Authenticate
 social auth login --api facebook
@@ -214,7 +214,7 @@ These could be future additions:
 
 ### For Twitter/Social:
 - "We built a CLI to make Meta's Graph API workflow faster for developers"
-- "social-cli by Chaos Craft Labs helps teams automate common Meta API tasks"
+- "Social Flow by Chaos Craft Labs helps teams automate common Meta API tasks"
 - "A practical CLI for Meta APIs with clear errors and scriptable output"
 
 ### For Dev Communities:

@@ -6,7 +6,7 @@
 #!/bin/bash
 # authenticate.sh - Set up authentication
 
-echo "Setting up social-cli authentication..."
+echo "Setting up Social Flow authentication..."
 
 # Prompt for Facebook token
 echo "Enter your Facebook access token:"
@@ -175,7 +175,7 @@ done
 ```bash
 # Add to crontab: crontab -e
 # Check rate limits every hour and log
-0 * * * * /path/to/social limits check --json >> /var/log/social-cli-limits.log 2>&1
+0 * * * * /path/to/social limits check --json >> /var/log/social-flow-limits.log 2>&1
 
 # Daily Instagram stats backup
 0 2 * * * /path/to/scripts/instagram-report.sh >> /var/log/instagram-backup.log 2>&1
@@ -184,7 +184,7 @@ done
 ## Node.js Integration
 
 ```javascript
-// Using social-cli from Node.js via child_process
+// Using Social Flow from Node.js via child_process
 const { execSync } = require('child_process');
 
 function getInstagramMedia(limit = 10) {
@@ -235,17 +235,17 @@ async function safeApiCall(command) {
 
 ```bash
 #!/bin/bash
-# test-setup.sh - Verify social-cli installation and configuration
+# test-setup.sh - Verify Social Flow installation and configuration
 
-echo "Testing social-cli setup..."
+echo "Testing Social Flow setup..."
 echo ""
 
 # Check installation
 if ! command -v social &> /dev/null; then
-  echo "✖ social-cli not found. Install with: npm install -g @vishalgojha/social-cli"
+  echo "✖ social not found. Install with: npm install -g @vishalgojha/social-flow"
   exit 1
 fi
-echo "✓ social-cli is installed"
+echo "✓ social is installed"
 
 # Check authentication
 if social auth status 2>&1 | grep -q "not set"; then

@@ -234,6 +234,7 @@ program.on('--help', () => {
   console.log(`  ${cmd('onboard')}                 ` + chalk.gray('# Interactive onboarding wizard'));
   console.log(`  ${cmd('agent "fix whatsapp webhook for clientA"')}  ` + chalk.gray('# Plan first, then execute with confirmation'));
   console.log(`  ${cmd('marketing accounts')}      ` + chalk.gray('# List ad accounts'));
+  console.log(`  ${cmd('marketing portfolio --preset last_7d --target-daily 250')}  ` + chalk.gray('# Agency portfolio pacing + risk snapshot across profiles'));
   console.log(`  ${cmd('accounts add clientA')}    ` + chalk.gray('# Create a profile'));
   console.log(`  ${cmd('--profile clientA query me')}  ` + chalk.gray('# Use a profile (one-off)'));
   console.log(`  ${cmd('batch run jobs.json')}     ` + chalk.gray('# Run a batch of tool jobs'));

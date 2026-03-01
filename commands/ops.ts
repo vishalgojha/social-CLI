@@ -92,7 +92,7 @@ function buildHandoffDoc({
     '',
     '## First-Time Setup (Team Member)',
     '1. Install and verify:',
-    '   - `npm install -g @vishalgojha/social-cli`',
+    '   - `npm install -g @vishalgojha/social-flow`',
     '   - `social --help`',
     '2. Set workspace and operator:',
     `   - \`social accounts switch ${ws}\``,

@@ -1,10 +1,11 @@
 {
-  "name": "@vishalgojha/social-cli",
+  "name": "@vishalgojha/social-flow",
   "version": "0.2.14",
   "description": "Social Flow CLI for Meta API operations (Facebook, Instagram, WhatsApp).",
   "main": "dist-legacy/index.js",
   "bin": {
-    "social": "dist-legacy/bin/social.js"
+    "social": "dist-legacy/bin/social.js",
+    "social-flow": "dist-legacy/bin/social.js"
   },
   "scripts": {
     "lint": "eslint --max-warnings=0 --no-error-on-unmatched-pattern bin commands lib test scripts",
@@ -29,7 +30,12 @@
     "setup": "node bin/social.js setup",
     "prepack": "npm run build:legacy-ts && npm run build:runtime-ts && npm run build:social-ts",
     "social:dev": "tsx cli/index.ts",
-    "dev": "tsx cli/index.ts"
+    "dev": "tsx cli/index.ts",
+    "release": "tsx scripts/release.ts patch",
+    "release:patch": "tsx scripts/release.ts patch",
+    "release:minor": "tsx scripts/release.ts minor",
+    "release:major": "tsx scripts/release.ts major",
+    "release:dry-run": "tsx scripts/release.ts patch --dry-run"
   },
   "keywords": [
     "social",

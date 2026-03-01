@@ -1,4 +1,6 @@
-# meta-cli: Complete Setup & Publishing Guide
+# Social Flow: Setup & Publishing Guide
+
+> Maintainer fast path: `npm run release:patch` (or `release:minor` / `release:major`).
 
 ## Project Overview
 

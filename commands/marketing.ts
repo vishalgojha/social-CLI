@@ -75,6 +75,99 @@ function parseJsonArgOrFile(value, filePath, label) {
   }
 }
 
+function parseNumberOrZero(value) {
+  const n = typeof value === 'number' ? value : parseFloat(String(value || '0'));
+  if (!Number.isFinite(n)) return 0;
+  return n;
+}
+
+function parsePositiveNumber(value, fallback = 0) {
+  const n = parseFloat(String(value || ''));
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return n;
+}
+
+function daysForPreset(preset) {
+  const p = String(preset || '').toLowerCase().trim();
+  if (p === 'last_7d') return 7;
+  if (p === 'last_30d') return 30;
+  if (p === 'last_90d') return 90;
+  if (p === 'today') return 1;
+  if (p === 'yesterday') return 1;
+  return 7;
+}
+
+function parseTotalCountFromPagingResponse(response) {
+  const n = parseInt(String(response?.summary?.total_count || ''), 10);
+  if (Number.isFinite(n)) return n;
+  if (Array.isArray(response?.data)) return response.data.length;
+  return 0;
+}
+
+function parseTargetsFile(filePath) {
+  const fullPath = path.resolve(String(filePath || '').trim());
+  if (!fullPath) return {};
+  if (!fs.existsSync(fullPath)) {
+    throw new Error(`Targets file not found: ${fullPath}`);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+  } catch {
+    throw new Error(`Invalid JSON in targets file: ${fullPath}`);
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Targets file must be a JSON object: {"profileName": 120.5, "default": 95}');
+  }
+  const out = {};
+  Object.entries(parsed).forEach(([k, v]) => {
+    const key = String(k || '').trim();
+    if (!key) return;
+    const n = parsePositiveNumber(v, -1);
+    if (n >= 0) out[key] = n;
+  });
+  return out;
+}
+
+function resolveDailyTarget({ profile, targetsByProfile, defaultDailyTarget }) {
+  if (Object.prototype.hasOwnProperty.call(targetsByProfile, profile)) {
+    return parsePositiveNumber(targetsByProfile[profile], defaultDailyTarget);
+  }
+  if (Object.prototype.hasOwnProperty.call(targetsByProfile, 'default')) {
+    return parsePositiveNumber(targetsByProfile.default, defaultDailyTarget);
+  }
+  return defaultDailyTarget;
+}
+
+function paceStatus(spend, targetWindow) {
+  if (!(targetWindow > 0)) return 'n/a';
+  const ratio = spend / targetWindow;
+  if (ratio > 1.2) return 'over';
+  if (ratio < 0.8) return 'under';
+  return 'on_track';
+}
+
+function summarizePortfolioRows(rows) {
+  const cleanRows = Array.isArray(rows) ? rows : [];
+  const actionable = cleanRows.filter((r) => r.health !== 'error' && r.health !== 'config_missing' && r.health !== 'profile_missing');
+  const totalSpend = actionable.reduce((acc, r) => acc + parseNumberOrZero(r.spend), 0);
+  const totalTargetWindow = actionable.reduce((acc, r) => acc + parseNumberOrZero(r.target_window), 0);
+  const healthCounts = cleanRows.reduce((acc, r) => {
+    const key = String(r.health || 'unknown');
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  return {
+    profiles_scanned: cleanRows.length,
+    actionable_profiles: actionable.length,
+    total_spend: Number(totalSpend.toFixed(2)),
+    total_target_window: Number(totalTargetWindow.toFixed(2)),
+    over_pacing_count: actionable.filter((r) => r.pace_status === 'over').length,
+    under_pacing_count: actionable.filter((r) => r.pace_status === 'under').length,
+    health_counts: healthCounts
+  };
+}
+
 async function confirmHighRisk(message, yesFlag) {
   if (yesFlag) return true;
   if (!process.stdout.isTTY) return false;
@@ -219,6 +312,269 @@ function registerMarketingCommands(program) {
         spinner.stop();
         client.handleError(e, { scopes: ['ads_read'] });
       }
+    });
+
+  marketing
+    .command('portfolio')
+    .description('Agency portfolio snapshot across profiles with pacing + risk flags')
+    .option('--profiles <names>', 'Comma-separated profile names (default: all profiles)', '')
+    .option('--preset <preset>', 'Date preset: last_7d|last_30d|last_90d|today|yesterday', 'last_7d')
+    .option('--target-daily <amount>', 'Default target daily spend per profile/account', '0')
+    .option('--targets-file <path>', 'JSON map: {"profileA": 200, "default": 120}')
+    .option('--include-missing', 'Include profiles missing token/account config')
+    .option('--with-rate-limits', 'Include x-ad-account-usage header snapshot')
+    .option('--json', 'Output as JSON')
+    .option('--table', 'Output as table')
+    .option('--verbose', 'Verbose request logging (no secrets)')
+    .action(async (options) => {
+      if (!options.json) warnIfOldApiVersion();
+
+      const preset = presetToDatePreset(options.preset);
+      const windowDays = daysForPreset(preset);
+      const defaultDailyTarget = parsePositiveNumber(options.targetDaily, 0);
+
+      if (defaultDailyTarget < 0) {
+        console.error(chalk.red('X --target-daily must be >= 0'));
+        process.exit(1);
+      }
+
+      let targetsByProfile = {};
+      if (options.targetsFile) {
+        try {
+          targetsByProfile = parseTargetsFile(options.targetsFile);
+        } catch (e) {
+          console.error(chalk.red(`X ${e.message}`));
+          process.exit(1);
+        }
+      }
+
+      const explicitProfiles = parseCsv(options.profiles);
+      const allProfiles = config.listProfiles();
+      const selectedProfiles = explicitProfiles.length ? explicitProfiles : allProfiles;
+      const profileQueue = Array.from(new Set(selectedProfiles.map((x) => String(x || '').trim()).filter(Boolean)));
+
+      if (!profileQueue.length) {
+        console.log(chalk.yellow('! No profiles found. Add one with: social accounts add <name>'));
+        console.log('');
+        return;
+      }
+
+      const rows = [];
+      const currentProfile = config.getActiveProfile();
+      const spinner = (!options.json && process.stdout.isTTY)
+        ? ora('Building agency portfolio snapshot...').start()
+        : null;
+      try {
+        for (let i = 0; i < profileQueue.length; i += 1) {
+          const profileName = profileQueue[i];
+          if (spinner) spinner.text = `Scanning profile ${profileName} (${i + 1}/${profileQueue.length})`;
+
+          if (!config.hasProfile(profileName)) {
+            rows.push({
+              profile: profileName,
+              ad_account: '',
+              account_name: '',
+              currency: '',
+              spend: 0,
+              impressions: 0,
+              clicks: 0,
+              active_campaigns: 0,
+              target_daily: 0,
+              target_window: 0,
+              pace_pct: 0,
+              pace_status: 'n/a',
+              health: 'profile_missing',
+              alerts: ['profile_not_found']
+            });
+            continue;
+          }
+
+          config.useProfile(profileName);
+          const token = config.getToken('facebook');
+          const act = normalizeAct(config.getDefaultMarketingAdAccountId());
+          const targetDaily = resolveDailyTarget({
+            profile: profileName,
+            targetsByProfile,
+            defaultDailyTarget
+          });
+          const targetWindow = targetDaily > 0 ? targetDaily * windowDays : 0;
+
+          if (!token || !act) {
+            rows.push({
+              profile: profileName,
+              ad_account: act || '',
+              account_name: '',
+              currency: '',
+              spend: 0,
+              impressions: 0,
+              clicks: 0,
+              active_campaigns: 0,
+              target_daily: Number(targetDaily.toFixed(2)),
+              target_window: Number(targetWindow.toFixed(2)),
+              pace_pct: 0,
+              pace_status: targetWindow > 0 ? 'under' : 'n/a',
+              health: 'config_missing',
+              alerts: [
+                !token ? 'missing_facebook_token' : '',
+                !act ? 'missing_default_ad_account' : ''
+              ].filter(Boolean)
+            });
+            continue;
+          }
+
+          const client = new MetaAPIClient(token, 'facebook');
+          try {
+            const requestOptions = { verbose: Boolean(options.verbose), maxRetries: 5 };
+            const accountPromise = client.get(`/${act}`, {
+              fields: 'id,name,account_id,account_status,currency,timezone_name'
+            }, requestOptions);
+            const insightsPromise = client.get(`/${act}/insights`, {
+              date_preset: preset,
+              level: 'account',
+              fields: 'spend,impressions,clicks,ctr,cpc,cpm',
+              limit: 1
+            }, requestOptions);
+            const activeCampaignsPromise = client.get(`/${act}/campaigns`, {
+              fields: 'id',
+              effective_status: JSON.stringify(['ACTIVE']),
+              limit: 1,
+              summary: 'total_count'
+            }, requestOptions);
+
+            const [accountInfo, insightsResult, activeCampaignsResult] = await Promise.all([
+              accountPromise,
+              insightsPromise,
+              activeCampaignsPromise
+            ]);
+
+            let rateLimitUsage = '';
+            if (options.withRateLimits) {
+              const rl = await getAdsRateLimitSnapshot(act, token);
+              rateLimitUsage = String(rl.x_ad_account_usage || '').slice(0, 220);
+            }
+
+            const row = (insightsResult?.data || [])[0] || {};
+            const spend = parseNumberOrZero(row.spend);
+            const impressions = Math.round(parseNumberOrZero(row.impressions));
+            const clicks = Math.round(parseNumberOrZero(row.clicks));
+            const activeCampaigns = parseTotalCountFromPagingResponse(activeCampaignsResult);
+            const pacePct = targetWindow > 0 ? (spend / targetWindow) * 100 : 0;
+            const pace = paceStatus(spend, targetWindow);
+            const alerts = [];
+
+            const accountStatus = String(accountInfo?.account_status || '').trim();
+            if (accountStatus && accountStatus !== '1') {
+              alerts.push(`account_status_${accountStatus}`);
+            }
+            if (activeCampaigns === 0) {
+              alerts.push('no_active_campaigns');
+            }
+            if (pace === 'over') {
+              alerts.push('overspend_risk');
+            } else if (pace === 'under' && targetWindow > 0) {
+              alerts.push('underspend_vs_target');
+            }
+
+            let health = 'ok';
+            if (alerts.some((x) => x === 'overspend_risk' || x.startsWith('account_status_'))) {
+              health = 'high';
+            } else if (alerts.length) {
+              health = 'watch';
+            }
+
+            rows.push({
+              profile: profileName,
+              ad_account: act,
+              account_name: String(accountInfo?.name || ''),
+              currency: String(accountInfo?.currency || ''),
+              spend: Number(spend.toFixed(2)),
+              impressions,
+              clicks,
+              active_campaigns: activeCampaigns,
+              target_daily: Number(targetDaily.toFixed(2)),
+              target_window: Number(targetWindow.toFixed(2)),
+              pace_pct: Number(pacePct.toFixed(1)),
+              pace_status: pace,
+              health,
+              alerts,
+              rate_limit_usage: rateLimitUsage
+            });
+          } catch (error) {
+            rows.push({
+              profile: profileName,
+              ad_account: act,
+              account_name: '',
+              currency: '',
+              spend: 0,
+              impressions: 0,
+              clicks: 0,
+              active_campaigns: 0,
+              target_daily: Number(targetDaily.toFixed(2)),
+              target_window: Number(targetWindow.toFixed(2)),
+              pace_pct: 0,
+              pace_status: 'n/a',
+              health: 'error',
+              alerts: ['fetch_failed'],
+              error: String(error?.message || error)
+            });
+          }
+        }
+      } finally {
+        if (spinner) spinner.stop();
+        try {
+          config.useProfile(currentProfile);
+        } catch {
+          config.clearProfileOverride();
+        }
+      }
+
+      const outputRows = options.includeMissing
+        ? rows
+        : rows.filter((r) => r.health !== 'config_missing' && r.health !== 'profile_missing');
+      const summary = summarizePortfolioRows(outputRows);
+
+      if (options.json) {
+        console.log(JSON.stringify(sanitizeForLog({
+          generated_at: new Date().toISOString(),
+          preset,
+          window_days: windowDays,
+          rows: outputRows,
+          summary
+        }), null, 2));
+        return;
+      }
+
+      if (!outputRows.length) {
+        console.log(chalk.yellow('! No eligible profiles to show. Use --include-missing to inspect config gaps.'));
+        console.log('');
+        return;
+      }
+
+      const tableRows = outputRows.map((r) => ({
+        profile: r.profile,
+        ad_account: r.ad_account || '-',
+        account_name: r.account_name || '-',
+        spend: parseNumberOrZero(r.spend).toFixed(2),
+        target_window: parseNumberOrZero(r.target_window) > 0 ? parseNumberOrZero(r.target_window).toFixed(2) : '-',
+        pace_pct: parseNumberOrZero(r.target_window) > 0 ? `${parseNumberOrZero(r.pace_pct).toFixed(1)}%` : '-',
+        pace_status: r.pace_status,
+        active_campaigns: String(r.active_campaigns || 0),
+        health: r.health,
+        alerts: (r.alerts || []).join('|') || '-'
+      }));
+      const columns = ['profile', 'ad_account', 'account_name', 'spend', 'target_window', 'pace_pct', 'pace_status', 'active_campaigns', 'health', 'alerts'];
+      printTableOrJson({ rows: tableRows, columns, json: false });
+
+      console.log(chalk.bold('Portfolio Summary:'));
+      console.log(chalk.cyan('  Profiles scanned:'), String(summary.profiles_scanned));
+      console.log(chalk.cyan('  Actionable profiles:'), String(summary.actionable_profiles));
+      console.log(chalk.cyan('  Total spend:'), chalk.green(summary.total_spend.toFixed(2)));
+      if (summary.total_target_window > 0) {
+        console.log(chalk.cyan('  Total target window:'), chalk.green(summary.total_target_window.toFixed(2)));
+      }
+      console.log(chalk.cyan('  Over pacing:'), String(summary.over_pacing_count));
+      console.log(chalk.cyan('  Under pacing:'), String(summary.under_pacing_count));
+      console.log('');
     });
 
   marketing
