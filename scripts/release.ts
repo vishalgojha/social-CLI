@@ -11,7 +11,7 @@ type ReleaseArgs = {
 };
 
 const VALID_BUMPS = new Set<ReleaseArgs['bump']>(['patch', 'minor', 'major']);
-const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const npmCmd = 'npm';
 const gitCmd = process.platform === 'win32' ? 'git.exe' : 'git';
 
 function usage(exitCode = 0): never {
