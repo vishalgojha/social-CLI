@@ -441,7 +441,7 @@ function buildHandoffDoc({
 }) {
   const ws = workspace || 'default';
   const operator = operatorId || '<operator_id>';
-  const keyText = gatewayApiKey || '<set_gateway_api_key>';
+  const keyText = gatewayApiKey ? '<provided_separately>' : '<set_gateway_api_key>';
   const templateName = normalizeHandoffTemplate(template) || 'agency';
   const common = [
     `# Social Flow Agency Handoff - ${ws}`,
@@ -2778,7 +2778,7 @@ class GatewayServer {
         opsRbac.assertCan({ workspace, action: 'read', user: actor });
         const generatedAt = new Date().toISOString();
         const runAtIso = toIsoOrFallback(body.runAt, generatedAt);
-        const outDir = resolveSafeOutDir(body.outDir, `handoff-${workspace}`);
+        const outDir = resolveSafeOutDir(body.outDir, `reports/handoff-${workspace}`);
         fs.mkdirSync(outDir, { recursive: true });
         const files = {
           handoff: path.join(outDir, 'handoff.md'),

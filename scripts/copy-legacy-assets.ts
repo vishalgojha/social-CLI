@@ -7,7 +7,7 @@ const rootFromSource = path.resolve(__dirname, '..');
 const rootFromDist = path.resolve(__dirname, '..', '..');
 const repoRoot = fs.existsSync(path.join(rootFromSource, 'tsconfig.legacy.json')) ? rootFromSource : rootFromDist;
 const distRoot = path.join(repoRoot, 'dist-legacy');
-const jsonRoots = ['bin', 'commands', 'lib', 'scripts', 'src-runtime', 'test', 'tests', 'tools'];
+const jsonRoots = ['bin', 'commands', 'lib', 'scripts', 'src-runtime', 'test', 'tests'];
 const fullCopyRoots = ['assets'];
 
 function copyFileRel(relPath: string): void {
@@ -27,6 +27,7 @@ function walkJsonFiles(relDir: string): void {
     const childAbs = path.join(repoRoot, childRel);
 
     if (entry.isDirectory()) {
+      if (entry.name === 'node_modules' || entry.name === '.npm-cache') continue;
       walkJsonFiles(childRel);
       continue;
     }

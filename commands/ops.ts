@@ -72,7 +72,7 @@ function buildHandoffDoc({
 }) {
   const ws = workspace || 'default';
   const operator = operatorId || '<operator_id>';
-  const keyText = gatewayApiKey || '<set_gateway_api_key>';
+  const keyText = gatewayApiKey ? '<provided_separately>' : '<set_gateway_api_key>';
   const templateName = String(template || 'agency').trim().toLowerCase();
 
   const common = [
@@ -1117,8 +1117,9 @@ function registerOpsCommands(program) {
       }
       const outputPath = path.resolve(
         process.cwd(),
-        String(options.out || `handoff-${ws}.md`)
+        String(options.out || `reports/handoff-${ws}.md`)
       );
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
       const doc = buildHandoffDoc({
         template,
         workspace: ws,
@@ -1163,7 +1164,7 @@ function registerOpsCommands(program) {
       }
       const generatedAt = new Date().toISOString();
       const suggestedRunAt = toIsoOrFallback(options.runAt, generatedAt);
-      const outDir = path.resolve(process.cwd(), String(options.outDir || `handoff-${ws}`));
+      const outDir = path.resolve(process.cwd(), String(options.outDir || `reports/handoff-${ws}`));
       fs.mkdirSync(outDir, { recursive: true });
 
       const files = {

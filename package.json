@@ -64,7 +64,6 @@
     "dist-legacy/",
     "dist-runtime/",
     "docs/",
-    "tools/",
     "index.ts",
     "README.md",
     "LICENSE",

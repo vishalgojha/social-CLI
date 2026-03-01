@@ -164,7 +164,7 @@ module.exports = [
     }
   },
   {
-    name: 'gateway root endpoint serves bundled studio ui',
+    name: 'gateway root endpoint returns deprecation response with bundled studio disabled',
     fn: async () => {
       const oldHome = process.env.META_CLI_HOME;
       process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
@@ -176,17 +176,20 @@ module.exports = [
           method: 'GET',
           pathName: '/'
         });
-        assert.equal(root.status, 200);
-        assert.equal(String(root.headers['content-type'] || '').includes('text/html'), true);
-        assert.equal(String(root.raw || '').toLowerCase().includes('social studio'), true);
+        assert.equal(root.status, 410);
+        assert.equal(String(root.headers['content-type'] || '').includes('application/json'), true);
+        assert.equal(
+          String(root.raw || '').includes('Bundled Studio frontend is disabled'),
+          true
+        );
 
         const staticCss = await requestRaw({
           port: server.port,
           method: 'GET',
           pathName: '/styles.css'
         });
-        assert.equal(staticCss.status, 200);
-        assert.equal(String(staticCss.headers['content-type'] || '').includes('text/css'), true);
+        assert.equal(staticCss.status, 404);
+        assert.equal(String(staticCss.headers['content-type'] || '').includes('application/json'), true);
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;

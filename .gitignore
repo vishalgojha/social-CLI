@@ -23,6 +23,7 @@ pids
 *.pid.lock
 .social-cli-chat/
 .social-cli-ops/
+.social-runtime/
 undefined/
 social cli pending.txt
 codex.md
@@ -59,3 +60,6 @@ Thumbs.db
 
 droidclaw/
 *.tgz
+handoff-*.md
+HANDOFF_*.md
+handoff-*/

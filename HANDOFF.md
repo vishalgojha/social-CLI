@@ -144,3 +144,38 @@ Priority order for reducing friction and improving beginner usability across ter
 8. Studio parity with terminal readiness and guided flows.
 9. Friction telemetry: capture top setup/intent drop-off points weekly.
 10. Golden-path E2E release hardening: new user to first successful action.
+
+## Cleanup Pass - 2026-03-01 (Post-Push)
+
+### Release/CI Contract Alignment
+
+- Updated gateway tests and smoke checks to match current product behavior:
+  - `GET /` returns `410` with JSON deprecation response.
+  - bundled static Studio assets are not served.
+
+### Package Footprint Reduction
+
+- Removed `tools/` from npm publish `files`.
+- Stopped legacy asset copy from traversing `tools/`.
+- Added `node_modules` / `.npm-cache` traversal skips in legacy JSON copy script.
+- Dry-run packaging moved from ~130 MB/4496 files to ~1.3 MB/141 files.
+
+### Handoff Hygiene + Canonical Source
+
+- Root remains canonical for one active handoff file only: `HANDOFF.md`.
+- Archived stale root handoff artifacts under:
+  - `docs/archive/handoffs/AGENT_FIRST_HANDOFF_2026-02-19.md`
+  - `docs/archive/handoffs/NEXT_AGENT_CONTINUITY_2026-02-28.md`
+  - `docs/archive/handoffs/README_REFACTOR_HANDOFF_2026-02-24.md`
+- Changed generated handoff defaults:
+  - `social ops handoff` -> `reports/handoff-<workspace>.md`
+  - `social ops handoff pack` -> `reports/handoff-<workspace>/...`
+- Handoff docs now avoid writing raw gateway API keys into generated markdown.
+
+### Local Cleanup Guardrails
+
+- Added ignore rules for local generated artifacts:
+  - `.social-runtime/`
+  - `handoff-*.md`
+  - `HANDOFF_*.md`
+  - `handoff-*/`
