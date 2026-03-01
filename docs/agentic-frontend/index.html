@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Social Flow Agentic Frontend Screens</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="bg-bloom bloom-a" aria-hidden="true"></div>
+  <div class="bg-bloom bloom-b" aria-hidden="true"></div>
+
+  <div class="app-shell">
+    <aside class="side-rail">
+      <div class="brand-block">
+        <p class="eyebrow">Social Flow</p>
+        <h1>Agentic Frontend</h1>
+        <p class="brand-copy">Conversation-first screens for ops, approvals, diagnostics, and safe execution.</p>
+      </div>
+
+      <nav class="screen-nav" aria-label="Screen Navigation">
+        <button type="button" class="screen-link active" data-screen-target="command">Command Deck</button>
+        <button type="button" class="screen-link" data-screen-target="copilot">Agent Copilot</button>
+        <button type="button" class="screen-link" data-screen-target="approvals">Approvals Center</button>
+        <button type="button" class="screen-link" data-screen-target="diagnose">Ads Diagnosis</button>
+        <button type="button" class="screen-link" data-screen-target="launchpad">Ops Launchpad</button>
+      </nav>
+
+      <section class="card gateway-config">
+        <h2>Gateway Connection</h2>
+        <label for="cfg-base-url">Gateway URL</label>
+        <input id="cfg-base-url" type="text" placeholder="http://127.0.0.1:1310" />
+
+        <label for="cfg-api-key">Gateway API Key</label>
+        <input id="cfg-api-key" type="password" placeholder="x-gateway-key (if required)" />
+
+        <label for="cfg-workspace">Workspace</label>
+        <input id="cfg-workspace" type="text" placeholder="default" />
+
+        <label for="cfg-operator-id">Operator ID</label>
+        <input id="cfg-operator-id" type="text" placeholder="ops-owner" />
+
+        <label for="cfg-operator-name">Operator Name</label>
+        <input id="cfg-operator-name" type="text" placeholder="Your Name" />
+
+        <div class="row">
+          <button id="cfg-save" type="button">Save</button>
+          <button id="cfg-ping" type="button" class="secondary">Ping</button>
+        </div>
+        <p class="micro-copy">These settings are stored in your browser only.</p>
+      </section>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <div class="status-cluster">
+          <span id="status-pill" class="pill warn">Gateway: checking</span>
+          <span id="workspace-pill" class="pill soft">Workspace: --</span>
+          <span id="session-pill" class="pill soft">Session: --</span>
+        </div>
+        <div class="row">
+          <button id="refresh-all" type="button" class="secondary">Refresh Data</button>
+        </div>
+      </header>
+
+      <section id="screen-command" class="screen active" data-screen="command">
+        <div class="screen-head">
+          <h2>Command Deck</h2>
+          <p class="muted">A single at-a-glance surface for readiness, risk, and workload pressure.</p>
+        </div>
+
+        <div class="metric-grid">
+          <article class="metric-card">
+            <p class="metric-label">Gateway Health</p>
+            <p class="metric-value" id="metric-health">--</p>
+          </article>
+          <article class="metric-card">
+            <p class="metric-label">Readiness Score</p>
+            <p class="metric-value" id="metric-readiness">--</p>
+          </article>
+          <article class="metric-card">
+            <p class="metric-label">Open Alerts</p>
+            <p class="metric-value" id="metric-alerts">--</p>
+          </article>
+          <article class="metric-card">
+            <p class="metric-label">Pending Approvals</p>
+            <p class="metric-value" id="metric-approvals">--</p>
+          </article>
+          <article class="metric-card">
+            <p class="metric-label">Source Readiness</p>
+            <p class="metric-value" id="metric-sources">--</p>
+          </article>
+        </div>
+
+        <div class="dual-grid">
+          <article class="card">
+            <h3>Readiness Checklist</h3>
+            <ul id="readiness-list" class="check-list">
+              <li>Loading readiness checks...</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <h3>Next Best Actions</h3>
+            <ol id="next-actions-list" class="next-actions">
+              <li>Loading recommendations...</li>
+            </ol>
+          </article>
+        </div>
+
+        <article class="card">
+          <div class="row spread">
+            <h3>Connected Sources</h3>
+            <button id="command-refresh-sources" type="button" class="secondary">Reload</button>
+          </div>
+          <div id="sources-view" class="sources-view">Loading sources...</div>
+        </article>
+      </section>
+
+      <section id="screen-copilot" class="screen" data-screen="copilot">
+        <div class="screen-head">
+          <h2>Agent Copilot</h2>
+          <p class="muted">Conversational control with live execution events and approval-safe plan execution.</p>
+        </div>
+
+        <div class="copilot-grid">
+          <article class="card">
+            <div class="row spread">
+              <h3>Conversation</h3>
+              <div class="row">
+                <button id="chat-start" type="button" class="secondary">Start Session</button>
+                <button id="chat-execute-plan" type="button">Execute Plan</button>
+              </div>
+            </div>
+
+            <div class="prompt-row" aria-label="Quick Prompts">
+              <button type="button" class="prompt-chip" data-prompt="Show ops summary and top execution blockers.">Ops summary</button>
+              <button type="button" class="prompt-chip" data-prompt="Run a safe morning run preview with spend 0.">Morning run preview</button>
+              <button type="button" class="prompt-chip" data-prompt="List pending approvals and suggest decisions.">Approval triage</button>
+              <button type="button" class="prompt-chip" data-prompt="Diagnose poor ads in the last 7 days and rank by spend at risk.">Poor ad diagnosis</button>
+            </div>
+
+            <div id="chat-log" class="chat-log" aria-live="polite">
+              <div class="chat-bubble assistant">Start a session and ask the agent what to do next.</div>
+            </div>
+
+            <label for="chat-input">Message</label>
+            <div class="row">
+              <textarea id="chat-input" placeholder="Ask what to run next, why, and what risks to watch."></textarea>
+            </div>
+            <div class="row">
+              <button id="chat-send" type="button">Send</button>
+              <button id="chat-clear" type="button" class="secondary">Clear Chat</button>
+            </div>
+          </article>
+
+          <article class="card">
+            <h3>Plan Preview</h3>
+            <ul id="action-plan" class="plan-list">
+              <li>No pending plan. Ask the agent for an action plan.</li>
+            </ul>
+
+            <h3>Live Event Stream</h3>
+            <ul id="live-events" class="event-list">
+              <li>Waiting for session websocket...</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="screen-approvals" class="screen" data-screen="approvals">
+        <div class="screen-head">
+          <h2>Approvals Center</h2>
+          <p class="muted">Resolve pending decisions quickly with context and audit-safe notes.</p>
+        </div>
+
+        <div class="row">
+          <button id="reload-queues" type="button" class="secondary">Reload Queues</button>
+        </div>
+
+        <div class="dual-grid">
+          <article class="card">
+            <h3>Pending Approvals</h3>
+            <div id="approvals-list" class="stack-list">Loading approvals...</div>
+          </article>
+
+          <article class="card">
+            <h3>Open Alerts</h3>
+            <div id="alerts-list" class="stack-list">Loading alerts...</div>
+          </article>
+        </div>
+      </section>
+
+      <section id="screen-diagnose" class="screen" data-screen="diagnose">
+        <div class="screen-head">
+          <h2>Ads Diagnosis</h2>
+          <p class="muted">Run `diagnose-poor-ads` from a user-friendly form and capture immediate operator actions.</p>
+        </div>
+
+        <article class="card">
+          <form id="diagnose-form" class="diagnose-form">
+            <label for="diag-account">Ad Account (optional, without `act_`)</label>
+            <input id="diag-account" type="text" placeholder="1234567890" />
+
+            <div class="triple-grid">
+              <div>
+                <label for="diag-preset">Preset</label>
+                <select id="diag-preset">
+                  <option value="last_7d">last_7d</option>
+                  <option value="last_14d">last_14d</option>
+                  <option value="last_30d">last_30d</option>
+                  <option value="today">today</option>
+                </select>
+              </div>
+              <div>
+                <label for="diag-top">Top Results</label>
+                <input id="diag-top" type="number" min="1" max="50" value="12" />
+              </div>
+              <div>
+                <label for="diag-cpc">CPC Multiplier</label>
+                <input id="diag-cpc" type="number" min="1" step="0.05" value="1.25" />
+              </div>
+            </div>
+
+            <div class="triple-grid">
+              <div>
+                <label for="diag-cpm">CPM Multiplier</label>
+                <input id="diag-cpm" type="number" min="1" step="0.05" value="1.25" />
+              </div>
+              <div>
+                <label for="diag-ctr">CTR Ratio</label>
+                <input id="diag-ctr" type="number" min="0.1" step="0.05" value="0.85" />
+              </div>
+              <div>
+                <label for="diag-extra">Extra Flags (optional)</label>
+                <input id="diag-extra" type="text" placeholder="--json" />
+              </div>
+            </div>
+
+            <label for="diag-command">Command Preview</label>
+            <pre id="diag-command" class="mono-block">social marketing diagnose-poor-ads --preset last_7d --top 12</pre>
+
+            <div class="row">
+              <button id="diag-run" type="submit">Run Diagnosis</button>
+              <button id="diag-copy" type="button" class="secondary">Copy Command</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card">
+          <h3>Diagnosis Output</h3>
+          <pre id="diagnose-output" class="mono-block">Run a diagnosis to populate this panel.</pre>
+        </article>
+      </section>
+
+      <section id="screen-launchpad" class="screen" data-screen="launchpad">
+        <div class="screen-head">
+          <h2>Ops Launchpad</h2>
+          <p class="muted">One-click operational flows for team onboarding, guardrails, and recurring routines.</p>
+        </div>
+
+        <div class="dual-grid">
+          <article class="card">
+            <h3>Operator + Daily Ops</h3>
+            <label for="operator-id">Operator ID</label>
+            <input id="operator-id" type="text" placeholder="ops-owner" />
+            <label for="operator-name">Operator Name</label>
+            <input id="operator-name" type="text" placeholder="Your Name" />
+
+            <div class="row">
+              <button id="save-operator" type="button">Save Operator</button>
+            </div>
+
+            <label for="morning-spend">Morning Run Spend Override</label>
+            <input id="morning-spend" type="number" step="0.01" value="0" />
+            <div class="row">
+              <button id="run-morning" type="button">Run Morning Ops</button>
+              <button id="mark-onboarding" type="button" class="secondary">Mark Onboarding Complete</button>
+            </div>
+          </article>
+
+          <article class="card">
+            <h3>Guard + Handoff</h3>
+            <label for="guard-mode">Guard Mode</label>
+            <select id="guard-mode">
+              <option value="observe">observe</option>
+              <option value="approval" selected>approval</option>
+              <option value="auto_safe">auto_safe</option>
+            </select>
+            <div class="row">
+              <button id="apply-guard" type="button">Apply Guard Mode</button>
+            </div>
+
+            <label for="handoff-template">Handoff Template</label>
+            <select id="handoff-template">
+              <option value="simple">simple</option>
+              <option value="agency" selected>agency</option>
+              <option value="enterprise">enterprise</option>
+            </select>
+
+            <label for="handoff-outdir">Handoff Output Directory</label>
+            <input id="handoff-outdir" type="text" placeholder="./reports/handoff-default" />
+
+            <div class="row">
+              <button id="generate-handoff" type="button">Generate Handoff Pack</button>
+            </div>
+          </article>
+        </div>
+
+        <article class="card">
+          <h3>Readiness Snapshot</h3>
+          <div id="launchpad-readiness" class="stack-list">Loading readiness snapshot...</div>
+        </article>
+
+        <article class="card">
+          <h3>Action Output</h3>
+          <pre id="launchpad-output" class="mono-block">Run launchpad actions to see structured output here.</pre>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
+

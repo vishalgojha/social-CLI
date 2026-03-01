@@ -10,16 +10,16 @@ social gateway
 
 `social gateway` runs a local HTTP server that provides:
 
-- a bundled Social Studio UI at `/`
-- a safe API gateway for chat operations
+- API routes for chat/agent, ops workflows, and SDK actions
 - a WebSocket stream for live events
+- secure frontend connectivity via gateway key + CORS controls
 
 Supported workflow categories:
 
 - Marketing/content operations (posts, campaigns, analytics)
 - Developer operations (auth status, token debug, webhook subscription checks)
 
-For remote hosting (Railway + external frontend), run gateway with a real API key and explicit CORS origins.
+Bundled Studio UI is disabled on `/` in current builds. Use an external frontend and connect to `/api/*` + `/ws`.
 
 ## Endpoints
 
@@ -94,7 +94,22 @@ Frontend requirements:
 - Use `wss://<gateway-domain>/ws?gatewayKey=<SOCIAL_GATEWAY_API_KEY>` for WebSocket auth.
 - Health route (`/api/health`) remains public for platform probes.
 
+## External Starter Screens
+
+An external starter UI (multi-screen, agentic flow) is available at:
+
+- `docs/agentic-frontend/`
+
+It includes:
+
+- Command Deck
+- Agent Copilot
+- Approvals Center
+- Ads Diagnosis
+- Ops Launchpad
+
 ## Files
 
-- `commands/gateway.js`
-- `lib/gateway/server.js`
+- `src-runtime/commands/gateway.ts`
+- `lib/gateway/server.ts`
+

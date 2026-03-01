@@ -118,10 +118,17 @@ If `social` is not recognized in your current terminal, open a new terminal and 
 - Deploy gateway on Railway (API/WebSocket routes)
 - Set `SOCIAL_GATEWAY_API_KEY` and `SOCIAL_GATEWAY_CORS_ORIGINS`
 - Connect your frontend with `x-gateway-key` header on REST and `?gatewayKey=` on `/ws`
+- Starter external screens are included in `docs/agentic-frontend/`
 - Optional launcher:
 
 ```bash
 social studio --url https://<railway-domain> --frontend-url https://<frontend-domain>
+```
+
+Local prototype preview:
+
+```bash
+py -m http.server 4173 --directory docs/agentic-frontend
 ```
 
 ## Command Surface
@@ -166,6 +173,7 @@ social marketing portfolio --targets-file ./agency-targets.json --include-missin
 - Hatch conversational UI: `docs/HATCH_UI.md`
 - Chat agent details: `docs/CHAT_AGENT.md`
 - Gateway API details: `docs/GATEWAY_UI.md`
+- Agentic frontend screens starter: `docs/agentic-frontend/README.md`
 - TypeScript SDK usage: `sdk/README.md`
 - Command-surface v2 simplification map: `docs/CLI_V2_MIGRATION.md`
 - Deployment runbook: `DEPLOYMENT.md`
@@ -222,3 +230,4 @@ Other options:
 ## License
 
 MIT - see `LICENSE`.
+
