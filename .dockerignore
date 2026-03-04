@@ -1,0 +1,11 @@
+node_modules
+dist-legacy
+dist-runtime
+dist-social
+.git
+.github
+.tmp
+.social-runtime
+logs
+reports
+*.log

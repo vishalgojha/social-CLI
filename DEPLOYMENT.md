@@ -51,11 +51,16 @@ Set these in Railway service variables before exposing frontend traffic:
 - `SOCIAL_GATEWAY_API_KEY`: long random secret used by `x-gateway-key`
 - `SOCIAL_GATEWAY_REQUIRE_API_KEY=true`
 - `SOCIAL_GATEWAY_CORS_ORIGINS=https://<your-frontend-domain>`
+- `SOCIAL_HOSTED_MASTER_KEY`: encryption secret for BYOK key vault (AES-256-GCM)
+- `SOCIAL_HOSTED_BOOTSTRAP_API_KEY`: first user `x-api-key` for hosted routes
+- `SOCIAL_HOSTED_BOOTSTRAP_USER_ID`: bootstrap user id (example: `default`)
 
 Optional hardening:
 
 - `SOCIAL_GATEWAY_RATE_MAX=180`
 - `SOCIAL_GATEWAY_RATE_WINDOW_MS=60000`
+- `SOCIAL_HOSTED_RECIPES_DIR=/data/recipes`
+- `SOCIAL_HOSTED_TRIGGERS_DIR=/data/triggers`
 
 ## Frontend Integration (Remote)
 
@@ -70,6 +75,19 @@ From CLI, you can open your external frontend directly:
 ```bash
 social studio --url https://<railway-service-domain> --frontend-url https://<frontend-domain>
 ```
+
+## Docker (Self-Hosted)
+
+Build and run with compose:
+
+```bash
+docker compose -f docker-compose.hosted.yml up -d --build
+```
+
+Hosted REST routes require both:
+
+- `x-gateway-key` (gateway-level access, if required)
+- `x-api-key` (per-user hosted access)
 
 ## Rollback (One Command)
 

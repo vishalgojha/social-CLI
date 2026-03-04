@@ -66,6 +66,18 @@ POST /api/sdk/actions/plan
 POST /api/sdk/actions/execute
 ```
 
+Hosted multi-agent + BYOK layer (additive):
+
+```text
+POST /api/orchestrate
+POST /api/keys
+GET  /api/keys
+GET  /api/agents
+GET  /api/tools
+GET  /api/recipes
+GET  /api/triggers
+```
+
 ## Common Operator Commands
 
 ```bash
@@ -82,6 +94,7 @@ social ops alerts list --workspace default --open
 - [Quickstart](QUICKSTART.md)
 - [Examples](EXAMPLES.md)
 - [Gateway UI/API](docs/GATEWAY_UI.md)
+- [Hosted Platform](docs/HOSTED_PLATFORM.md)
 - [Hatch UI](docs/HATCH_UI.md)
 - [Chat Agent](docs/CHAT_AGENT.md)
 - [AI Interface](docs/AI_INTERFACE.md)
@@ -99,4 +112,7 @@ High-risk actions should be reviewed before execution.
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+Open-core licensing:
+
+- MIT for default OSS scope - see [LICENSE](LICENSE)
+- Commercial license for explicitly marked commercial files/directories - see [LICENSING](LICENSING.md) and [LICENSE-COMMERCIAL](LICENSE-COMMERCIAL.md)

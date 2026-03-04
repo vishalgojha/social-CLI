@@ -3,6 +3,7 @@ const REFRESH_INTERVAL_MS = 30000;
 const DEFAULT_CONFIG = {
   baseUrl: `${window.location.protocol}//${window.location.host}`,
   apiKey: "",
+  userApiKey: "",
   workspace: "default",
   operatorId: "",
   operatorName: ""
@@ -28,6 +29,7 @@ const nodes = {
 
   cfgBaseUrl: $("cfg-base-url"),
   cfgApiKey: $("cfg-api-key"),
+  cfgUserApiKey: $("cfg-user-api-key"),
   cfgWorkspace: $("cfg-workspace"),
   cfgOperatorId: $("cfg-operator-id"),
   cfgOperatorName: $("cfg-operator-name"),
@@ -83,7 +85,84 @@ const nodes = {
   handoffOutdir: $("handoff-outdir"),
   generateHandoff: $("generate-handoff"),
   launchpadReadiness: $("launchpad-readiness"),
-  launchpadOutput: $("launchpad-output")
+  launchpadOutput: $("launchpad-output"),
+
+  keyService: $("key-service"),
+  keyLabel: $("key-label"),
+  keySecret: $("key-secret"),
+  keySave: $("key-save"),
+  keyReload: $("key-reload"),
+  keysList: $("keys-list"),
+
+  agentSlug: $("agent-slug"),
+  agentName: $("agent-name"),
+  agentDesc: $("agent-desc"),
+  agentToolsInput: $("agent-tools-input"),
+  agentSave: $("agent-save"),
+  agentReload: $("agent-reload"),
+  agentsList: $("agents-list"),
+
+  toolsReload: $("tools-reload"),
+  toolsList: $("tools-list"),
+
+  recipeSlug: $("recipe-slug"),
+  recipeFormat: $("recipe-format"),
+  recipeContent: $("recipe-content"),
+  recipeSave: $("recipe-save"),
+  recipeReload: $("recipe-reload"),
+  recipeRunSlug: $("recipe-run-slug"),
+  recipeRun: $("recipe-run"),
+  recipesList: $("recipes-list"),
+  recipesOutput: $("recipes-output"),
+
+  triggerName: $("trigger-name"),
+  triggerType: $("trigger-type"),
+  triggerRecipe: $("trigger-recipe"),
+  triggerSchedule: $("trigger-schedule"),
+  triggerEvent: $("trigger-event"),
+  triggerSave: $("trigger-save"),
+  triggerReload: $("trigger-reload"),
+  triggersList: $("triggers-list"),
+
+  webchatWidgetLabel: $("webchat-widget-label"),
+  webchatWidgetCreate: $("webchat-widget-create"),
+  webchatWidgetReload: $("webchat-widget-reload"),
+  webchatWidgetList: $("webchat-widget-list"),
+  webchatPublicWidgetKey: $("webchat-public-widget-key"),
+  webchatPublicVisitor: $("webchat-public-visitor"),
+  webchatPublicStart: $("webchat-public-start"),
+  webchatPublicToken: $("webchat-public-token"),
+  webchatPublicMessage: $("webchat-public-message"),
+  webchatPublicSend: $("webchat-public-send"),
+  webchatPublicOutput: $("webchat-public-output"),
+  webchatSessionsReload: $("webchat-sessions-reload"),
+  webchatSessionsList: $("webchat-sessions-list"),
+  webchatSessionId: $("webchat-session-id"),
+  webchatSessionMessage: $("webchat-session-message"),
+  webchatSessionReply: $("webchat-session-reply"),
+  webchatSessionOpen: $("webchat-session-open"),
+  webchatSessionClose: $("webchat-session-close"),
+  webchatSessionMessagesReload: $("webchat-session-messages-reload"),
+  webchatSessionMessages: $("webchat-session-messages"),
+
+  baileysLabel: $("baileys-label"),
+  baileysPhone: $("baileys-phone"),
+  baileysCreate: $("baileys-create"),
+  baileysReload: $("baileys-reload"),
+  baileysSessionsList: $("baileys-sessions-list"),
+  baileysSessionId: $("baileys-session-id"),
+  baileysConnect: $("baileys-connect"),
+  baileysDisconnect: $("baileys-disconnect"),
+  baileysDelete: $("baileys-delete"),
+  baileysTo: $("baileys-to"),
+  baileysMessage: $("baileys-message"),
+  baileysSend: $("baileys-send"),
+  baileysMessagesReload: $("baileys-messages-reload"),
+  baileysOutput: $("baileys-output"),
+
+  logsLimit: $("logs-limit"),
+  logsReload: $("logs-reload"),
+  logsOutput: $("logs-output")
 };
 
 function normalizeBaseUrl(raw) {
@@ -122,6 +201,7 @@ function saveConfig() {
 function pullConfigFromInputs() {
   state.config.baseUrl = normalizeBaseUrl(nodes.cfgBaseUrl.value);
   state.config.apiKey = String(nodes.cfgApiKey.value || "").trim();
+  state.config.userApiKey = String(nodes.cfgUserApiKey.value || "").trim();
   state.config.workspace = String(nodes.cfgWorkspace.value || "default").trim() || "default";
   state.config.operatorId = String(nodes.cfgOperatorId.value || "").trim();
   state.config.operatorName = String(nodes.cfgOperatorName.value || "").trim();
@@ -130,6 +210,7 @@ function pullConfigFromInputs() {
 function pushConfigToInputs() {
   nodes.cfgBaseUrl.value = state.config.baseUrl;
   nodes.cfgApiKey.value = state.config.apiKey;
+  nodes.cfgUserApiKey.value = state.config.userApiKey || "";
   nodes.cfgWorkspace.value = state.config.workspace;
   nodes.cfgOperatorId.value = state.config.operatorId;
   nodes.cfgOperatorName.value = state.config.operatorName;
@@ -182,6 +263,7 @@ async function requestApi(pathname, { method = "GET", body = null } = {}) {
   const url = new URL(pathname, state.config.baseUrl);
   const headers = {};
   if (state.config.apiKey) headers["x-gateway-key"] = state.config.apiKey;
+  if (state.config.userApiKey) headers["x-api-key"] = state.config.userApiKey;
   if (body !== null) headers["Content-Type"] = "application/json";
   const res = await fetch(url.toString(), {
     method,
@@ -760,11 +842,681 @@ async function generateHandoffPack() {
   }
 }
 
+function renderStackList(container, items, emptyMessage, renderItem) {
+  container.innerHTML = "";
+  if (!Array.isArray(items) || items.length === 0) {
+    container.textContent = emptyMessage;
+    return;
+  }
+  items.forEach((item) => container.appendChild(renderItem(item)));
+}
+
+function makeHostedCard({ title, meta = "", body = "" }) {
+  const card = document.createElement("div");
+  card.className = "stack-card";
+  card.innerHTML = `<strong>${escapeHtml(title)}</strong><div class="stack-meta">${escapeHtml(meta)}</div><p>${escapeHtml(body)}</p>`;
+  return card;
+}
+
+async function loadHostedKeys() {
+  try {
+    const out = await requestApi("/api/keys");
+    const keys = Array.isArray(out?.keys) ? out.keys : [];
+    renderStackList(nodes.keysList, keys, "No keys saved for this user.", (row) => {
+      const card = makeHostedCard({
+        title: `${row.service || "service"} (${row.keyMask || ""})`,
+        meta: `id: ${row.id || "-"}${row.label ? ` | ${row.label}` : ""}`,
+        body: `updated: ${row.updatedAt || "unknown"}`
+      });
+      const actionRow = document.createElement("div");
+      actionRow.className = "row";
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "secondary";
+      del.textContent = "Delete";
+      del.addEventListener("click", () => deleteHostedKey(row.id));
+      actionRow.appendChild(del);
+      card.appendChild(actionRow);
+      return card;
+    });
+  } catch (error) {
+    nodes.keysList.textContent = `Unable to load keys: ${errorText(error)}`;
+  }
+}
+
+async function saveHostedKey() {
+  const service = String(nodes.keyService.value || "").trim();
+  const label = String(nodes.keyLabel.value || "").trim();
+  const key = String(nodes.keySecret.value || "").trim();
+  if (!service || !key) {
+    toast("Service and key are required.", "err");
+    return;
+  }
+  try {
+    await requestApi("/api/keys", {
+      method: "POST",
+      body: { service, label, key }
+    });
+    nodes.keySecret.value = "";
+    toast("Key saved.", "ok");
+    await loadHostedKeys();
+  } catch (error) {
+    toast(errorText(error, "Failed to save key"), "err");
+  }
+}
+
+async function deleteHostedKey(id) {
+  try {
+    await requestApi(`/api/keys/${encodeURIComponent(id)}`, { method: "DELETE" });
+    toast("Key deleted.", "ok");
+    await loadHostedKeys();
+  } catch (error) {
+    toast(errorText(error, "Failed to delete key"), "err");
+  }
+}
+
+async function loadHostedAgents() {
+  try {
+    const out = await requestApi("/api/agents");
+    const agents = Array.isArray(out?.agents) ? out.agents : [];
+    renderStackList(nodes.agentsList, agents, "No agents available.", (row) => {
+      const tools = Array.isArray(row.tools) ? row.tools.join(", ") : "";
+      const card = makeHostedCard({
+        title: `${row.slug || "-"}${row.source ? ` [${row.source}]` : ""}`,
+        meta: row.name || "",
+        body: tools || "No tools"
+      });
+      if (row.source === "user") {
+        const actionRow = document.createElement("div");
+        actionRow.className = "row";
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "secondary";
+        del.textContent = "Delete";
+        del.addEventListener("click", () => deleteHostedAgent(row.slug));
+        actionRow.appendChild(del);
+        card.appendChild(actionRow);
+      }
+      return card;
+    });
+  } catch (error) {
+    nodes.agentsList.textContent = `Unable to load agents: ${errorText(error)}`;
+  }
+}
+
+async function saveHostedAgent() {
+  const slug = String(nodes.agentSlug.value || "").trim();
+  const name = String(nodes.agentName.value || "").trim();
+  const description = String(nodes.agentDesc.value || "").trim();
+  const tools = String(nodes.agentToolsInput.value || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (!slug || !tools.length) {
+    toast("Agent slug and at least one tool are required.", "err");
+    return;
+  }
+  try {
+    await requestApi("/api/agents", {
+      method: "POST",
+      body: { slug, name, description, tools }
+    });
+    toast("Agent saved.", "ok");
+    await loadHostedAgents();
+  } catch (error) {
+    toast(errorText(error, "Failed to save agent"), "err");
+  }
+}
+
+async function deleteHostedAgent(slug) {
+  try {
+    await requestApi(`/api/agents/${encodeURIComponent(slug)}`, { method: "DELETE" });
+    toast("Agent deleted.", "ok");
+    await loadHostedAgents();
+  } catch (error) {
+    toast(errorText(error, "Failed to delete agent"), "err");
+  }
+}
+
+async function loadHostedTools() {
+  try {
+    const out = await requestApi("/api/tools");
+    const tools = Array.isArray(out?.tools) ? out.tools : [];
+    renderStackList(nodes.toolsList, tools, "No tools found.", (row) => makeHostedCard({
+      title: row.key || "-",
+      meta: row.service || "",
+      body: row.description || ""
+    }));
+  } catch (error) {
+    nodes.toolsList.textContent = `Unable to load tools: ${errorText(error)}`;
+  }
+}
+
+async function loadHostedRecipes() {
+  try {
+    const out = await requestApi("/api/recipes");
+    const recipes = Array.isArray(out?.recipes) ? out.recipes : [];
+    renderStackList(nodes.recipesList, recipes, "No recipes stored.", (row) => {
+      const card = makeHostedCard({
+        title: row.slug || "-",
+        meta: `${row.mode || "sequential"} | ${row.format || "json"}`,
+        body: row.description || `${Array.isArray(row.steps) ? row.steps.length : 0} step(s)`
+      });
+      const actionRow = document.createElement("div");
+      actionRow.className = "row";
+      const run = document.createElement("button");
+      run.type = "button";
+      run.textContent = "Run";
+      run.addEventListener("click", () => {
+        nodes.recipeRunSlug.value = row.slug || "";
+        runHostedRecipe();
+      });
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "secondary";
+      del.textContent = "Delete";
+      del.addEventListener("click", () => deleteHostedRecipe(row.slug));
+      actionRow.appendChild(run);
+      actionRow.appendChild(del);
+      card.appendChild(actionRow);
+      return card;
+    });
+  } catch (error) {
+    nodes.recipesList.textContent = `Unable to load recipes: ${errorText(error)}`;
+  }
+}
+
+async function saveHostedRecipe() {
+  const slug = String(nodes.recipeSlug.value || "").trim();
+  const format = String(nodes.recipeFormat.value || "json").trim();
+  const content = String(nodes.recipeContent.value || "").trim();
+  if (!slug || !content) {
+    toast("Recipe slug and content are required.", "err");
+    return;
+  }
+  try {
+    await requestApi("/api/recipes", {
+      method: "POST",
+      body: { slug, format, content }
+    });
+    toast("Recipe saved.", "ok");
+    await loadHostedRecipes();
+  } catch (error) {
+    toast(errorText(error, "Failed to save recipe"), "err");
+  }
+}
+
+async function runHostedRecipe() {
+  const slug = String(nodes.recipeRunSlug.value || "").trim();
+  if (!slug) {
+    toast("Recipe slug is required to run.", "err");
+    return;
+  }
+  nodes.recipesOutput.textContent = `Running recipe ${slug}...`;
+  try {
+    const out = await requestApi(`/api/recipes/${encodeURIComponent(slug)}/run`, {
+      method: "POST",
+      body: { input: {} }
+    });
+    nodes.recipesOutput.textContent = pretty(out);
+    toast("Recipe executed.", "ok");
+    await Promise.all([loadHostedRecipes(), loadHostedLogs()]);
+  } catch (error) {
+    nodes.recipesOutput.textContent = `Error: ${errorText(error)}`;
+    toast(errorText(error, "Recipe run failed"), "err");
+  }
+}
+
+async function deleteHostedRecipe(slug) {
+  try {
+    await requestApi(`/api/recipes/${encodeURIComponent(slug)}`, { method: "DELETE" });
+    toast("Recipe deleted.", "ok");
+    await loadHostedRecipes();
+  } catch (error) {
+    toast(errorText(error, "Failed to delete recipe"), "err");
+  }
+}
+
+async function loadHostedTriggers() {
+  try {
+    const out = await requestApi("/api/triggers");
+    const triggers = Array.isArray(out?.triggers) ? out.triggers : [];
+    renderStackList(nodes.triggersList, triggers, "No triggers created.", (row) => {
+      const descriptor = row.type === "cron"
+        ? row.schedule || ""
+        : row.type === "event"
+          ? row.event_name || ""
+          : (row.webhook_path || "");
+      const card = makeHostedCard({
+        title: row.name || row.id || "-",
+        meta: `${row.type || "trigger"} -> ${row.recipe_slug || ""}`,
+        body: descriptor
+      });
+      const actionRow = document.createElement("div");
+      actionRow.className = "row";
+      const run = document.createElement("button");
+      run.type = "button";
+      run.textContent = "Run";
+      run.addEventListener("click", () => runHostedTrigger(row.id));
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "secondary";
+      del.textContent = "Delete";
+      del.addEventListener("click", () => deleteHostedTrigger(row.id));
+      actionRow.appendChild(run);
+      actionRow.appendChild(del);
+      card.appendChild(actionRow);
+      return card;
+    });
+  } catch (error) {
+    nodes.triggersList.textContent = `Unable to load triggers: ${errorText(error)}`;
+  }
+}
+
+async function saveHostedTrigger() {
+  const name = String(nodes.triggerName.value || "").trim();
+  const type = String(nodes.triggerType.value || "cron").trim();
+  const recipe_slug = String(nodes.triggerRecipe.value || "").trim();
+  const schedule = String(nodes.triggerSchedule.value || "").trim();
+  const event_name = String(nodes.triggerEvent.value || "").trim();
+
+  if (!recipe_slug) {
+    toast("Recipe slug is required for triggers.", "err");
+    return;
+  }
+
+  const body = { name, type, recipe_slug };
+  if (type === "cron" && schedule) body.schedule = schedule;
+  if (type === "event" && event_name) body.event_name = event_name;
+
+  try {
+    await requestApi("/api/triggers", { method: "POST", body });
+    toast("Trigger created.", "ok");
+    await loadHostedTriggers();
+  } catch (error) {
+    toast(errorText(error, "Failed to create trigger"), "err");
+  }
+}
+
+async function runHostedTrigger(id) {
+  try {
+    const out = await requestApi(`/api/triggers/${encodeURIComponent(id)}/run`, {
+      method: "POST",
+      body: {}
+    });
+    nodes.recipesOutput.textContent = pretty(out);
+    toast("Trigger fired.", "ok");
+    await Promise.all([loadHostedTriggers(), loadHostedLogs()]);
+  } catch (error) {
+    toast(errorText(error, "Trigger run failed"), "err");
+  }
+}
+
+async function deleteHostedTrigger(id) {
+  try {
+    await requestApi(`/api/triggers/${encodeURIComponent(id)}`, { method: "DELETE" });
+    toast("Trigger deleted.", "ok");
+    await loadHostedTriggers();
+  } catch (error) {
+    toast(errorText(error, "Failed to delete trigger"), "err");
+  }
+}
+
+async function loadHostedLogs() {
+  try {
+    const limit = Math.max(1, Number(nodes.logsLimit.value || 120) || 120);
+    const out = await requestApi(`/api/logs?limit=${encodeURIComponent(limit)}`);
+    nodes.logsOutput.textContent = pretty(out.logs || []);
+  } catch (error) {
+    nodes.logsOutput.textContent = `Unable to load logs: ${errorText(error)}`;
+  }
+}
+
+async function loadWebchatWidgetKeys() {
+  try {
+    const out = await requestApi("/api/channels/webchat/widget-keys");
+    const keys = Array.isArray(out?.keys) ? out.keys : [];
+    renderStackList(nodes.webchatWidgetList, keys, "No widget keys yet.", (row) => {
+      const card = makeHostedCard({
+        title: row.label || row.id || "widget-key",
+        meta: `${row.keyMask || ""} | ${row.status || "active"}`,
+        body: `id: ${row.id || "-"}`
+      });
+      const actionRow = document.createElement("div");
+      actionRow.className = "row";
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "secondary";
+      delBtn.textContent = "Delete";
+      delBtn.addEventListener("click", () => deleteWebchatWidgetKey(row.id));
+      actionRow.appendChild(delBtn);
+      card.appendChild(actionRow);
+      return card;
+    });
+  } catch (error) {
+    nodes.webchatWidgetList.textContent = `Unable to load widget keys: ${errorText(error)}`;
+  }
+}
+
+async function createWebchatWidgetKey() {
+  const label = String(nodes.webchatWidgetLabel.value || "").trim();
+  try {
+    const out = await requestApi("/api/channels/webchat/widget-keys", {
+      method: "POST",
+      body: { label }
+    });
+    const secret = String(out?.key?.key || "");
+    if (secret) {
+      nodes.webchatPublicWidgetKey.value = secret;
+      nodes.webchatPublicOutput.textContent = `New widget key (save now): ${secret}`;
+    }
+    nodes.webchatWidgetLabel.value = "";
+    toast("Widget key created.", "ok");
+    await loadWebchatWidgetKeys();
+  } catch (error) {
+    toast(errorText(error, "Failed to create widget key"), "err");
+  }
+}
+
+async function deleteWebchatWidgetKey(id) {
+  try {
+    await requestApi(`/api/channels/webchat/widget-keys/${encodeURIComponent(id)}`, { method: "DELETE" });
+    toast("Widget key deleted.", "ok");
+    await loadWebchatWidgetKeys();
+  } catch (error) {
+    toast(errorText(error, "Failed to delete widget key"), "err");
+  }
+}
+
+async function startPublicWebchatSession() {
+  const widgetKey = String(nodes.webchatPublicWidgetKey.value || "").trim();
+  const visitorId = String(nodes.webchatPublicVisitor.value || "").trim();
+  if (!widgetKey) {
+    toast("Widget key is required.", "err");
+    return;
+  }
+  nodes.webchatPublicOutput.textContent = "Starting public session...";
+  try {
+    const out = await requestApi("/api/webchat/public/session/start", {
+      method: "POST",
+      body: { widgetKey, visitorId, metadata: { source: "agentic-ui" } }
+    });
+    nodes.webchatPublicToken.value = String(out.sessionToken || "");
+    nodes.webchatSessionId.value = String(out?.session?.id || "");
+    nodes.webchatPublicOutput.textContent = pretty(out);
+    toast("Public webchat session started.", "ok");
+    await loadWebchatSessions();
+  } catch (error) {
+    nodes.webchatPublicOutput.textContent = `Error: ${errorText(error)}`;
+    toast(errorText(error, "Failed to start public session"), "err");
+  }
+}
+
+async function sendPublicWebchatMessage() {
+  const sessionToken = String(nodes.webchatPublicToken.value || "").trim();
+  const text = String(nodes.webchatPublicMessage.value || "").trim();
+  if (!sessionToken || !text) {
+    toast("Session token and message are required.", "err");
+    return;
+  }
+  try {
+    const out = await requestApi("/api/webchat/public/session/message", {
+      method: "POST",
+      body: {
+        sessionToken,
+        text,
+        metadata: { source: "agentic-ui-public" }
+      }
+    });
+    nodes.webchatPublicOutput.textContent = pretty(out);
+    nodes.webchatPublicMessage.value = "";
+    if (out?.session?.id) nodes.webchatSessionId.value = String(out.session.id);
+    toast("Public message sent.", "ok");
+    await Promise.all([loadWebchatSessions(), loadWebchatSessionMessages()]);
+  } catch (error) {
+    nodes.webchatPublicOutput.textContent = `Error: ${errorText(error)}`;
+    toast(errorText(error, "Failed to send public message"), "err");
+  }
+}
+
+async function loadWebchatSessions() {
+  try {
+    const out = await requestApi("/api/channels/webchat/sessions?limit=120");
+    const sessions = Array.isArray(out?.sessions) ? out.sessions : [];
+    renderStackList(nodes.webchatSessionsList, sessions, "No webchat sessions yet.", (row) => {
+      const card = makeHostedCard({
+        title: row.id || "session",
+        meta: `${row.status || "open"} | ${row.messageCount || 0} messages`,
+        body: row.lastMessagePreview || "No messages"
+      });
+      const actionRow = document.createElement("div");
+      actionRow.className = "row";
+      const selectBtn = document.createElement("button");
+      selectBtn.type = "button";
+      selectBtn.textContent = "Open";
+      selectBtn.addEventListener("click", () => {
+        nodes.webchatSessionId.value = String(row.id || "");
+        loadWebchatSessionMessages();
+      });
+      actionRow.appendChild(selectBtn);
+      card.appendChild(actionRow);
+      return card;
+    });
+  } catch (error) {
+    nodes.webchatSessionsList.textContent = `Unable to load webchat sessions: ${errorText(error)}`;
+  }
+}
+
+async function loadWebchatSessionMessages() {
+  const sessionId = String(nodes.webchatSessionId.value || "").trim();
+  if (!sessionId) {
+    nodes.webchatSessionMessages.textContent = "Select a webchat session to load messages.";
+    return;
+  }
+  nodes.webchatSessionMessages.textContent = "Loading messages...";
+  try {
+    const out = await requestApi(`/api/channels/webchat/sessions/${encodeURIComponent(sessionId)}/messages?limit=200`);
+    nodes.webchatSessionMessages.textContent = pretty(out.messages || []);
+  } catch (error) {
+    nodes.webchatSessionMessages.textContent = `Error: ${errorText(error)}`;
+  }
+}
+
+async function replyWebchatSession() {
+  const sessionId = String(nodes.webchatSessionId.value || "").trim();
+  const text = String(nodes.webchatSessionMessage.value || "").trim();
+  if (!sessionId || !text) {
+    toast("Session ID and reply text are required.", "err");
+    return;
+  }
+  try {
+    await requestApi(`/api/channels/webchat/sessions/${encodeURIComponent(sessionId)}/reply`, {
+      method: "POST",
+      body: { text, metadata: { source: "agentic-ui-operator" } }
+    });
+    nodes.webchatSessionMessage.value = "";
+    toast("Reply sent.", "ok");
+    await Promise.all([loadWebchatSessions(), loadWebchatSessionMessages(), loadHostedLogs()]);
+  } catch (error) {
+    toast(errorText(error, "Reply failed"), "err");
+  }
+}
+
+async function setWebchatSessionStatus(status) {
+  const sessionId = String(nodes.webchatSessionId.value || "").trim();
+  if (!sessionId) {
+    toast("Session ID is required.", "err");
+    return;
+  }
+  try {
+    await requestApi(`/api/channels/webchat/sessions/${encodeURIComponent(sessionId)}/status`, {
+      method: "POST",
+      body: { status }
+    });
+    toast(`Session marked ${status}.`, "ok");
+    await Promise.all([loadWebchatSessions(), loadWebchatSessionMessages()]);
+  } catch (error) {
+    toast(errorText(error, "Failed to update session status"), "err");
+  }
+}
+
+async function loadBaileysSessions() {
+  try {
+    const out = await requestApi("/api/channels/baileys/sessions?limit=120");
+    const sessions = Array.isArray(out?.sessions) ? out.sessions : [];
+    renderStackList(nodes.baileysSessionsList, sessions, "No Baileys sessions yet.", (row) => {
+      const card = makeHostedCard({
+        title: row.label || row.id || "baileys-session",
+        meta: `${row.status || "idle"}${row.phone ? ` | ${row.phone}` : ""}`,
+        body: row.lastError || row.lastMessagePreview || "Ready"
+      });
+      const actionRow = document.createElement("div");
+      actionRow.className = "row";
+      const selectBtn = document.createElement("button");
+      selectBtn.type = "button";
+      selectBtn.textContent = "Select";
+      selectBtn.addEventListener("click", () => {
+        nodes.baileysSessionId.value = String(row.id || "");
+        loadBaileysMessages();
+      });
+      actionRow.appendChild(selectBtn);
+      card.appendChild(actionRow);
+      return card;
+    });
+  } catch (error) {
+    nodes.baileysSessionsList.textContent = `Unable to load Baileys sessions: ${errorText(error)}`;
+  }
+}
+
+async function createBaileysSession() {
+  const label = String(nodes.baileysLabel.value || "").trim();
+  const phone = String(nodes.baileysPhone.value || "").trim();
+  try {
+    const out = await requestApi("/api/channels/baileys/sessions", {
+      method: "POST",
+      body: { label, phone, metadata: { source: "agentic-ui" } }
+    });
+    nodes.baileysSessionId.value = String(out?.session?.id || "");
+    nodes.baileysOutput.textContent = pretty(out);
+    nodes.baileysLabel.value = "";
+    toast("Baileys session created.", "ok");
+    await loadBaileysSessions();
+  } catch (error) {
+    toast(errorText(error, "Failed to create Baileys session"), "err");
+  }
+}
+
+async function connectBaileysSession() {
+  const sessionId = String(nodes.baileysSessionId.value || "").trim();
+  if (!sessionId) {
+    toast("Baileys session ID is required.", "err");
+    return;
+  }
+  nodes.baileysOutput.textContent = "Connecting session...";
+  try {
+    const out = await requestApi(`/api/channels/baileys/sessions/${encodeURIComponent(sessionId)}/connect`, {
+      method: "POST",
+      body: {}
+    });
+    nodes.baileysOutput.textContent = pretty(out);
+    toast("Baileys connect started.", "ok");
+  } catch (error) {
+    nodes.baileysOutput.textContent = `Error: ${errorText(error)}`;
+    toast(errorText(error, "Baileys connect failed"), "err");
+  } finally {
+    await loadBaileysSessions();
+  }
+}
+
+async function disconnectBaileysSession() {
+  const sessionId = String(nodes.baileysSessionId.value || "").trim();
+  if (!sessionId) {
+    toast("Baileys session ID is required.", "err");
+    return;
+  }
+  try {
+    const out = await requestApi(`/api/channels/baileys/sessions/${encodeURIComponent(sessionId)}/disconnect`, {
+      method: "POST",
+      body: {}
+    });
+    nodes.baileysOutput.textContent = pretty(out);
+    toast("Baileys session disconnected.", "ok");
+    await loadBaileysSessions();
+  } catch (error) {
+    toast(errorText(error, "Baileys disconnect failed"), "err");
+  }
+}
+
+async function deleteBaileysSession() {
+  const sessionId = String(nodes.baileysSessionId.value || "").trim();
+  if (!sessionId) {
+    toast("Baileys session ID is required.", "err");
+    return;
+  }
+  try {
+    await requestApi(`/api/channels/baileys/sessions/${encodeURIComponent(sessionId)}`, {
+      method: "DELETE"
+    });
+    nodes.baileysSessionId.value = "";
+    nodes.baileysOutput.textContent = "Session deleted.";
+    toast("Baileys session deleted.", "ok");
+    await loadBaileysSessions();
+  } catch (error) {
+    toast(errorText(error, "Failed to delete Baileys session"), "err");
+  }
+}
+
+async function sendBaileysMessage() {
+  const sessionId = String(nodes.baileysSessionId.value || "").trim();
+  const to = String(nodes.baileysTo.value || "").trim();
+  const text = String(nodes.baileysMessage.value || "").trim();
+  if (!sessionId || !text) {
+    toast("Session ID and message are required.", "err");
+    return;
+  }
+  try {
+    const out = await requestApi(`/api/channels/baileys/sessions/${encodeURIComponent(sessionId)}/send`, {
+      method: "POST",
+      body: { to, text, metadata: { source: "agentic-ui" } }
+    });
+    nodes.baileysOutput.textContent = pretty(out);
+    nodes.baileysMessage.value = "";
+    toast("Baileys message sent.", "ok");
+    await Promise.all([loadBaileysSessions(), loadBaileysMessages(), loadHostedLogs()]);
+  } catch (error) {
+    nodes.baileysOutput.textContent = `Error: ${errorText(error)}`;
+    toast(errorText(error, "Failed to send Baileys message"), "err");
+  }
+}
+
+async function loadBaileysMessages() {
+  const sessionId = String(nodes.baileysSessionId.value || "").trim();
+  if (!sessionId) {
+    nodes.baileysOutput.textContent = "Select a Baileys session to load messages.";
+    return;
+  }
+  try {
+    const out = await requestApi(`/api/channels/baileys/sessions/${encodeURIComponent(sessionId)}/messages?limit=200`);
+    nodes.baileysOutput.textContent = pretty(out.messages || []);
+  } catch (error) {
+    nodes.baileysOutput.textContent = `Error: ${errorText(error)}`;
+  }
+}
+
 async function refreshAll() {
   await Promise.all([
     refreshCommandDeck().catch((error) => toast(errorText(error, "Failed to refresh command deck"), "err")),
     loadQueues().catch(() => {}),
-    refreshLaunchpadReadiness().catch(() => {})
+    refreshLaunchpadReadiness().catch(() => {}),
+    loadHostedKeys().catch(() => {}),
+    loadHostedAgents().catch(() => {}),
+    loadHostedTools().catch(() => {}),
+    loadHostedRecipes().catch(() => {}),
+    loadHostedTriggers().catch(() => {}),
+    loadHostedLogs().catch(() => {}),
+    loadWebchatWidgetKeys().catch(() => {}),
+    loadWebchatSessions().catch(() => {}),
+    loadBaileysSessions().catch(() => {})
   ]);
 }
 
@@ -865,6 +1617,41 @@ function bindEvents() {
   nodes.markOnboarding.addEventListener("click", () => markOnboardingComplete());
   nodes.applyGuard.addEventListener("click", () => applyGuardMode());
   nodes.generateHandoff.addEventListener("click", () => generateHandoffPack());
+
+  nodes.keySave.addEventListener("click", () => saveHostedKey());
+  nodes.keyReload.addEventListener("click", () => loadHostedKeys());
+
+  nodes.agentSave.addEventListener("click", () => saveHostedAgent());
+  nodes.agentReload.addEventListener("click", () => loadHostedAgents());
+
+  nodes.toolsReload.addEventListener("click", () => loadHostedTools());
+
+  nodes.recipeSave.addEventListener("click", () => saveHostedRecipe());
+  nodes.recipeReload.addEventListener("click", () => loadHostedRecipes());
+  nodes.recipeRun.addEventListener("click", () => runHostedRecipe());
+
+  nodes.triggerSave.addEventListener("click", () => saveHostedTrigger());
+  nodes.triggerReload.addEventListener("click", () => loadHostedTriggers());
+
+  nodes.webchatWidgetCreate.addEventListener("click", () => createWebchatWidgetKey());
+  nodes.webchatWidgetReload.addEventListener("click", () => loadWebchatWidgetKeys());
+  nodes.webchatPublicStart.addEventListener("click", () => startPublicWebchatSession());
+  nodes.webchatPublicSend.addEventListener("click", () => sendPublicWebchatMessage());
+  nodes.webchatSessionsReload.addEventListener("click", () => loadWebchatSessions());
+  nodes.webchatSessionReply.addEventListener("click", () => replyWebchatSession());
+  nodes.webchatSessionOpen.addEventListener("click", () => setWebchatSessionStatus("open"));
+  nodes.webchatSessionClose.addEventListener("click", () => setWebchatSessionStatus("closed"));
+  nodes.webchatSessionMessagesReload.addEventListener("click", () => loadWebchatSessionMessages());
+
+  nodes.baileysCreate.addEventListener("click", () => createBaileysSession());
+  nodes.baileysReload.addEventListener("click", () => loadBaileysSessions());
+  nodes.baileysConnect.addEventListener("click", () => connectBaileysSession());
+  nodes.baileysDisconnect.addEventListener("click", () => disconnectBaileysSession());
+  nodes.baileysDelete.addEventListener("click", () => deleteBaileysSession());
+  nodes.baileysSend.addEventListener("click", () => sendBaileysMessage());
+  nodes.baileysMessagesReload.addEventListener("click", () => loadBaileysMessages());
+
+  nodes.logsReload.addEventListener("click", () => loadHostedLogs());
 }
 
 function startAutoRefresh() {

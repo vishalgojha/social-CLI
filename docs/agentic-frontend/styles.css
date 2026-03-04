@@ -547,6 +547,17 @@ button:disabled {
   border-left-color: rgba(204, 78, 75, 0.88);
 }
 
+#recipe-content {
+  min-height: 220px;
+  font-family: var(--font-mono);
+}
+
+#logs-output,
+#recipes-output {
+  max-height: 420px;
+  overflow: auto;
+}
+
 @keyframes rise {
   from {
     opacity: 0;

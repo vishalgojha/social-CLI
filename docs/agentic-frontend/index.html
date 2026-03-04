@@ -27,6 +27,14 @@
         <button type="button" class="screen-link" data-screen-target="approvals">Approvals Center</button>
         <button type="button" class="screen-link" data-screen-target="diagnose">Ads Diagnosis</button>
         <button type="button" class="screen-link" data-screen-target="launchpad">Ops Launchpad</button>
+        <button type="button" class="screen-link" data-screen-target="keys">Keys</button>
+        <button type="button" class="screen-link" data-screen-target="agents">Agents</button>
+        <button type="button" class="screen-link" data-screen-target="tools">Tools</button>
+        <button type="button" class="screen-link" data-screen-target="recipes">Recipes</button>
+        <button type="button" class="screen-link" data-screen-target="triggers">Triggers</button>
+        <button type="button" class="screen-link" data-screen-target="webchat">Webchat</button>
+        <button type="button" class="screen-link" data-screen-target="baileys">Baileys</button>
+        <button type="button" class="screen-link" data-screen-target="logs">Logs</button>
       </nav>
 
       <section class="card gateway-config">
@@ -36,6 +44,9 @@
 
         <label for="cfg-api-key">Gateway API Key</label>
         <input id="cfg-api-key" type="password" placeholder="x-gateway-key (if required)" />
+
+        <label for="cfg-user-api-key">User API Key</label>
+        <input id="cfg-user-api-key" type="password" placeholder="x-api-key for hosted routes" />
 
         <label for="cfg-workspace">Workspace</label>
         <input id="cfg-workspace" type="text" placeholder="default" />
@@ -318,6 +329,273 @@
         <article class="card">
           <h3>Action Output</h3>
           <pre id="launchpad-output" class="mono-block">Run launchpad actions to see structured output here.</pre>
+        </article>
+      </section>
+
+      <section id="screen-keys" class="screen" data-screen="keys">
+        <div class="screen-head">
+          <h2>BYOK Keys</h2>
+          <p class="muted">Store per-user encrypted provider keys. Values are masked on read.</p>
+        </div>
+
+        <article class="card">
+          <label for="key-service">Service</label>
+          <input id="key-service" type="text" placeholder="openai / openrouter / xai / meta_whatsapp" />
+          <label for="key-label">Label</label>
+          <input id="key-label" type="text" placeholder="primary-llm" />
+          <label for="key-secret">API Key / Token</label>
+          <input id="key-secret" type="password" placeholder="Paste key here" />
+          <div class="row">
+            <button id="key-save" type="button">Save Key</button>
+            <button id="key-reload" type="button" class="secondary">Reload</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Stored Keys</h3>
+          <div id="keys-list" class="stack-list">No keys loaded.</div>
+        </article>
+      </section>
+
+      <section id="screen-agents" class="screen" data-screen="agents">
+        <div class="screen-head">
+          <h2>Agents</h2>
+          <p class="muted">Built-in agents plus user-defined agents loaded from configuration.</p>
+        </div>
+
+        <article class="card">
+          <label for="agent-slug">Agent Slug</label>
+          <input id="agent-slug" type="text" placeholder="custom-ops" />
+          <label for="agent-name">Agent Name</label>
+          <input id="agent-name" type="text" placeholder="Custom Ops" />
+          <label for="agent-desc">Description</label>
+          <input id="agent-desc" type="text" placeholder="Runs status and log checks" />
+          <label for="agent-tools-input">Tool Keys (comma separated)</label>
+          <input id="agent-tools-input" type="text" placeholder="meta.status,gateway.logs" />
+          <div class="row">
+            <button id="agent-save" type="button">Save Agent</button>
+            <button id="agent-reload" type="button" class="secondary">Reload</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Agent Registry</h3>
+          <div id="agents-list" class="stack-list">No agents loaded.</div>
+        </article>
+      </section>
+
+      <section id="screen-tools" class="screen" data-screen="tools">
+        <div class="screen-head">
+          <h2>Tool Registry</h2>
+          <p class="muted">Typed callable tools with JSON Schema contracts.</p>
+        </div>
+
+        <article class="card">
+          <div class="row">
+            <button id="tools-reload" type="button">Reload Tools</button>
+          </div>
+          <div id="tools-list" class="stack-list">No tools loaded.</div>
+        </article>
+      </section>
+
+      <section id="screen-recipes" class="screen" data-screen="recipes">
+        <div class="screen-head">
+          <h2>Recipes</h2>
+          <p class="muted">JSON/YAML workflow files with step chaining via <code>$prev</code>.</p>
+        </div>
+
+        <article class="card">
+          <label for="recipe-slug">Recipe Slug</label>
+          <input id="recipe-slug" type="text" placeholder="daily-status" />
+          <label for="recipe-format">Format</label>
+          <select id="recipe-format">
+            <option value="json" selected>json</option>
+            <option value="yaml">yaml</option>
+          </select>
+          <label for="recipe-content">Recipe Content</label>
+          <textarea id="recipe-content" placeholder='{"slug":"daily-status","steps":[{"agent_slug":"ops-agent","action_key":"status","action_props":{}}]}'></textarea>
+          <div class="row">
+            <button id="recipe-save" type="button">Save Recipe</button>
+            <button id="recipe-reload" type="button" class="secondary">Reload</button>
+          </div>
+          <label for="recipe-run-slug">Run Recipe Slug</label>
+          <input id="recipe-run-slug" type="text" placeholder="daily-status" />
+          <div class="row">
+            <button id="recipe-run" type="button">Run Recipe</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Recipes</h3>
+          <div id="recipes-list" class="stack-list">No recipes loaded.</div>
+        </article>
+
+        <article class="card">
+          <h3>Recipe Output</h3>
+          <pre id="recipes-output" class="mono-block">Run a recipe to see output.</pre>
+        </article>
+      </section>
+
+      <section id="screen-triggers" class="screen" data-screen="triggers">
+        <div class="screen-head">
+          <h2>Triggers</h2>
+          <p class="muted">Cron, webhook, and event triggers mapped to saved recipes.</p>
+        </div>
+
+        <article class="card">
+          <label for="trigger-name">Trigger Name</label>
+          <input id="trigger-name" type="text" placeholder="daily-status-hook" />
+          <label for="trigger-type">Trigger Type</label>
+          <select id="trigger-type">
+            <option value="cron">cron</option>
+            <option value="webhook">webhook</option>
+            <option value="event">event</option>
+          </select>
+          <label for="trigger-recipe">Recipe Slug</label>
+          <input id="trigger-recipe" type="text" placeholder="daily-status" />
+          <label for="trigger-schedule">Cron Schedule (for cron)</label>
+          <input id="trigger-schedule" type="text" placeholder="*/15 * * * *" />
+          <label for="trigger-event">Event Name (for event)</label>
+          <input id="trigger-event" type="text" placeholder="orchestrate.completed" />
+          <div class="row">
+            <button id="trigger-save" type="button">Create Trigger</button>
+            <button id="trigger-reload" type="button" class="secondary">Reload</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Triggers</h3>
+          <div id="triggers-list" class="stack-list">No triggers loaded.</div>
+        </article>
+      </section>
+
+      <section id="screen-webchat" class="screen" data-screen="webchat">
+        <div class="screen-head">
+          <h2>Webchat Channel</h2>
+          <p class="muted">Manage widget keys, public sessions, and operator replies with persisted chat history.</p>
+        </div>
+
+        <div class="dual-grid">
+          <article class="card">
+            <h3>Widget Keys + Public Test</h3>
+            <label for="webchat-widget-label">Widget Key Label</label>
+            <input id="webchat-widget-label" type="text" placeholder="main-website" />
+            <div class="row">
+              <button id="webchat-widget-create" type="button">Create Widget Key</button>
+              <button id="webchat-widget-reload" type="button" class="secondary">Reload Keys</button>
+            </div>
+
+            <label for="webchat-public-widget-key">Widget Key (full secret)</label>
+            <input id="webchat-public-widget-key" type="text" placeholder="wk_xxxxx" />
+            <label for="webchat-public-visitor">Visitor ID (optional)</label>
+            <input id="webchat-public-visitor" type="text" placeholder="visitor_001" />
+            <div class="row">
+              <button id="webchat-public-start" type="button">Start Public Session</button>
+            </div>
+
+            <label for="webchat-public-token">Session Token</label>
+            <input id="webchat-public-token" type="text" placeholder="token from start response" />
+            <label for="webchat-public-message">Public Message</label>
+            <input id="webchat-public-message" type="text" placeholder="Hi, I need help with pricing." />
+            <div class="row">
+              <button id="webchat-public-send" type="button">Send Public Message</button>
+            </div>
+
+            <pre id="webchat-public-output" class="mono-block">Public route output appears here.</pre>
+          </article>
+
+          <article class="card">
+            <h3>Stored Widget Keys</h3>
+            <div id="webchat-widget-list" class="stack-list">No widget keys loaded.</div>
+          </article>
+        </div>
+
+        <article class="card">
+          <div class="row spread">
+            <h3>Webchat Sessions</h3>
+            <button id="webchat-sessions-reload" type="button" class="secondary">Reload Sessions</button>
+          </div>
+          <div id="webchat-sessions-list" class="stack-list">No sessions loaded.</div>
+        </article>
+
+        <article class="card">
+          <h3>Operator Reply</h3>
+          <label for="webchat-session-id">Session ID</label>
+          <input id="webchat-session-id" type="text" placeholder="wsess_xxx" />
+          <label for="webchat-session-message">Reply Message</label>
+          <input id="webchat-session-message" type="text" placeholder="Thanks for reaching out..." />
+          <div class="row">
+            <button id="webchat-session-reply" type="button">Send Reply</button>
+            <button id="webchat-session-open" type="button" class="secondary">Open</button>
+            <button id="webchat-session-close" type="button" class="secondary">Close</button>
+          </div>
+          <div class="row">
+            <button id="webchat-session-messages-reload" type="button" class="secondary">Load Messages</button>
+          </div>
+          <pre id="webchat-session-messages" class="mono-block">Select a session to inspect messages.</pre>
+        </article>
+      </section>
+
+      <section id="screen-baileys" class="screen" data-screen="baileys">
+        <div class="screen-head">
+          <h2>Baileys Channel</h2>
+          <p class="muted">Operate WhatsApp Web sessions with QR pairing, connection controls, and message history.</p>
+        </div>
+
+        <div class="dual-grid">
+          <article class="card">
+            <h3>Create Session</h3>
+            <label for="baileys-label">Session Label</label>
+            <input id="baileys-label" type="text" placeholder="support-phone-1" />
+            <label for="baileys-phone">Default Phone (optional)</label>
+            <input id="baileys-phone" type="text" placeholder="+9199XXXXXX" />
+            <div class="row">
+              <button id="baileys-create" type="button">Create Session</button>
+              <button id="baileys-reload" type="button" class="secondary">Reload Sessions</button>
+            </div>
+            <div id="baileys-sessions-list" class="stack-list">No Baileys sessions loaded.</div>
+          </article>
+
+          <article class="card">
+            <h3>Session Controls + Messaging</h3>
+            <label for="baileys-session-id">Session ID</label>
+            <input id="baileys-session-id" type="text" placeholder="bwsess_xxx" />
+            <div class="row">
+              <button id="baileys-connect" type="button">Connect / Get QR</button>
+              <button id="baileys-disconnect" type="button" class="secondary">Disconnect</button>
+              <button id="baileys-delete" type="button" class="secondary">Delete</button>
+            </div>
+
+            <label for="baileys-to">Recipient (`jid` or phone)</label>
+            <input id="baileys-to" type="text" placeholder="+91XXXXXXXXXX or 91xxxx@s.whatsapp.net" />
+            <label for="baileys-message">Message</label>
+            <input id="baileys-message" type="text" placeholder="Hello from Social Flow." />
+            <div class="row">
+              <button id="baileys-send" type="button">Send Message</button>
+              <button id="baileys-messages-reload" type="button" class="secondary">Load Messages</button>
+            </div>
+            <pre id="baileys-output" class="mono-block">Baileys output and messages appear here.</pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="screen-logs" class="screen" data-screen="logs">
+        <div class="screen-head">
+          <h2>Logs</h2>
+          <p class="muted">Structured hosted execution logs with trace IDs.</p>
+        </div>
+
+        <article class="card">
+          <label for="logs-limit">Log Limit</label>
+          <input id="logs-limit" type="number" min="1" max="500" value="120" />
+          <div class="row">
+            <button id="logs-reload" type="button">Reload Logs</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Hosted Logs</h3>
+          <pre id="logs-output" class="mono-block">No logs loaded.</pre>
         </article>
       </section>
     </main>

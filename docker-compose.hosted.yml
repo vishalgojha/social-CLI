@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  social-flow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: social-flow:hosted
+    container_name: social-flow-hosted
+    restart: unless-stopped
+    ports:
+      - "1310:1310"
+    environment:
+      PORT: "1310"
+      SOCIAL_GATEWAY_REQUIRE_API_KEY: "true"
+      SOCIAL_GATEWAY_API_KEY: "replace-with-gateway-key"
+      SOCIAL_HOSTED_MASTER_KEY: "replace-with-32-char-secret"
+      SOCIAL_HOSTED_BOOTSTRAP_API_KEY: "replace-with-user-api-key"
+      SOCIAL_HOSTED_BOOTSTRAP_USER_ID: "default"
+      SOCIAL_HOSTED_RECIPES_DIR: "/data/recipes"
+      SOCIAL_HOSTED_TRIGGERS_DIR: "/data/triggers"
+    volumes:
+      - ./data:/data
+      - ./runtime-home:/root/.social-cli

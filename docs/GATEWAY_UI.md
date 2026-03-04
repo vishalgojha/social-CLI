@@ -49,6 +49,45 @@ Studio routes:
 - `GET /api/sdk/actions`
 - `POST /api/sdk/actions/plan`
 - `POST /api/sdk/actions/execute`
+- `GET /api/platform/distribution`
+- `POST /api/orchestrate`
+- `POST /api/keys`
+- `GET /api/keys`
+- `DELETE /api/keys/:id`
+- `POST /api/webchat/public/session/start`
+- `POST /api/webchat/public/session/message`
+- `GET /api/channels/webchat/widget-keys`
+- `POST /api/channels/webchat/widget-keys`
+- `DELETE /api/channels/webchat/widget-keys/:id`
+- `GET /api/channels/webchat/sessions`
+- `POST /api/channels/webchat/sessions`
+- `GET /api/channels/webchat/sessions/:id/messages`
+- `POST /api/channels/webchat/sessions/:id/reply`
+- `POST /api/channels/webchat/sessions/:id/status`
+- `GET /api/channels/baileys/sessions`
+- `POST /api/channels/baileys/sessions`
+- `POST /api/channels/baileys/sessions/:id/connect`
+- `POST /api/channels/baileys/sessions/:id/disconnect`
+- `POST /api/channels/baileys/sessions/:id/send`
+- `GET /api/channels/baileys/sessions/:id/messages`
+- `DELETE /api/channels/baileys/sessions/:id`
+- `GET /api/agents`
+- `POST /api/agents`
+- `DELETE /api/agents/:slug`
+- `GET /api/tools`
+- `GET /api/recipes`
+- `POST /api/recipes`
+- `DELETE /api/recipes/:slug`
+- `POST /api/recipes/:slug/run`
+- `GET /api/triggers`
+- `POST /api/triggers`
+- `DELETE /api/triggers/:id`
+- `POST /api/triggers/:id/run`
+- `POST /api/triggers/webhook/:token`
+- `GET /api/logs`
+- `GET /api/usage`
+- `GET /api/cli/commands`
+- `POST /api/cli/execute`
 - `WS /ws`
 
 ## SDK Contract
@@ -102,8 +141,9 @@ Recommended env vars on Railway:
 Frontend requirements:
 
 - Send `x-gateway-key` on REST requests.
+- Send `x-api-key` for hosted multi-tenant routes (`/api/keys`, `/api/agents`, `/api/tools`, `/api/recipes`, `/api/triggers`, `/api/orchestrate`, `/api/logs`, `/api/usage`, `/api/cli/*`, `/api/channels/*`).
 - Use `wss://<gateway-domain>/ws?gatewayKey=<SOCIAL_GATEWAY_API_KEY>` for WebSocket auth.
-- Health route (`/api/health`) remains public for platform probes.
+- Public webchat endpoints (`/api/webchat/public/*`) and health route (`/api/health`) remain unauthenticated.
 
 ## External Starter Screens
 

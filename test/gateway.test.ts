@@ -1351,5 +1351,379 @@ module.exports = [
         }
       }
     }
+  },
+  {
+    name: 'gateway hosted endpoints support BYOK vault, orchestration, recipes, and triggers',
+    fn: async () => {
+      const oldMetaHome = process.env.META_CLI_HOME;
+      const oldHostedMaster = process.env.SOCIAL_HOSTED_MASTER_KEY;
+      const oldBootstrapKey = process.env.SOCIAL_HOSTED_BOOTSTRAP_API_KEY;
+      const oldBootstrapUser = process.env.SOCIAL_HOSTED_BOOTSTRAP_USER_ID;
+      const oldAutoProvision = process.env.SOCIAL_HOSTED_AUTO_PROVISION;
+      const oldRecipesDir = process.env.SOCIAL_HOSTED_RECIPES_DIR;
+      const oldTriggersDir = process.env.SOCIAL_HOSTED_TRIGGERS_DIR;
+
+      const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'social-hosted-gw-'));
+      const recipesDir = path.join(tempHome, 'recipes');
+      const triggersDir = path.join(tempHome, 'triggers');
+      fs.mkdirSync(recipesDir, { recursive: true });
+      fs.mkdirSync(triggersDir, { recursive: true });
+
+      process.env.META_CLI_HOME = tempHome;
+      process.env.SOCIAL_HOSTED_MASTER_KEY = 'test-hosted-master-key-001';
+      process.env.SOCIAL_HOSTED_BOOTSTRAP_API_KEY = 'user-hosted-api-key';
+      process.env.SOCIAL_HOSTED_BOOTSTRAP_USER_ID = 'hosted-user';
+      process.env.SOCIAL_HOSTED_AUTO_PROVISION = '0';
+      process.env.SOCIAL_HOSTED_RECIPES_DIR = recipesDir;
+      process.env.SOCIAL_HOSTED_TRIGGERS_DIR = triggersDir;
+
+      const server = createGatewayServer({ host: '127.0.0.1', port: 0 });
+      try {
+        await server.start();
+
+        const hostedHeaders = { 'x-api-key': 'user-hosted-api-key' };
+
+        const unauthKeys = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: '/api/keys'
+        });
+        assert.equal(unauthKeys.status, 401);
+
+        const addKey = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/keys',
+          headers: hostedHeaders,
+          body: { service: 'openai', key: 'sk-hosted-example-key', label: 'primary-llm' }
+        });
+        assert.equal(addKey.status, 200);
+        assert.equal(addKey.data.ok, true);
+        assert.equal(addKey.data.key.service, 'openai');
+
+        const keys = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: '/api/keys',
+          headers: hostedHeaders
+        });
+        assert.equal(keys.status, 200);
+        assert.equal(keys.data.ok, true);
+        assert.equal(Array.isArray(keys.data.keys), true);
+        assert.equal(keys.data.keys.length >= 1, true);
+        assert.equal(String(keys.data.keys[0].keyMask || '').includes('...'), true);
+        assert.equal(JSON.stringify(keys.data).includes('sk-hosted-example-key'), false);
+
+        const tools = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: '/api/tools',
+          headers: hostedHeaders
+        });
+        assert.equal(tools.status, 200);
+        assert.equal(tools.data.ok, true);
+        assert.equal(Array.isArray(tools.data.tools), true);
+        assert.equal(tools.data.tools.some((row) => row.key === 'meta.status'), true);
+
+        const agents = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: '/api/agents',
+          headers: hostedHeaders
+        });
+        assert.equal(agents.status, 200);
+        assert.equal(agents.data.ok, true);
+        assert.equal(Array.isArray(agents.data.agents), true);
+        assert.equal(agents.data.agents.some((row) => row.slug === 'ops-agent'), true);
+
+        const addAgent = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/agents',
+          headers: hostedHeaders,
+          body: {
+            slug: 'custom-ops',
+            name: 'Custom Ops',
+            description: 'Status + logs',
+            tools: ['meta.status', 'gateway.logs']
+          }
+        });
+        assert.equal(addAgent.status, 200);
+        assert.equal(addAgent.data.ok, true);
+        assert.equal(addAgent.data.agent.slug, 'custom-ops');
+
+        const saveRecipe = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/recipes',
+          headers: hostedHeaders,
+          body: {
+            format: 'json',
+            recipe: {
+              slug: 'daily-status',
+              name: 'Daily Status',
+              mode: 'sequential',
+              steps: [
+                { agent_slug: 'ops-agent', action_key: 'status', action_props: {} },
+                { agent_slug: 'analytics-agent', action_key: 'logs', action_props: { limit: 1 } }
+              ]
+            }
+          }
+        });
+        assert.equal(saveRecipe.status, 200);
+        assert.equal(saveRecipe.data.ok, true);
+        assert.equal(saveRecipe.data.recipe.slug, 'daily-status');
+
+        const runRecipe = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/recipes/daily-status/run',
+          headers: hostedHeaders,
+          body: { input: {} }
+        });
+        assert.equal(runRecipe.status, 200);
+        assert.equal(runRecipe.data.ok, true);
+        assert.equal(runRecipe.data.recipe_slug, 'daily-status');
+        assert.equal(Array.isArray(runRecipe.data.results), true);
+        assert.equal(runRecipe.data.results.length >= 1, true);
+
+        const orchestrate = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/orchestrate',
+          headers: hostedHeaders,
+          body: {
+            task: 'Run hosted status pipeline',
+            pipeline: {
+              mode: 'sequential',
+              steps: [
+                { agent_slug: 'ops-agent', action_key: 'status', action_props: {} },
+                { agent_slug: 'analytics-agent', action_key: 'logs', action_props: { limit: 1 } }
+              ]
+            }
+          }
+        });
+        assert.equal(orchestrate.status, 200);
+        assert.equal(orchestrate.data.ok, true);
+        assert.equal(orchestrate.data.byok.provider, 'openai');
+        assert.equal(Array.isArray(orchestrate.data.results), true);
+        assert.equal(orchestrate.data.results.length, 2);
+
+        const createWebhookTrigger = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/triggers',
+          headers: hostedHeaders,
+          body: {
+            name: 'Daily Status Webhook',
+            type: 'webhook',
+            recipe_slug: 'daily-status'
+          }
+        });
+        assert.equal(createWebhookTrigger.status, 200);
+        assert.equal(createWebhookTrigger.data.ok, true);
+        assert.equal(createWebhookTrigger.data.trigger.type, 'webhook');
+        assert.equal(typeof createWebhookTrigger.data.trigger.webhook_token, 'string');
+        assert.equal(createWebhookTrigger.data.trigger.webhook_token.length > 8, true);
+
+        const fireWebhook = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: `/api/triggers/webhook/${encodeURIComponent(createWebhookTrigger.data.trigger.webhook_token)}`,
+          body: { source: 'test-webhook' }
+        });
+        assert.equal(fireWebhook.status, 200);
+        assert.equal(fireWebhook.data.ok, true);
+        assert.equal(fireWebhook.data.trigger.type, 'webhook');
+
+        const cliExecute = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/cli/execute',
+          headers: hostedHeaders,
+          body: {
+            argv: ['--help'],
+            timeoutMs: 20000
+          }
+        });
+        assert.equal(cliExecute.status, 200);
+        assert.equal(cliExecute.data.ok, true);
+        assert.equal(typeof cliExecute.data.result.exitCode, 'number');
+
+        const createWidgetKey = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/channels/webchat/widget-keys',
+          headers: hostedHeaders,
+          body: { label: 'site-widget' }
+        });
+        assert.equal(createWidgetKey.status, 200);
+        assert.equal(createWidgetKey.data.ok, true);
+        assert.equal(typeof createWidgetKey.data.key.id, 'string');
+        assert.equal(typeof createWidgetKey.data.key.key, 'string');
+        assert.equal(createWidgetKey.data.key.key.startsWith('wk_'), true);
+
+        const startPublicWebchat = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/webchat/public/session/start',
+          body: {
+            widgetKey: createWidgetKey.data.key.key,
+            visitorId: 'visitor-test-01'
+          }
+        });
+        assert.equal(startPublicWebchat.status, 200);
+        assert.equal(startPublicWebchat.data.ok, true);
+        assert.equal(typeof startPublicWebchat.data.session.id, 'string');
+        assert.equal(typeof startPublicWebchat.data.sessionToken, 'string');
+        assert.equal(startPublicWebchat.data.sessionToken.length > 12, true);
+
+        const publicWebchatMessage = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/webchat/public/session/message',
+          body: {
+            sessionToken: startPublicWebchat.data.sessionToken,
+            text: 'Hello from public widget'
+          }
+        });
+        assert.equal(publicWebchatMessage.status, 200);
+        assert.equal(publicWebchatMessage.data.ok, true);
+        assert.equal(publicWebchatMessage.data.session.id, startPublicWebchat.data.session.id);
+
+        const webchatSessions = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: '/api/channels/webchat/sessions?limit=20',
+          headers: hostedHeaders
+        });
+        assert.equal(webchatSessions.status, 200);
+        assert.equal(webchatSessions.data.ok, true);
+        assert.equal(Array.isArray(webchatSessions.data.sessions), true);
+        assert.equal(webchatSessions.data.sessions.length > 0, true);
+
+        const webchatReply = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: `/api/channels/webchat/sessions/${encodeURIComponent(startPublicWebchat.data.session.id)}/reply`,
+          headers: hostedHeaders,
+          body: { text: 'Operator reply test' }
+        });
+        assert.equal(webchatReply.status, 200);
+        assert.equal(webchatReply.data.ok, true);
+
+        const webchatMessages = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: `/api/channels/webchat/sessions/${encodeURIComponent(startPublicWebchat.data.session.id)}/messages?limit=20`,
+          headers: hostedHeaders
+        });
+        assert.equal(webchatMessages.status, 200);
+        assert.equal(webchatMessages.data.ok, true);
+        assert.equal(Array.isArray(webchatMessages.data.messages), true);
+        assert.equal(webchatMessages.data.messages.length >= 2, true);
+
+        const webchatClose = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: `/api/channels/webchat/sessions/${encodeURIComponent(startPublicWebchat.data.session.id)}/status`,
+          headers: hostedHeaders,
+          body: { status: 'closed' }
+        });
+        assert.equal(webchatClose.status, 200);
+        assert.equal(webchatClose.data.ok, true);
+        assert.equal(webchatClose.data.session.status, 'closed');
+
+        const createBaileysSession = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/channels/baileys/sessions',
+          headers: hostedHeaders,
+          body: {
+            label: 'wa-web-primary',
+            phone: '+14155550123'
+          }
+        });
+        assert.equal(createBaileysSession.status, 200);
+        assert.equal(createBaileysSession.data.ok, true);
+        assert.equal(typeof createBaileysSession.data.session.id, 'string');
+
+        const baileysSessions = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: '/api/channels/baileys/sessions?limit=20',
+          headers: hostedHeaders
+        });
+        assert.equal(baileysSessions.status, 200);
+        assert.equal(baileysSessions.data.ok, true);
+        assert.equal(Array.isArray(baileysSessions.data.sessions), true);
+        assert.equal(
+          baileysSessions.data.sessions.some((row) => row.id === createBaileysSession.data.session.id),
+          true
+        );
+
+        const connectBaileysSession = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: `/api/channels/baileys/sessions/${encodeURIComponent(createBaileysSession.data.session.id)}/connect`,
+          headers: hostedHeaders,
+          body: {}
+        });
+        assert.equal([200, 503].includes(connectBaileysSession.status), true);
+        if (connectBaileysSession.status === 503) {
+          assert.equal(String(connectBaileysSession.data.error || '').includes('Baileys dependency'), true);
+        } else {
+          assert.equal(connectBaileysSession.data.ok, true);
+        }
+
+        const baileysMessages = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: `/api/channels/baileys/sessions/${encodeURIComponent(createBaileysSession.data.session.id)}/messages?limit=20`,
+          headers: hostedHeaders
+        });
+        assert.equal(baileysMessages.status, 200);
+        assert.equal(baileysMessages.data.ok, true);
+        assert.equal(Array.isArray(baileysMessages.data.messages), true);
+
+        const deleteBaileysSession = await requestJson({
+          port: server.port,
+          method: 'DELETE',
+          pathName: `/api/channels/baileys/sessions/${encodeURIComponent(createBaileysSession.data.session.id)}`,
+          headers: hostedHeaders
+        });
+        assert.equal(deleteBaileysSession.status, 200);
+        assert.equal(deleteBaileysSession.data.ok, true);
+        assert.equal(deleteBaileysSession.data.deleted, true);
+
+        const logs = await requestJson({
+          port: server.port,
+          method: 'GET',
+          pathName: '/api/logs?limit=20',
+          headers: hostedHeaders
+        });
+        assert.equal(logs.status, 200);
+        assert.equal(logs.data.ok, true);
+        assert.equal(Array.isArray(logs.data.logs), true);
+        assert.equal(logs.data.logs.length > 0, true);
+      } finally {
+        await server.stop();
+
+        if (oldMetaHome === undefined) delete process.env.META_CLI_HOME;
+        else process.env.META_CLI_HOME = oldMetaHome;
+        if (oldHostedMaster === undefined) delete process.env.SOCIAL_HOSTED_MASTER_KEY;
+        else process.env.SOCIAL_HOSTED_MASTER_KEY = oldHostedMaster;
+        if (oldBootstrapKey === undefined) delete process.env.SOCIAL_HOSTED_BOOTSTRAP_API_KEY;
+        else process.env.SOCIAL_HOSTED_BOOTSTRAP_API_KEY = oldBootstrapKey;
+        if (oldBootstrapUser === undefined) delete process.env.SOCIAL_HOSTED_BOOTSTRAP_USER_ID;
+        else process.env.SOCIAL_HOSTED_BOOTSTRAP_USER_ID = oldBootstrapUser;
+        if (oldAutoProvision === undefined) delete process.env.SOCIAL_HOSTED_AUTO_PROVISION;
+        else process.env.SOCIAL_HOSTED_AUTO_PROVISION = oldAutoProvision;
+        if (oldRecipesDir === undefined) delete process.env.SOCIAL_HOSTED_RECIPES_DIR;
+        else process.env.SOCIAL_HOSTED_RECIPES_DIR = oldRecipesDir;
+        if (oldTriggersDir === undefined) delete process.env.SOCIAL_HOSTED_TRIGGERS_DIR;
+        else process.env.SOCIAL_HOSTED_TRIGGERS_DIR = oldTriggersDir;
+      }
+    }
   }
 ];

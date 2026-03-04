@@ -15,6 +15,7 @@ const { buildSessionTimeline } = require('../chat/timeline');
 const opsStorage = require('../ops/storage');
 const opsWorkflows = require('../ops/workflows');
 const opsRbac = require('../ops/rbac');
+const { HostedPlatform } = require('../hosted/platform');
 
 const GUARD_MODES = new Set(['observe', 'approval', 'auto_safe']);
 const SOURCE_CONNECTORS = new Set(
@@ -23,7 +24,7 @@ const SOURCE_CONNECTORS = new Set(
     : [...(opsStorage.SOURCE_CONNECTORS || [])]
 );
 const API_PUBLIC_ROUTES = new Set(['/api/health']);
-const DEFAULT_CORS_HEADERS = 'Content-Type, X-Gateway-Key, X-Session-Id, Authorization';
+const DEFAULT_CORS_HEADERS = 'Content-Type, X-Gateway-Key, X-Session-Id, X-API-Key, Authorization';
 const DEFAULT_CORS_METHODS = 'GET,POST,OPTIONS';
 const SDK_APPROVAL_TTL_MS = 10 * 60 * 1000;
 const SDK_ACTION_RISK = {
@@ -1107,10 +1108,15 @@ class GatewayServer {
     this.wsClients = new Set();
     this.runtimes = new Map();
     this.sdkApprovalTokens = new Map();
+    this.hosted = new HostedPlatform({
+      executeSdkAction: (action, params = {}) => this.executeSdkAction(action, params)
+    });
   }
 
   routeIsPublicApi(route) {
-    return API_PUBLIC_ROUTES.has(route);
+    if (API_PUBLIC_ROUTES.has(route)) return true;
+    if (String(route || '').startsWith('/api/triggers/webhook/')) return true;
+    return String(route || '').startsWith('/api/webchat/public/');
   }
 
   isApiRoute(route) {
@@ -1684,6 +1690,18 @@ class GatewayServer {
 
   async handleApi(req, res, parsedUrl) {
     const route = parsedUrl.pathname || '/';
+    const requireHostedUser = () => {
+      if (!this.hosted || typeof this.hosted.userFromRequest !== 'function') {
+        sendJson(res, 500, { ok: false, error: 'Hosted platform is unavailable.' });
+        return null;
+      }
+      const auth = this.hosted.userFromRequest(req);
+      if (!auth || !auth.ok) {
+        sendJson(res, Number(auth?.status || 401) || 401, { ok: false, error: String(auth?.error || 'Unauthorized') });
+        return null;
+      }
+      return auth.user;
+    };
 
     if (req.method === 'GET' && route === '/api/health') {
       sendJson(res, 200, {
@@ -1704,6 +1722,548 @@ class GatewayServer {
         now: new Date().toISOString(),
         config: configSnapshot()
       });
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/platform/distribution') {
+      sendJson(res, 200, {
+        ok: true,
+        distribution: this.hosted.distributionModel(),
+        architecture: this.hosted.defaultHostedSummary(),
+        rest: this.hosted.restCatalog()
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/triggers/webhook') {
+      sendJson(res, 400, { ok: false, error: 'Missing webhook token in route. Use /api/triggers/webhook/:token' });
+      return;
+    }
+
+    const triggerWebhookMatch = route.match(/^\/api\/triggers\/webhook\/([^/]+)$/);
+    if (req.method === 'POST' && triggerWebhookMatch) {
+      try {
+        const token = decodeURIComponent(String(triggerWebhookMatch[1] || '').trim());
+        const body = await readBody(req);
+        const out = await this.hosted.fireTriggerWebhook(token, body && typeof body === 'object' ? body : {});
+        sendJson(res, 200, { ok: true, ...out });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/webchat/public/session/start') {
+      try {
+        const body = await readBody(req);
+        const out = await this.hosted.startPublicWebchatSession(body && typeof body === 'object' ? body : {});
+        sendJson(res, 200, {
+          ok: true,
+          session: out.session,
+          sessionToken: out.publicToken,
+          sessionTokenMask: out.publicTokenMask
+        });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/webchat/public/session/message') {
+      try {
+        const body = await readBody(req);
+        const out = await this.hosted.appendPublicWebchatMessage(body && typeof body === 'object' ? body : {});
+        sendJson(res, 200, { ok: true, ...out });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        const payload = { ok: false, error: String(error?.message || error || '') };
+        if (Number(error?.retryAfterMs || 0) > 0) {
+          res.setHeader('Retry-After', Math.ceil(Number(error.retryAfterMs) / 1000));
+        }
+        sendJson(res, status, payload);
+      }
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/channels/webchat/widget-keys') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const keys = await this.hosted.listWebchatWidgetKeys(user.id);
+        sendJson(res, 200, { ok: true, user, keys });
+      } catch (error) {
+        sendJson(res, 500, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/channels/webchat/widget-keys') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const body = await readBody(req);
+        const key = await this.hosted.createWebchatWidgetKey(user.id, body || {});
+        sendJson(res, 200, { ok: true, user, key });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const webchatWidgetDeleteMatch = route.match(/^\/api\/channels\/webchat\/widget-keys\/([^/]+)$/);
+    if (req.method === 'DELETE' && webchatWidgetDeleteMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const keyId = decodeURIComponent(String(webchatWidgetDeleteMatch[1] || '').trim());
+        const out = await this.hosted.deleteWebchatWidgetKey(user.id, keyId);
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/channels/webchat/sessions') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const sessions = await this.hosted.listWebchatSessions(user.id, {
+          status: String(parsedUrl.searchParams.get('status') || '').trim(),
+          limit: Math.max(1, Math.min(500, toNumber(parsedUrl.searchParams.get('limit'), 100)))
+        });
+        sendJson(res, 200, { ok: true, user, sessions });
+      } catch (error) {
+        sendJson(res, 500, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/channels/webchat/sessions') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const body = await readBody(req);
+        const out = await this.hosted.createWebchatSession(user.id, body || {});
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const webchatMessagesMatch = route.match(/^\/api\/channels\/webchat\/sessions\/([^/]+)\/messages$/);
+    if (req.method === 'GET' && webchatMessagesMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const sessionId = decodeURIComponent(String(webchatMessagesMatch[1] || '').trim());
+        const limit = Math.max(1, Math.min(1000, toNumber(parsedUrl.searchParams.get('limit'), 200)));
+        const out = await this.hosted.getWebchatSessionMessages(user.id, sessionId, limit);
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const webchatReplyMatch = route.match(/^\/api\/channels\/webchat\/sessions\/([^/]+)\/reply$/);
+    if (req.method === 'POST' && webchatReplyMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const sessionId = decodeURIComponent(String(webchatReplyMatch[1] || '').trim());
+        const body = await readBody(req);
+        const out = await this.hosted.replyWebchatSession(user.id, sessionId, body || {});
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const webchatStatusMatch = route.match(/^\/api\/channels\/webchat\/sessions\/([^/]+)\/status$/);
+    if (req.method === 'POST' && webchatStatusMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const sessionId = decodeURIComponent(String(webchatStatusMatch[1] || '').trim());
+        const body = await readBody(req);
+        const out = await this.hosted.setWebchatSessionStatus(user.id, sessionId, String(body?.status || '').trim());
+        sendJson(res, 200, { ok: true, user, session: out });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/channels/baileys/sessions') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const sessions = await this.hosted.listBaileysSessions(user.id, {
+          status: String(parsedUrl.searchParams.get('status') || '').trim(),
+          limit: Math.max(1, Math.min(500, toNumber(parsedUrl.searchParams.get('limit'), 100)))
+        });
+        sendJson(res, 200, { ok: true, user, sessions });
+      } catch (error) {
+        sendJson(res, 500, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/channels/baileys/sessions') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const body = await readBody(req);
+        const session = await this.hosted.createBaileysSession(user.id, body || {});
+        sendJson(res, 200, { ok: true, user, session });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const baileysConnectMatch = route.match(/^\/api\/channels\/baileys\/sessions\/([^/]+)\/connect$/);
+    if (req.method === 'POST' && baileysConnectMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const sessionId = decodeURIComponent(String(baileysConnectMatch[1] || '').trim());
+        const body = await readBody(req);
+        const session = await this.hosted.connectBaileysSession(user.id, sessionId, body || {});
+        sendJson(res, 200, { ok: true, user, session });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const baileysDisconnectMatch = route.match(/^\/api\/channels\/baileys\/sessions\/([^/]+)\/disconnect$/);
+    if (req.method === 'POST' && baileysDisconnectMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const sessionId = decodeURIComponent(String(baileysDisconnectMatch[1] || '').trim());
+        const body = await readBody(req);
+        const session = await this.hosted.disconnectBaileysSession(user.id, sessionId, body || {});
+        sendJson(res, 200, { ok: true, user, session });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const baileysSendMatch = route.match(/^\/api\/channels\/baileys\/sessions\/([^/]+)\/send$/);
+    if (req.method === 'POST' && baileysSendMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const sessionId = decodeURIComponent(String(baileysSendMatch[1] || '').trim());
+        const body = await readBody(req);
+        const out = await this.hosted.sendBaileysText(user.id, sessionId, body || {});
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const baileysMessagesMatch = route.match(/^\/api\/channels\/baileys\/sessions\/([^/]+)\/messages$/);
+    if (req.method === 'GET' && baileysMessagesMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const sessionId = decodeURIComponent(String(baileysMessagesMatch[1] || '').trim());
+        const limit = Math.max(1, Math.min(1000, toNumber(parsedUrl.searchParams.get('limit'), 200)));
+        const out = await this.hosted.getBaileysMessages(user.id, sessionId, limit);
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const baileysDeleteMatch = route.match(/^\/api\/channels\/baileys\/sessions\/([^/]+)$/);
+    if (req.method === 'DELETE' && baileysDeleteMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const sessionId = decodeURIComponent(String(baileysDeleteMatch[1] || '').trim());
+        const out = await this.hosted.deleteBaileysSession(user.id, sessionId);
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/tools') {
+      const user = requireHostedUser();
+      if (!user) return;
+      sendJson(res, 200, { ok: true, user, tools: this.hosted.listTools() });
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/agents') {
+      const user = requireHostedUser();
+      if (!user) return;
+      sendJson(res, 200, { ok: true, user, agents: this.hosted.listAgents(user.id) });
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/agents') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const body = await readBody(req);
+        const agent = await this.hosted.upsertUserAgent(user.id, body || {});
+        sendJson(res, 200, { ok: true, user, agent });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const agentDeleteMatch = route.match(/^\/api\/agents\/([^/]+)$/);
+    if (req.method === 'DELETE' && agentDeleteMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const slug = decodeURIComponent(String(agentDeleteMatch[1] || '').trim());
+        const out = await this.hosted.deleteUserAgent(user.id, slug);
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/keys') {
+      const user = requireHostedUser();
+      if (!user) return;
+      const keys = await this.hosted.listVaultKeys(user.id);
+      sendJson(res, 200, {
+        ok: true,
+        user,
+        keys,
+        services: this.hosted.servicesCatalog()
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/keys') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const body = await readBody(req);
+        const saved = await this.hosted.createVaultKey({
+          userId: user.id,
+          service: body.service,
+          key: body.key,
+          label: body.label
+        });
+        sendJson(res, 200, { ok: true, user, key: saved });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const keysDeleteMatch = route.match(/^\/api\/keys\/([^/]+)$/);
+    if (req.method === 'DELETE' && keysDeleteMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const keyId = decodeURIComponent(String(keysDeleteMatch[1] || '').trim());
+        const out = await this.hosted.deleteVaultKey({ userId: user.id, keyId });
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/recipes') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const recipes = await this.hosted.listRecipes(user.id);
+        sendJson(res, 200, { ok: true, user, recipes });
+      } catch (error) {
+        sendJson(res, 500, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/recipes') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const body = await readBody(req);
+        const recipe = await this.hosted.upsertRecipe(user.id, body || {});
+        sendJson(res, 200, { ok: true, user, recipe });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const recipeDeleteMatch = route.match(/^\/api\/recipes\/([^/]+)$/);
+    if (req.method === 'DELETE' && recipeDeleteMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const slug = decodeURIComponent(String(recipeDeleteMatch[1] || '').trim());
+        const out = await this.hosted.deleteRecipe(user.id, slug);
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const recipeRunMatch = route.match(/^\/api\/recipes\/([^/]+)\/run$/);
+    if (req.method === 'POST' && recipeRunMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const slug = decodeURIComponent(String(recipeRunMatch[1] || '').trim());
+        const body = await readBody(req);
+        const out = await this.hosted.runRecipe({
+          userId: user.id,
+          slug,
+          input: body && typeof body === 'object' ? (body.input || body) : {}
+        });
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/triggers') {
+      const user = requireHostedUser();
+      if (!user) return;
+      const triggers = await this.hosted.listTriggers(user.id);
+      sendJson(res, 200, { ok: true, user, triggers });
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/triggers') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const body = await readBody(req);
+        const trigger = await this.hosted.createTrigger(user.id, body || {});
+        sendJson(res, 200, { ok: true, user, trigger });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const triggerDeleteMatch = route.match(/^\/api\/triggers\/([^/]+)$/);
+    if (req.method === 'DELETE' && triggerDeleteMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const id = decodeURIComponent(String(triggerDeleteMatch[1] || '').trim());
+        const out = await this.hosted.deleteTrigger(user.id, id);
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    const triggerRunMatch = route.match(/^\/api\/triggers\/([^/]+)\/run$/);
+    if (req.method === 'POST' && triggerRunMatch) {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const id = decodeURIComponent(String(triggerRunMatch[1] || '').trim());
+        const body = await readBody(req);
+        const out = await this.hosted.fireTriggerById(user.id, id, body && typeof body === 'object' ? body : {}, 'manual');
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/orchestrate') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const body = await readBody(req);
+        const out = await this.hosted.orchestrate({
+          task: body.task,
+          pipeline: body.pipeline,
+          input: body.input,
+          mode: body.mode,
+          userId: user.id
+        });
+        sendJson(res, 200, { ok: true, user, ...out });
+      } catch (error) {
+        const status = Number(error?.status || 400) || 400;
+        sendJson(res, status, { ok: false, error: String(error?.message || error || '') });
+      }
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/logs') {
+      const user = requireHostedUser();
+      if (!user) return;
+      const limit = Math.max(1, Math.min(500, toNumber(parsedUrl.searchParams.get('limit'), 100)));
+      const logs = this.hosted.listLogs({ userId: user.id, limit });
+      sendJson(res, 200, { ok: true, user, count: logs.length, logs });
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/usage') {
+      const user = requireHostedUser();
+      if (!user) return;
+      const usage = this.hosted.usageSummary(user.id);
+      sendJson(res, 200, { ok: true, user, usage });
+      return;
+    }
+
+    if (req.method === 'GET' && route === '/api/cli/commands') {
+      const user = requireHostedUser();
+      if (!user) return;
+      sendJson(res, 200, { ok: true, user, commands: this.hosted.listCliCommandCatalog() });
+      return;
+    }
+
+    if (req.method === 'POST' && route === '/api/cli/execute') {
+      const user = requireHostedUser();
+      if (!user) return;
+      try {
+        const body = await readBody(req);
+        const args = Array.isArray(body.argv)
+          ? body.argv
+          : (typeof body.command === 'string' ? body.command : '');
+        const out = await this.hosted.executeCli(args, {
+          timeoutMs: toNumber(body.timeoutMs, 30_000)
+        });
+        sendJson(res, 200, { ok: true, user, result: out });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: String(error?.message || error || '') });
+      }
       return;
     }
 
@@ -3250,9 +3810,15 @@ class GatewayServer {
     const address = this.server.address();
     const port = typeof address === 'object' && address ? address.port : this.port;
     this.port = port;
+    if (this.hosted && typeof this.hosted.start === 'function') {
+      this.hosted.start();
+    }
   }
 
   async stop() {
+    if (this.hosted && typeof this.hosted.stop === 'function') {
+      this.hosted.stop();
+    }
     if (this.wsServer) {
       for (const ws of this.wsClients) {
         try {
