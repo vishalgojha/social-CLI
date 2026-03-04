@@ -158,9 +158,9 @@ UI uses existing app shell; no replacement of previous screens.
 - `.dockerignore`
 - `docker-compose.hosted.yml`
 
-Baileys channel support requires installing:
+Baileys channel support is included in runtime dependencies:
 
-- `@whiskeysockets/baileys`
+- `@whiskeysockets/baileys` (installed via `npm ci` / lockfile)
 
 ### Railway
 

@@ -44,6 +44,76 @@ and then hit:
 
 `/api/health`
 
+## Hosted Channel Smoke Checklist (Webchat + Baileys)
+
+Run this against your deployed URL after basic health is green:
+
+```bash
+BASE_URL="https://<railway-service-domain>"
+GATEWAY_KEY="<SOCIAL_GATEWAY_API_KEY>"
+API_KEY="<SOCIAL_HOSTED_BOOTSTRAP_API_KEY>"
+```
+
+1. Create webchat widget key (save `key.key` from response):
+
+```bash
+curl -sS -X POST "$BASE_URL/api/channels/webchat/widget-keys" \
+  -H "content-type: application/json" \
+  -H "x-gateway-key: $GATEWAY_KEY" \
+  -H "x-api-key: $API_KEY" \
+  -d '{"label":"railway-e2e"}'
+```
+
+2. Start public webchat session with that widget key (save `sessionToken` and `session.id`):
+
+```bash
+curl -sS -X POST "$BASE_URL/api/webchat/public/session/start" \
+  -H "content-type: application/json" \
+  -d '{"widgetKey":"<KEY_FROM_STEP_1>","visitorId":"railway-e2e-visitor"}'
+```
+
+3. Send public inbound message and expect `ok: true`:
+
+```bash
+curl -sS -X POST "$BASE_URL/api/webchat/public/session/message" \
+  -H "content-type: application/json" \
+  -d '{"sessionToken":"<SESSION_TOKEN_FROM_STEP_2>","text":"hello from railway e2e"}'
+```
+
+4. Fetch operator-side messages and verify inbound event is present:
+
+```bash
+curl -sS "$BASE_URL/api/channels/webchat/sessions/<SESSION_ID_FROM_STEP_2>/messages?limit=20" \
+  -H "x-gateway-key: $GATEWAY_KEY" \
+  -H "x-api-key: $API_KEY"
+```
+
+5. Create Baileys session (save `session.id`):
+
+```bash
+curl -sS -X POST "$BASE_URL/api/channels/baileys/sessions" \
+  -H "content-type: application/json" \
+  -H "x-gateway-key: $GATEWAY_KEY" \
+  -H "x-api-key: $API_KEY" \
+  -d '{"label":"railway-e2e","phone":"<E164_OR_DIGITS_OPTIONAL>"}'
+```
+
+6. Connect Baileys session and verify there is no dependency-missing error:
+
+```bash
+curl -sS -X POST "$BASE_URL/api/channels/baileys/sessions/<BAILEYS_SESSION_ID>/connect" \
+  -H "content-type: application/json" \
+  -H "x-gateway-key: $GATEWAY_KEY" \
+  -H "x-api-key: $API_KEY" \
+  -d '{}'
+```
+
+Expected:
+
+- No `BAILEYS_DEPENDENCY_MISSING` error.
+- Session transitions to `connecting` and exposes a `qr` for pairing.
+- After QR scan, session transitions to `connected`.
+
 ## Required Railway Variables
 
 Set these in Railway service variables before exposing frontend traffic:

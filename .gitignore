@@ -24,6 +24,8 @@ pids
 .social-cli-chat/
 .social-cli-ops/
 .social-runtime/
+baileys/
+webchat/
 undefined/
 social cli pending.txt
 codex.md
