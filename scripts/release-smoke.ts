@@ -113,7 +113,8 @@ async function runGatewaySmoke() {
     });
     assert.equal(root.status, 410);
     assert.match(root.contentType, /application\/json/i);
-    assert.match(root.body, /Bundled Studio frontend is disabled/i);
+    assert.match(root.body, /(Bundled Studio frontend is disabled|Root route is disabled)/i);
+    assert.match(root.body, /\/studio\/app/i);
   } finally {
     await server.stop();
     if (oldMetaHome === undefined) delete process.env.META_CLI_HOME;
