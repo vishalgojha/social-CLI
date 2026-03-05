@@ -13,8 +13,8 @@ social hatch
 Hatch is the chat-first terminal control plane for Social Flow:
 
 - conversational input (`Type naturally`)
-- deterministic execution with explicit risk gates
-- optional AI-assisted parsing and response phrasing
+- conversational planning with safe action mapping + explicit risk gates
+- AI-assisted parsing and response phrasing (with deterministic fallback)
 - persistent local memory for continuity across sessions
 
 It is not fully autonomous. Actions still pass through risk/approval gates.
@@ -23,7 +23,7 @@ It is not fully autonomous. Actions still pass through risk/approval gates.
 
 Per message, Hatch runs this flow:
 
-1. Parse intent (deterministic first, optional AI assist)
+1. Parse intent (`prefer_ai` by default, deterministic fallback)
 2. Map to a known action (`status`, `doctor`, `get_profile`, `create_post`, `list_ads`, `logs`, `replay`, etc.)
 3. Check required slots and confidence
 4. Apply risk gate and approval rules
@@ -123,6 +123,7 @@ Important env vars:
 - `SOCIAL_TUI_AI_BASE_URL`
 - `SOCIAL_TUI_AI_API_KEY`
 - `SOCIAL_TUI_AI_AUTO` (AI parse enable/disable)
+- `SOCIAL_TUI_PARSE_MODE` / `SOCIAL_TUI_AI_PARSE_MODE` (`prefer_ai` | `balanced` | `deterministic`)
 - `SOCIAL_TUI_CHAT_REPLY_AI` (AI conversational phrasing enable/disable)
 
 ## Relationship to `social chat`

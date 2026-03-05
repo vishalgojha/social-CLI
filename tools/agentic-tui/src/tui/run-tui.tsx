@@ -293,7 +293,7 @@ async function generateConversationalReply(input: ConversationalReplyInput): Pro
   const system = [
     "You are Hatch, the conversational assistant for Social Flow.",
     "Style: natural, concise, human; max 2 short sentences.",
-    "Guardrails: never claim to run actions outside approved deterministic execution.",
+    "Guardrails: never claim an action ran unless this session executed it.",
     "If execution failed, acknowledge clearly and suggest one concrete next command in backticks.",
     "If intent is unclear, ask one clarifying question.",
     "Avoid robotic diagnostics wording unless user asks for diagnostics."
@@ -496,7 +496,7 @@ function explainPlan(intent: ParsedIntent | null, risk: string | null): string {
     create_post: "You asked to publish content."
   };
   return [
-    `Why this plan: ${actionReason[intent.action] || "Closest deterministic action was selected for your request."}`,
+    `Why this plan: ${actionReason[intent.action] || "This is the closest safe action for your request."}`,
     `Risk rationale: ${risk || "UNKNOWN"}${risk === "HIGH" ? " actions need elevated approval with reason." : risk === "MEDIUM" ? " actions require explicit confirm." : " actions auto-run."}`,
     `Parameters: ${Object.entries(intent.params).filter(([, v]) => String(v || "").trim()).map(([k, v]) => `${k}=${v}`).join(", ") || "none"}`
   ].join(" ");
@@ -549,7 +549,7 @@ function HatchRuntime(): JSX.Element {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([
-    newTurn("system", "Hatch online. Ask naturally, or use /help for commands.")
+    newTurn("system", "Hatch online. Conversational planner is active. Ask naturally, or use /help.")
   ]);
   const [showHelp, setShowHelp] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
@@ -1310,7 +1310,13 @@ function HatchRuntime(): JSX.Element {
     ads: !!config?.scopes.find((x) => x.includes("ads")) || !!config?.tokenMap.facebook
   };
   const connectedCount = [platformStatus.instagram, platformStatus.facebook, platformStatus.ads].filter(Boolean).length;
-  const aiProvider = process.env.SOCIAL_TUI_AI_VENDOR || process.env.SOCIAL_TUI_AI_PROVIDER || "deterministic";
+  const rawParseMode = String(process.env.SOCIAL_TUI_PARSE_MODE || process.env.SOCIAL_TUI_AI_PARSE_MODE || "prefer_ai").trim().toLowerCase();
+  const parseMode = rawParseMode === "deterministic" || rawParseMode === "strict" || rawParseMode === "local_only"
+    ? "deterministic"
+    : rawParseMode === "balanced" || rawParseMode === "hybrid"
+      ? "balanced"
+      : "prefer_ai";
+  const aiProvider = process.env.SOCIAL_TUI_AI_VENDOR || process.env.SOCIAL_TUI_AI_PROVIDER || process.env.SOCIAL_AI_PROVIDER || "auto";
   const aiModel = process.env.SOCIAL_TUI_AI_MODEL || (
     aiProvider === "openai"
       ? "gpt-4o-mini"
@@ -1320,9 +1326,9 @@ function HatchRuntime(): JSX.Element {
           ? "grok-2-latest"
           : aiProvider === "ollama"
             ? "qwen2.5:7b"
-            : "n/a"
+            : "auto"
   );
-  const aiLabel = `${aiProvider}/${aiModel}`;
+  const aiLabel = `${parseMode}:${aiProvider}/${aiModel}`;
   const industryMode = String(config?.industry?.mode || "hybrid");
   const industrySelected = String(config?.industry?.selected || "").trim();
   const industryLabel = industrySelected || `${industryMode} (auto)`;
@@ -1361,7 +1367,7 @@ function HatchRuntime(): JSX.Element {
       <Text color={theme.muted}>
         latest: {topActivity ? `${shortTime(topActivity.at)} ${topActivity.message.slice(0, 72)}` : "idle"}
       </Text>
-      <Text color={theme.muted}>Type naturally. Press ? for help, / for command palette, q to quit.</Text>
+      <Text color={theme.muted}>Type naturally. Press ? for help, / for command palette, d for diagnostics view, q to quit.</Text>
 
       <Box marginTop={1} flexDirection="column">
         {chatTurns.slice(-20).map((turn) => (

@@ -6,6 +6,7 @@ import { validateIntent } from "../schema/validate-intent.js";
 import type { ParseResult, ParsedIntent } from "../types.js";
 
 type AiProvider = "ollama" | "openai" | "openrouter" | "xai";
+type ParseMode = "deterministic" | "balanced" | "prefer_ai";
 
 type CoreIntent = {
   action: "onboard" | "doctor" | "status" | "config" | "get" | "create" | "list" | "logs" | "replay";
@@ -36,6 +37,17 @@ function normalizeAiProvider(value: string): AiProvider {
   if (raw === "xai" || raw === "grok") return "xai";
   if (raw === "openai") return "openai";
   return "ollama";
+}
+
+function resolveParseMode(): ParseMode {
+  const raw = String(
+    process.env.SOCIAL_TUI_PARSE_MODE
+    || process.env.SOCIAL_TUI_AI_PARSE_MODE
+    || "prefer_ai"
+  ).trim().toLowerCase();
+  if (raw === "deterministic" || raw === "strict" || raw === "local_only") return "deterministic";
+  if (raw === "balanced" || raw === "hybrid") return "balanced";
+  return "prefer_ai";
 }
 
 function defaultModel(provider: AiProvider): string {
@@ -317,8 +329,12 @@ export async function parseNaturalLanguageWithOptionalAi(input: string): Promise
   const explicitAi = raw.toLowerCase().startsWith("/ai ");
   const cleanInput = explicitAi ? raw.slice(4).trim() : raw;
   const cleanLower = cleanInput.toLowerCase();
+  const parseMode = resolveParseMode();
   const deterministic = parseNaturalLanguage(cleanInput);
   if (!explicitAi && deterministic.intent.action === "run_cli") {
+    return deterministic;
+  }
+  if (!explicitAi && parseMode === "deterministic") {
     return deterministic;
   }
   const autoAiEnabled = !/^(0|false|off|no)$/i.test(String(process.env.SOCIAL_TUI_AI_AUTO || "1"));
@@ -393,10 +409,21 @@ export async function parseNaturalLanguageWithOptionalAi(input: string): Promise
       return deterministic;
     }
 
-    if (deterministic.intent.action === "guide" && aiResult.intent.action !== "guide") {
+    if (!explicitAi && parseMode !== "prefer_ai" && deterministic.intent.action === "guide" && aiResult.intent.action !== "guide") {
+      return deterministic;
+    }
+    if (!explicitAi && parseMode === "balanced" && deterministic.intent.action === "onboard" && aiResult.intent.action !== "onboard") {
       return deterministic;
     }
     if (aiResult.intent.action === "unknown" && deterministic.intent.action !== "unknown") {
+      return deterministic;
+    }
+    if (
+      !explicitAi
+      && parseMode === "prefer_ai"
+      && Number(aiResult.confidence || 0) < 0.52
+      && Number(deterministic.confidence || 0) >= 0.86
+    ) {
       return deterministic;
     }
 
