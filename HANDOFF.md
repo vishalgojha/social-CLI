@@ -4,6 +4,22 @@
 
 This handoff captures the current TypeScript migration status and release readiness for `social-flow`.
 
+## Update - 2026-03-05
+
+### Pending Task Refresh (Current)
+
+- Revalidated TypeScript migration state for command modules and guardrails.
+- `commands/` now contains TypeScript modules only (`*.ts`).
+- Migration baseline is now `max_js_files = 0` (with `bin/social.js` explicitly allowed as bootstrap JS).
+- Latest spot-check:
+  - `npm run ts:migration-guard` -> pass (`0/0`)
+
+### Current Active Next Steps
+
+1. Keep `npm run ts:migration-guard`, `npm run quality:check`, and `npm test` green for each release batch.
+2. Keep `HANDOFF.md` synchronized with real repo state whenever roadmap items are completed.
+3. Execute the product roadmap priorities listed below as the primary remaining work.
+
 ## Update - 2026-03-01
 
 ### Product Positioning + Surface Update
@@ -79,10 +95,10 @@ Migrated from `commands/*.js` to `src-runtime/commands/*.ts` and compiled to `di
 
 Legacy JS files for the above command modules were removed from `commands/`.
 
-`bin/social.js` now uses `loadCommandModule(name)` for migrated commands:
+`bin/social.js` bootstrap behavior:
 
-- Prefer `dist-runtime/commands/<name>.js`
-- Fallback to `commands/<name>.js` (for not-yet-migrated modules)
+- Prefer compiled CLI at `dist-legacy/bin/social.js`
+- Fallback to source `bin/social.ts` via `tsx` when a local dist build is not present
 
 ## Tooling Migration
 
@@ -98,37 +114,30 @@ Legacy JS files for the above command modules were removed from `commands/`.
 
 - Added guard script: `scripts/ts-migration-guard.js`
 - Baseline file: `scripts/ts-migration-baseline.json`
-- Current baseline: `max_js_files = 70`
+- Current baseline: `max_js_files = 0`
 
 ## Validation Status
 
-All checks are passing at handoff time:
+Latest validation updates (2026-03-05):
 
-- `npm run build:runtime-ts` -> pass
-- `node scripts/ts-migration-guard.js` -> pass (`70/70`)
+- `npm run ts:migration-guard` -> pass (`0/0`)
 - `npm run quality:check` -> pass
-- `npm test` -> pass (`88 pass, 0 fail`)
+  - `npm test` -> pass (`123 pass, 0 fail`)
+  - `npm run test:social-ts` -> pass (`4 pass, 0 fail`)
+  - `npm run smoke:release` -> pass
+- historical handoff checks (2026-02-24): build/test suite passed
 
 ## Remaining JS Command Modules
 
-Still in `commands/`:
+None.
 
-- `accounts.js`
-- `ai.js`
-- `batch.js`
-- `doctor.js`
-- `hub.js`
-- `integrations.js`
-- `marketing.js`
-- `onboard.js`
-- `ops.js`
-- `policy.js`
+All command modules in `commands/` are now TypeScript (`*.ts`) as of 2026-03-05.
 
 ## Recommended Next Steps
 
-1. Continue migrating remaining `commands/*.js` modules in pairs and reduce baseline by 2 each batch.
-2. After command migration completes, remove runtime fallback path to `commands/` in `bin/social.js`.
-3. Keep `quality:check` and `npm test` green after each migration batch.
+1. Treat TypeScript migration as complete and block regressions with `npm run ts:migration-guard`.
+2. Run full release validation (`npm run quality:check` and `npm test`) before tagging/publishing.
+3. Prioritize product roadmap items below as the main remaining delivery queue.
 
 ## Product Roadmap To 9/10 (Added 2026-02-26)
 
