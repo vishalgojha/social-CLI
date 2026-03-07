@@ -3,11 +3,933 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Social Flow Studio</title>
-    <script type="module" crossorigin src="/assets/index-DVU41760.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DG7WA7Cw.css">
+    <meta name="theme-color" content="#050608" />
+    <title>Social Flow Studio | Execution Surface</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Syne:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #050608;
+        --surface: rgba(12, 14, 18, 0.9);
+        --surface-2: rgba(255, 255, 255, 0.03);
+        --border: rgba(255, 255, 255, 0.08);
+        --border-2: rgba(255, 255, 255, 0.16);
+        --text: #ecf0f6;
+        --muted: #7a8295;
+        --accent: #00e5a0;
+        --accent-2: #00aaff;
+        --accent-3: #f5a623;
+        --danger: #ff5f7c;
+        --mono: "IBM Plex Mono", monospace;
+        --display: "Syne", sans-serif;
+        --shadow: 0 24px 64px rgba(0, 229, 160, 0.08);
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        background:
+          radial-gradient(circle at 10% 10%, rgba(0, 229, 160, 0.1), transparent 24%),
+          radial-gradient(circle at 88% 16%, rgba(0, 170, 255, 0.1), transparent 22%),
+          radial-gradient(circle at 52% 76%, rgba(245, 166, 35, 0.08), transparent 28%),
+          var(--bg);
+        color: var(--text);
+        font-family: var(--mono);
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background-image:
+          linear-gradient(rgba(0, 229, 160, 0.028) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 229, 160, 0.028) 1px, transparent 1px);
+        background-size: 40px 40px;
+      }
+      button, textarea { font: inherit; }
+      button { color: inherit; }
+      .vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+      .blob { position: fixed; border-radius: 999px; filter: blur(120px); pointer-events: none; z-index: 0; }
+      .blob.a { width: 32rem; height: 32rem; left: -10rem; top: -10rem; background: rgba(0, 229, 160, 0.08); }
+      .blob.b { width: 26rem; height: 26rem; right: -7rem; bottom: 4rem; background: rgba(0, 170, 255, 0.08); }
+      .layout { position: relative; z-index: 1; display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100dvh; }
+      .sidebar { display: flex; flex-direction: column; border-right: 1px solid var(--border); background: rgba(8, 9, 12, 0.72); backdrop-filter: blur(20px); }
+      .brand { padding: 1.7rem 1.5rem 1.4rem; border-bottom: 1px solid var(--border); }
+      .brand-mark { display: flex; align-items: center; gap: 0.8rem; font-family: var(--display); font-size: 1.1rem; font-weight: 800; letter-spacing: -0.03em; }
+      .brand-chip { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 0.7rem; background: linear-gradient(135deg, var(--accent), #62ffcf); color: #04110d; box-shadow: 0 12px 30px rgba(0, 229, 160, 0.25); }
+      .brand-sub, .eyebrow, .label { text-transform: uppercase; letter-spacing: 0.26em; font-size: 0.62rem; }
+      .brand-sub, .label, .subtle { color: var(--muted); }
+      .brand-sub { margin-top: 0.35rem; }
+      .nav-sections { flex: 1; padding: 1rem 0.75rem 1.25rem; }
+      .nav-block + .nav-block { margin-top: 0.9rem; }
+      .label { padding: 0.55rem 0.75rem; }
+      .nav-item, .tag, .mode-btn, .workflow-card, .ghost-btn, .accent-btn { transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease; }
+      .nav-item { width: 100%; display: flex; align-items: center; gap: 0.75rem; margin-top: 0.25rem; padding: 0.78rem 0.85rem; border: 1px solid transparent; border-radius: 0.95rem; background: transparent; color: var(--muted); text-align: left; cursor: pointer; }
+      .nav-item:hover, .nav-item.active { color: var(--text); background: rgba(255, 255, 255, 0.045); }
+      .nav-item.active { color: var(--accent); border-color: rgba(0, 229, 160, 0.18); background: rgba(0, 229, 160, 0.08); }
+      .nav-dot, .status-dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: currentColor; opacity: 0.58; flex-shrink: 0; }
+      .pill, .nav-badge { padding: 0.22rem 0.5rem; border-radius: 999px; font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.08em; }
+      .nav-badge { margin-left: auto; }
+      .live { color: var(--accent); background: rgba(0, 229, 160, 0.12); }
+      .warn { color: var(--accent-3); background: rgba(245, 166, 35, 0.12); }
+      .danger { color: var(--danger); background: rgba(255, 95, 124, 0.14); }
+      .sidebar-footer { padding: 1rem 1.5rem 1.3rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.72rem; }
+      .runtime { display: flex; align-items: center; gap: 0.65rem; }
+      .status-dot { background: var(--accent); animation: pulse 2s ease-in-out infinite; }
+      .main { display: flex; flex-direction: column; min-width: 0; }
+      .topbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; gap: 1rem; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: rgba(5, 6, 8, 0.72); backdrop-filter: blur(20px); }
+      .crumbs, .topbar-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+      .crumbs { color: var(--muted); font-size: 0.72rem; }
+      .crumbs strong, .stat strong { color: var(--text); }
+      .stat { padding: 0.55rem 0.82rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 0.68rem; }
+      .ghost-btn, .accent-btn { min-height: 2.3rem; padding: 0 0.95rem; border-radius: 0.8rem; border: 1px solid var(--border-2); cursor: pointer; }
+      .ghost-btn { background: rgba(255, 255, 255, 0.04); }
+      .ghost-btn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.08); }
+      .accent-btn { border-color: transparent; color: #03140e; background: linear-gradient(135deg, var(--accent), #62ffcf); box-shadow: 0 14px 30px rgba(0, 229, 160, 0.18); }
+      .accent-btn:hover, .mode-btn:hover, .tag:hover, .workflow-card:hover { transform: translateY(-1px); }
+      .content { display: grid; gap: 1.2rem; padding: 2.1rem 2.1rem 1.8rem; }
+      .hero { display: grid; gap: 1rem; }
+      .eyebrow { display: flex; align-items: center; gap: 0.7rem; color: var(--accent); }
+      .eyebrow::after { content: ""; width: min(16rem, 40vw); height: 1px; background: linear-gradient(90deg, rgba(0, 229, 160, 0.3), transparent); }
+      h1 { margin: 0; max-width: 42rem; font-family: var(--display); font-size: clamp(2.5rem, 5vw, 4rem); line-height: 0.98; letter-spacing: -0.06em; }
+      h1 em { font-style: normal; background: linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .hero p { max-width: 37rem; margin: 0; color: var(--muted); font-size: 0.86rem; line-height: 1.8; }
+      .card, .workflow-card { border: 1px solid var(--border); border-radius: 1.25rem; background: var(--surface); box-shadow: var(--shadow); }
+      .prompt-box { overflow: hidden; }
+      .prompt-head, .panel-head { display: flex; justify-content: space-between; gap: 1rem; padding: 1rem 1.15rem; border-bottom: 1px solid var(--border); background: rgba(255, 255, 255, 0.02); }
+      .agent { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+      .agent-pill, .mode-row { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.36rem 0.72rem; border-radius: 999px; }
+      .agent-pill { color: var(--accent); background: rgba(0, 229, 160, 0.1); border: 1px solid rgba(0, 229, 160, 0.2); font-size: 0.66rem; }
+      .mode-row { gap: 0.25rem; padding: 0.22rem; border: 1px solid var(--border); background: var(--surface-2); }
+      .mode-btn { padding: 0.46rem 0.78rem; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--muted); font-size: 0.66rem; cursor: pointer; text-transform: uppercase; }
+      .mode-btn.active { color: var(--accent-2); border-color: rgba(0, 170, 255, 0.24); background: rgba(0, 170, 255, 0.1); }
+      textarea { width: 100%; min-height: 7.4rem; padding: 0.9rem 1.2rem 0; resize: vertical; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 0.92rem; line-height: 1.8; }
+      textarea::placeholder { color: #596070; }
+      .prompt-footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; padding: 1rem 1.15rem 1.2rem; }
+      .tags, .actions, .runtime-grid { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+      .tag { padding: 0.42rem 0.72rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-2); color: var(--muted); cursor: pointer; font-size: 0.66rem; }
+      .tag.selected { color: var(--accent); border-color: rgba(0, 229, 160, 0.34); background: rgba(0, 229, 160, 0.1); }
+      .actions { align-items: center; }
+      .actions span, .panel-head button, .subtle { color: var(--muted); font-size: 0.7rem; }
+      .run-btn svg { width: 0.9rem; height: 0.9rem; }
+      .grid4, .grid3 { display: grid; gap: 0.9rem; }
+      .grid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .stat-card, .runtime-card { padding: 1.1rem 1.15rem; }
+      .stat-card .value { margin-top: 0.7rem; font-family: var(--display); font-size: 2rem; font-weight: 800; letter-spacing: -0.05em; }
+      .green { color: var(--accent); }
+      .blue { color: var(--accent-2); }
+      .orange { color: var(--accent-3); }
+      .workflow-card { position: relative; display: grid; gap: 0.8rem; padding: 1.15rem; text-align: left; cursor: pointer; overflow: hidden; }
+      .workflow-card::before { content: ""; position: absolute; inset: 0; opacity: 0; background: linear-gradient(135deg, rgba(0, 229, 160, 0.08), transparent 60%); }
+      .workflow-card:hover::before { opacity: 1; }
+      .glyph { width: 2.7rem; height: 2.7rem; display: grid; place-items: center; border-radius: 1rem; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04); font-family: var(--display); font-weight: 800; }
+      .workflow-card h3, .section-head h2, .panel-head strong { margin: 0; font-weight: 700; }
+      .workflow-card h3 { font-family: var(--display); font-size: 1rem; letter-spacing: -0.03em; }
+      .workflow-card p, .runtime-card p { margin: 0; color: var(--muted); font-size: 0.74rem; line-height: 1.65; }
+      .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; }
+      .panel-head { align-items: center; }
+      .panel-head button { border: 0; background: transparent; cursor: pointer; text-transform: uppercase; letter-spacing: 0.08em; }
+      .feed-item { display: flex; gap: 0.85rem; padding: 1rem 1.15rem; border-bottom: 1px solid var(--border); animation: slide 0.28s ease; }
+      .feed-item:last-child { border-bottom: 0; }
+      .feed-icon { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 0.8rem; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+      .feed-icon.success { color: var(--accent); background: rgba(0, 229, 160, 0.12); }
+      .feed-icon.info { color: var(--accent-2); background: rgba(0, 170, 255, 0.12); }
+      .feed-icon.warn { color: var(--accent-3); background: rgba(245, 166, 35, 0.12); }
+      .feed-icon.err { color: var(--danger); background: rgba(255, 95, 124, 0.14); }
+      .feed-body { min-width: 0; flex: 1; }
+      .feed-body div { font-size: 0.78rem; line-height: 1.6; }
+      code { padding: 0.1rem 0.35rem; border-radius: 0.35rem; background: rgba(255, 255, 255, 0.07); color: var(--accent-2); }
+      .runtime-grid { padding: 1rem 1.15rem 1.2rem; }
+      .runtime-card { min-width: min(16rem, 100%); flex: 1 1 16rem; border: 1px solid var(--border); border-radius: 1rem; background: var(--surface-2); }
+      .approval-panel { padding: 1rem 1.15rem 1.2rem; display: grid; gap: 0.85rem; }
+      .approval-message { color: var(--text); font-size: 0.8rem; line-height: 1.7; }
+      .approval-status { color: var(--muted); font-size: 0.7rem; }
+      .approval-steps { display: grid; gap: 0.65rem; }
+      .approval-step { border: 1px solid var(--border); border-radius: 0.95rem; background: var(--surface-2); padding: 0.8rem 0.9rem; }
+      .approval-step strong { display: block; font-size: 0.76rem; }
+      .approval-step div { color: var(--muted); font-size: 0.68rem; margin-top: 0.3rem; line-height: 1.5; }
+      .queue-grid { display: grid; gap: 0.9rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .queue-list { padding: 1rem 1.15rem 1.2rem; display: grid; gap: 0.75rem; }
+      .queue-empty { color: var(--muted); font-size: 0.74rem; }
+      .queue-card { border: 1px solid var(--border); border-radius: 1rem; background: var(--surface-2); padding: 0.9rem; }
+      .queue-card-head { display: flex; justify-content: space-between; gap: 0.75rem; align-items: start; }
+      .queue-card h3 { margin: 0; font-size: 0.86rem; font-family: var(--display); letter-spacing: -0.02em; }
+      .queue-meta { color: var(--muted); font-size: 0.66rem; line-height: 1.5; }
+      .queue-card p { margin: 0.45rem 0 0; color: var(--text); font-size: 0.74rem; line-height: 1.6; }
+      .queue-note { width: 100%; min-height: 4.2rem; margin-top: 0.7rem; padding: 0.7rem 0.8rem; resize: vertical; border: 1px solid var(--border); border-radius: 0.85rem; background: rgba(255, 255, 255, 0.02); color: var(--text); }
+      .queue-note::placeholder { color: var(--muted); }
+      .queue-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.7rem; }
+      .queue-btn { min-height: 2rem; padding: 0 0.78rem; border-radius: 0.75rem; border: 1px solid var(--border-2); background: rgba(255, 255, 255, 0.04); color: var(--text); cursor: pointer; }
+      .queue-btn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.08); }
+      .queue-btn.approve { color: #03140e; border-color: transparent; background: linear-gradient(135deg, var(--accent), #62ffcf); }
+      .queue-btn.reject { color: #fff; border-color: rgba(255, 95, 124, 0.26); background: rgba(255, 95, 124, 0.12); }
+      .queue-btn.ack { color: var(--accent-2); border-color: rgba(0, 170, 255, 0.22); background: rgba(0, 170, 255, 0.1); }
+      .cursor { display: inline-block; width: 0.12rem; height: 1em; margin-left: 0.16rem; background: var(--accent); animation: blink 1s step-end infinite; }
+      @keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 229, 160, 0.35); } 50% { opacity: 0.72; box-shadow: 0 0 0 0.35rem rgba(0, 229, 160, 0); } }
+      @keyframes blink { 50% { opacity: 0; } }
+      @keyframes slide { from { opacity: 0; transform: translateX(-0.4rem); } to { opacity: 1; transform: translateX(0); } }
+      @media (max-width: 1180px) { .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid3, .queue-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } .sidebar { position: sticky; top: 0; z-index: 20; border-right: 0; border-bottom: 1px solid var(--border); } .nav-sections { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; } .nav-block + .nav-block { margin-top: 0; } .sidebar-footer { display: none; } .topbar { padding: 1rem 1.2rem; } .content { padding: 1.5rem 1.2rem 1.6rem; } }
+      @media (max-width: 720px) { .nav-sections { grid-template-columns: 1fr; } .topbar, .prompt-head, .prompt-footer, .panel-head, .section-head { flex-direction: column; align-items: flex-start; } .grid4, .grid3, .queue-grid { grid-template-columns: 1fr; } .actions { width: 100%; justify-content: space-between; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Social Flow Agentic Frontend Screens -->
+    <span class="vh">Social Flow Agentic Frontend Screens</span>
+    <div class="blob a"></div>
+    <div class="blob b"></div>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark"><span class="brand-chip">SF</span><span>Social Flow Studio</span></div>
+          <div class="brand-sub">Execution Surface</div>
+        </div>
+        <div class="nav-sections">
+          <div class="nav-block">
+            <div class="label">Operator</div>
+            <button class="nav-item active" type="button"><span class="nav-dot"></span><span>Studio</span><span class="nav-badge live">live</span></button>
+            <button class="nav-item" type="button"><span class="nav-dot"></span><span>Hatch</span></button>
+            <button class="nav-item" type="button"><span class="nav-dot"></span><span>Approvals</span><span class="nav-badge warn" id="approvalsBadge">0</span></button>
+            <button class="nav-item" type="button"><span class="nav-dot"></span><span>Alerts</span><span class="nav-badge danger" id="alertsBadge">0</span></button>
+          </div>
+          <div class="nav-block">
+            <div class="label">Modules</div>
+            <button class="nav-item" type="button"><span class="nav-dot"></span><span>Marketing API</span></button>
+            <button class="nav-item" type="button"><span class="nav-dot"></span><span>WhatsApp</span></button>
+            <button class="nav-item" type="button"><span class="nav-dot"></span><span>Graph API</span></button>
+            <button class="nav-item" type="button"><span class="nav-dot"></span><span>Instagram</span></button>
+          </div>
+          <div class="nav-block">
+            <div class="label">System</div>
+            <button class="nav-item" type="button"><span class="nav-dot"></span><span>Auth / Tokens</span></button>
+            <button class="nav-item" type="button"><span class="nav-dot"></span><span>Accounts</span></button>
+            <button class="nav-item" type="button"><span class="nav-dot"></span><span>Gateway</span></button>
+            <button class="nav-item" type="button"><span class="nav-dot"></span><span>Recipes</span></button>
+          </div>
+        </div>
+        <div class="sidebar-footer">
+          <div class="runtime"><span class="status-dot"></span><span id="runtimeStatus">Runtime healthy | local preview</span></div>
+        </div>
+      </aside>
+      <main class="main">
+        <header class="topbar">
+          <div class="crumbs"><span>social-flow</span><span>/</span><strong>studio</strong></div>
+          <div class="topbar-actions">
+            <div class="stat">Workspace <strong id="workspaceValue">default</strong></div>
+            <div class="stat">Gateway <strong id="gatewayHost">local</strong></div>
+            <div class="stat">Tokens <strong class="green">98.2k</strong> remaining</div>
+            <button class="ghost-btn" type="button" id="doctorBtn">social doctor</button>
+            <button class="accent-btn" type="button" id="workflowBtn">+ New Workflow</button>
+          </div>
+        </header>
+        <div class="content">
+          <section class="hero">
+            <div class="eyebrow">Meta execution surface</div>
+            <h1>What should the<br /><em>agent execute</em><br />today?</h1>
+            <p>Describe a workflow in plain language. Studio routes it to the right module, plans the run, and executes with rate-limit discipline and full recovery.<span class="cursor" aria-hidden="true"></span></p>
+          </section>
+
+          <section class="card prompt-box">
+            <div class="prompt-head">
+              <div class="agent">
+                <div class="agent-pill"><span class="status-dot"></span><span>Hatch Agent | ready</span></div>
+                <div class="subtle" id="modeSummary">Plan mode</div>
+              </div>
+              <div class="mode-row">
+                <button class="mode-btn active" type="button" data-mode="Plan">Plan</button>
+                <button class="mode-btn" type="button" data-mode="Execute">Execute</button>
+                <button class="mode-btn" type="button" data-mode="Dry-run">Dry-run</button>
+              </div>
+            </div>
+            <label class="vh" for="promptInput">Workflow prompt</label>
+            <textarea id="promptInput" placeholder="e.g. Pull yesterday's ad performance across all active campaigns, flag any CPA above Rs 80, and pause them pending approval..."></textarea>
+            <div class="prompt-footer">
+              <div class="tags" id="tagRow">
+                <button class="tag" type="button" data-insert="marketing status">marketing status</button>
+                <button class="tag" type="button" data-insert="portfolio --preset last_7d">portfolio 7d</button>
+                <button class="tag" type="button" data-insert="morning-run --workspace default">morning-run</button>
+                <button class="tag" type="button" data-insert="approvals list --open">open approvals</button>
+                <button class="tag" type="button" data-insert="whatsapp status">whatsapp status</button>
+                <button class="tag" type="button" data-insert="alerts list --open">active alerts</button>
+              </div>
+              <div class="actions">
+                <span><span id="charCount">0</span> chars</span>
+                <button class="accent-btn run-btn" type="button" id="runBtn">Run <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2L10 6L2 10V2Z" fill="currentColor"></path></svg></button>
+              </div>
+            </div>
+          </section>
+
+          <section class="grid4">
+            <article class="card stat-card"><div class="label">Activity 24h</div><div class="value" id="activityValue">--</div><div class="subtle" id="activityMeta">Waiting for action log</div></article>
+            <article class="card stat-card"><div class="label">Readiness</div><div class="value green" id="readinessValue">--</div><div class="subtle" id="readinessMeta">Waiting for readiness checks</div></article>
+            <article class="card stat-card"><div class="label">Open alerts</div><div class="value blue" id="alertsValue">--</div><div class="subtle" id="alertsMeta">Live from ops summary</div></article>
+            <article class="card stat-card"><div class="label">Pending approvals</div><div class="value orange" id="approvalsValue">--</div><div class="subtle" id="approvalsMeta">Live from ops summary</div></article>
+          </section>
+
+          <section>
+            <div class="section-head">
+              <h2 class="label">Quick Workflows</h2>
+              <div class="subtle">Fast prompts for common operating loops</div>
+            </div>
+            <div class="grid3">
+              <button class="workflow-card" type="button" data-fill="Run morning-run for workspace default. Pull ad status, open alerts, and surface approvals pending over 4h."><span class="glyph">AM</span><h3>Morning Run</h3><p>Full workspace health check across ads, alerts, and approvals in one pass.</p><div class="tags"><span class="pill live">marketing</span><span class="pill warn">ops</span></div></button>
+              <button class="workflow-card" type="button" data-fill="Pull portfolio performance for last 7d, target daily spend 250, flag underperforming ad sets, and draft a pause recommendation."><span class="glyph">PF</span><h3>Portfolio Review</h3><p>Spend pacing, CPA drift, and bid efficiency structured for quick decisions.</p><div class="tags"><span class="pill live">marketing</span><span class="pill" style="color: var(--accent-2); background: rgba(0, 170, 255, 0.12)">analytics</span></div></button>
+              <button class="workflow-card" type="button" data-fill="Check WhatsApp API connection status, verify webhook health, and list failed message deliveries from the last 6h."><span class="glyph">WA</span><h3>WhatsApp Healthcheck</h3><p>Connection state, webhook liveness, and delivery failure audit.</p><div class="tags"><span class="pill" style="color: var(--accent-2); background: rgba(0, 170, 255, 0.12)">whatsapp</span></div></button>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="panel-head"><strong>Runtime Context</strong></div>
+            <div class="runtime-grid">
+              <article class="runtime-card"><div class="label">Gateway target</div><p id="gatewayUrlValue">No gateway injected. Open via social studio --url http://127.0.0.1:1310</p></article>
+              <article class="runtime-card"><div class="label">Auth posture</div><p id="gatewayKeyValue">No gateway key injected</p></article>
+              <article class="runtime-card"><div class="label">Doctor verdict</div><p id="doctorValue">Waiting for doctor snapshot</p></article>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="panel-head"><strong>Agent Approval</strong><span class="approval-status" id="approvalStatus">No pending plan</span></div>
+            <div class="approval-panel">
+              <div class="approval-message" id="approvalMessage">Run a prompt and the agent will plan first, then wait for your approval.</div>
+              <div class="approval-steps" id="approvalSteps"><div class="queue-empty">No pending actions.</div></div>
+              <div class="queue-actions">
+                <button class="queue-btn approve" type="button" id="approvePlanBtn" disabled>Approve</button>
+                <button class="queue-btn reject" type="button" id="rejectPlanBtn" disabled>Reject</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="queue-grid">
+            <section class="card">
+              <div class="panel-head"><strong>Pending Approvals</strong><button type="button" id="refreshApprovalsBtn">Refresh</button></div>
+              <div class="queue-list" id="approvalsList"><div class="queue-empty">Loading approvals...</div></div>
+            </section>
+            <section class="card">
+              <div class="panel-head"><strong>Open Alerts</strong><button type="button" id="refreshAlertsBtn">Refresh</button></div>
+              <div class="queue-list" id="alertsList"><div class="queue-empty">Loading alerts...</div></div>
+            </section>
+          </section>
+
+          <section class="card">
+            <div class="panel-head"><strong>Live Activity</strong><button type="button" id="refreshFeedBtn">Refresh</button></div>
+            <div id="feed">
+              <div class="feed-item"><div class="feed-icon info">log</div><div class="feed-body"><div>Loading team activity...</div><div class="subtle">just now</div></div></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script>
+      (function () {
+        var REFRESH_INTERVAL_MS = 30000;
+        var injected = window.__SOCIAL_FLOW_GATEWAY__ || {};
+        var state = {
+          mode: "Plan",
+          typing: null,
+          sessionId: sessionStorage.getItem("social_flow_studio_session") || "",
+          ws: null,
+          activity: [],
+          sessionFeed: [],
+          pendingActions: [],
+          pendingMessage: "",
+          config: {
+            baseUrl: defaultGatewayBaseUrl(),
+            apiKey: String(injected.apiKey || "").trim(),
+            workspace: ""
+          }
+        };
+
+        var promptInput = document.getElementById("promptInput");
+        var charCount = document.getElementById("charCount");
+        var modeSummary = document.getElementById("modeSummary");
+        var gatewayHost = document.getElementById("gatewayHost");
+        var gatewayUrlValue = document.getElementById("gatewayUrlValue");
+        var gatewayKeyValue = document.getElementById("gatewayKeyValue");
+        var doctorValue = document.getElementById("doctorValue");
+        var runtimeStatus = document.getElementById("runtimeStatus");
+        var workspaceValue = document.getElementById("workspaceValue");
+        var feed = document.getElementById("feed");
+        var approvalsList = document.getElementById("approvalsList");
+        var alertsList = document.getElementById("alertsList");
+        var approvalStatus = document.getElementById("approvalStatus");
+        var approvalMessage = document.getElementById("approvalMessage");
+        var approvalSteps = document.getElementById("approvalSteps");
+        var approvePlanBtn = document.getElementById("approvePlanBtn");
+        var rejectPlanBtn = document.getElementById("rejectPlanBtn");
+
+        function defaultGatewayBaseUrl() {
+          var injectedUrl = String(injected.url || "").trim();
+          if (injectedUrl) {
+            try { return new URL(injectedUrl).toString().replace(/\/$/, ""); } catch (_) {}
+          }
+          return window.location.protocol + "//" + window.location.host;
+        }
+
+        function workspaceQuery() {
+          return state.config.workspace ? ("workspace=" + encodeURIComponent(state.config.workspace)) : "";
+        }
+
+        async function requestApi(pathname, options) {
+          var opts = options || {};
+          var url = new URL(pathname, state.config.baseUrl);
+          var headers = {};
+          if (state.config.apiKey) headers["x-gateway-key"] = state.config.apiKey;
+          if (opts.body !== undefined && opts.body !== null) headers["Content-Type"] = "application/json";
+          var response = await fetch(url.toString(), {
+            method: opts.method || "GET",
+            headers: headers,
+            body: opts.body !== undefined && opts.body !== null ? JSON.stringify(opts.body) : undefined
+          });
+          var raw = await response.text();
+          var payload = {};
+          try { payload = raw ? JSON.parse(raw) : {}; } catch (_) { payload = raw; }
+          if (!response.ok) {
+            var message = typeof payload === "object" ? payload.error || payload.message : String(payload || "");
+            var error = new Error(message || ("Request failed (" + response.status + ")"));
+            error.status = response.status;
+            error.payload = payload;
+            throw error;
+          }
+          return payload;
+        }
+
+        function errorText(error, fallback) {
+          return String((error && error.payload && error.payload.error) || error.message || fallback || "Request failed");
+        }
+
+        function shorten(value, max) {
+          value = String(value || "").trim();
+          return value.length <= max ? value : value.slice(0, max - 3) + "...";
+        }
+
+        function host(url) {
+          if (!url) return "local";
+          try { return new URL(url).host || "local"; } catch (_) { return shorten(url, 24); }
+        }
+
+        function relativeTime(value) {
+          var ms = Date.parse(String(value || ""));
+          if (!Number.isFinite(ms)) return "just now";
+          var diff = Math.round((Date.now() - ms) / 1000);
+          if (diff < 60) return diff + "s ago";
+          if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+          if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+          return Math.floor(diff / 86400) + "d ago";
+        }
+
+        function updateCount() {
+          charCount.textContent = String(promptInput.value.length);
+        }
+
+        function modeSummaryText(nextMode) {
+          if (nextMode === "Execute") return "Execute mode | explicit approval required";
+          if (nextMode === "Dry-run") return "Dry-run | approval stays disabled";
+          return "Plan mode | review before execution";
+        }
+
+        function setMode(nextMode) {
+          state.mode = nextMode;
+          modeSummary.textContent = modeSummaryText(nextMode);
+          document.querySelectorAll(".mode-btn").forEach(function (button) {
+            button.classList.toggle("active", button.getAttribute("data-mode") === nextMode);
+          });
+          renderPendingApproval();
+        }
+
+        function appendPrompt(text) {
+          var current = promptInput.value.trim();
+          promptInput.value = current ? current + " " + text : text;
+          updateCount();
+          promptInput.focus();
+        }
+
+        function typePrompt(text) {
+          if (state.typing) window.clearInterval(state.typing);
+          promptInput.value = "";
+          updateCount();
+          var i = 0;
+          state.typing = window.setInterval(function () {
+            promptInput.value += text.charAt(i);
+            i += 1;
+            updateCount();
+            if (i >= text.length) {
+              window.clearInterval(state.typing);
+              state.typing = null;
+            }
+          }, 14);
+          promptInput.focus();
+        }
+
+        function pushSessionFeed(entry) {
+          state.sessionFeed.unshift({
+            tone: entry.tone || "info",
+            icon: entry.icon || "log",
+            message: String(entry.message || ""),
+            meta: String(entry.meta || "just now"),
+            code: entry.code ? String(entry.code) : "",
+            ts: Number(entry.ts || Date.now())
+          });
+          state.sessionFeed = state.sessionFeed.slice(0, 12);
+          renderFeed();
+        }
+
+        function mapActivityRow(row) {
+          var status = String(row.status || "").toLowerCase();
+          var tone = status === "done" || status === "approved" || status === "success"
+            ? "success"
+            : status === "rejected" || status === "error"
+              ? "err"
+              : status === "queued"
+                ? "info"
+                : "warn";
+          var icon = tone === "success" ? "ok" : tone === "err" ? "no" : tone === "warn" ? "!" : "log";
+          return {
+            tone: tone,
+            icon: icon,
+            message: row.summary || row.action || "activity",
+            meta: [row.action || "activity", row.actor || "system", relativeTime(row.createdAt || row.when || "")].join(" | "),
+            code: "",
+            ts: Date.parse(String(row.createdAt || row.when || "")) || 0
+          };
+        }
+
+        function renderFeed() {
+          var items = state.sessionFeed.concat((state.activity || []).map(mapActivityRow));
+          items.sort(function (a, b) { return Number(b.ts || 0) - Number(a.ts || 0); });
+          feed.innerHTML = "";
+          if (!items.length) {
+            feed.innerHTML = '<div class="feed-item"><div class="feed-icon info">log</div><div class="feed-body"><div>No activity yet.</div><div class="subtle">waiting for gateway events</div></div></div>';
+            return;
+          }
+          items.slice(0, 10).forEach(function (item) {
+            var row = document.createElement("div");
+            row.className = "feed-item";
+            var icon = document.createElement("div");
+            icon.className = "feed-icon " + item.tone;
+            icon.textContent = item.icon;
+            var body = document.createElement("div");
+            body.className = "feed-body";
+            var message = document.createElement("div");
+            if (item.code) {
+              message.appendChild(document.createTextNode(item.message));
+              var code = document.createElement("code");
+              code.textContent = item.code;
+              message.appendChild(code);
+            } else {
+              message.textContent = item.message;
+            }
+            var meta = document.createElement("div");
+            meta.className = "subtle";
+            meta.textContent = item.meta;
+            body.appendChild(message);
+            body.appendChild(meta);
+            row.appendChild(icon);
+            row.appendChild(body);
+            feed.appendChild(row);
+          });
+        }
+
+        function renderPendingApproval() {
+          var pending = Array.isArray(state.pendingActions) ? state.pendingActions : [];
+          var dryRun = state.mode === "Dry-run";
+          approvalSteps.innerHTML = "";
+          if (!pending.length) {
+            approvalStatus.textContent = "No pending plan";
+            approvalMessage.textContent = state.pendingMessage || "Run a prompt and the agent will plan first, then wait for your approval.";
+            approvalSteps.innerHTML = '<div class="queue-empty">No pending actions.</div>';
+            approvePlanBtn.disabled = true;
+            rejectPlanBtn.disabled = true;
+            return;
+          }
+
+          approvalStatus.textContent = dryRun ? "Dry-run captured. Approval disabled." : ("Awaiting approval for " + pending.length + " step(s)");
+          approvalMessage.textContent = state.pendingMessage || "The agent has prepared a plan and is waiting for your decision.";
+          pending.forEach(function (step, index) {
+            var row = document.createElement("div");
+            row.className = "approval-step";
+            var title = document.createElement("strong");
+            title.textContent = (index + 1) + ". " + String(step.tool || "step");
+            var meta = document.createElement("div");
+            meta.textContent = [step.description || "", step.risk ? ("risk: " + String(step.risk).toUpperCase()) : ""].filter(Boolean).join(" | ") || "Pending action";
+            row.appendChild(title);
+            row.appendChild(meta);
+            approvalSteps.appendChild(row);
+          });
+          approvePlanBtn.disabled = dryRun;
+          rejectPlanBtn.disabled = false;
+        }
+
+        function renderQueue(container, rows, type) {
+          container.innerHTML = "";
+          if (!rows.length) {
+            container.innerHTML = '<div class="queue-empty">Nothing open right now.</div>';
+            return;
+          }
+          rows.slice(0, 8).forEach(function (row) {
+            var card = document.createElement("div");
+            card.className = "queue-card";
+            var head = document.createElement("div");
+            head.className = "queue-card-head";
+            var titleWrap = document.createElement("div");
+            var title = document.createElement("h3");
+            title.textContent = type === "approval" ? (row.action || row.type || "approval") : (row.title || row.type || "alert");
+            var meta = document.createElement("div");
+            meta.className = "queue-meta";
+            meta.textContent = ["id: " + String(row.id || "-"), row.risk ? "risk: " + String(row.risk).toUpperCase() : "", relativeTime(row.createdAt || "")].filter(Boolean).join(" | ");
+            titleWrap.appendChild(title);
+            titleWrap.appendChild(meta);
+            head.appendChild(titleWrap);
+            card.appendChild(head);
+            var body = document.createElement("p");
+            body.textContent = row.summary || row.detail || row.reason || row.message || "No detail available.";
+            card.appendChild(body);
+            var actions = document.createElement("div");
+            actions.className = "queue-actions";
+            if (type === "approval") {
+              var note = document.createElement("textarea");
+              note.className = "queue-note";
+              note.placeholder = "Decision note";
+              card.appendChild(note);
+              var approve = document.createElement("button");
+              approve.type = "button";
+              approve.className = "queue-btn approve";
+              approve.textContent = "Approve";
+              approve.addEventListener("click", function () {
+                resolveApproval(row.id, "approve", note.value);
+              });
+              var reject = document.createElement("button");
+              reject.type = "button";
+              reject.className = "queue-btn reject";
+              reject.textContent = "Reject";
+              reject.addEventListener("click", function () {
+                resolveApproval(row.id, "reject", note.value);
+              });
+              actions.appendChild(approve);
+              actions.appendChild(reject);
+            } else {
+              var ack = document.createElement("button");
+              ack.type = "button";
+              ack.className = "queue-btn ack";
+              ack.textContent = "Acknowledge";
+              ack.addEventListener("click", function () {
+                acknowledgeAlert(row.id);
+              });
+              actions.appendChild(ack);
+            }
+            card.appendChild(actions);
+            container.appendChild(card);
+          });
+        }
+
+        function updateSummaryCards(summary, activityRows, readiness) {
+          var lastDay = (activityRows || []).filter(function (row) {
+            var created = Date.parse(String(row.createdAt || row.when || ""));
+            return Number.isFinite(created) && Date.now() - created <= 86400000;
+          });
+          var successRows = lastDay.filter(function (row) {
+            return ["done", "approved", "success"].indexOf(String(row.status || "").toLowerCase()) >= 0;
+          });
+          var score = readiness && readiness.score ? readiness.score : { passed: 0, total: 0 };
+          document.getElementById("activityValue").textContent = String(lastDay.length || 0);
+          document.getElementById("activityMeta").textContent = successRows.length && lastDay.length ? (Math.round((successRows.length / lastDay.length) * 100) + "% successful") : "No completed actions in 24h";
+          document.getElementById("readinessValue").textContent = score.total ? (score.passed + "/" + score.total) : "--";
+          document.getElementById("readinessMeta").textContent = summary && summary.role ? ("Role: " + summary.role) : "Waiting for readiness checks";
+          document.getElementById("alertsValue").textContent = summary && summary.alertsOpen !== undefined ? String(summary.alertsOpen) : "--";
+          document.getElementById("alertsMeta").textContent = summary && summary.sourcesConfigured !== undefined ? ("Sources ready " + (summary.sourcesReady || 0) + "/" + (summary.sourcesConfigured || 0)) : "Live from ops summary";
+          document.getElementById("approvalsValue").textContent = summary && summary.approvalsPending !== undefined ? String(summary.approvalsPending) : "--";
+          document.getElementById("approvalsMeta").textContent = summary && summary.lastMorningRunDate ? ("Last morning run " + relativeTime(summary.lastMorningRunDate)) : "No morning run recorded";
+          document.getElementById("approvalsBadge").textContent = summary && summary.approvalsPending !== undefined ? String(summary.approvalsPending) : "0";
+          document.getElementById("alertsBadge").textContent = summary && summary.alertsOpen !== undefined ? String(summary.alertsOpen) : "0";
+        }
+
+        function summarizeDoctor(payload) {
+          var data = payload && payload.data ? payload.data : payload;
+          if (!data || typeof data !== "object") return "Doctor unavailable";
+          var blockers = Array.isArray(data.blockers) ? data.blockers.length : 0;
+          var advisories = Array.isArray(data.advisories) ? data.advisories.length : 0;
+          if (data.ok) return "Healthy - " + advisories + " advisories";
+          return blockers + " blockers, " + advisories + " advisories";
+        }
+
+        async function refreshDashboard() {
+          var results = await Promise.allSettled([
+            requestApi("/api/health"),
+            requestApi("/api/status"),
+            requestApi("/api/ops/summary?" + workspaceQuery()),
+            requestApi("/api/ops/readiness?" + workspaceQuery()),
+            requestApi("/api/sdk/doctor"),
+            requestApi("/api/ops/approvals?" + workspaceQuery() + "&open=1"),
+            requestApi("/api/ops/alerts?" + workspaceQuery() + "&open=1"),
+            requestApi("/api/team/activity?" + workspaceQuery() + "&limit=8")
+          ]);
+          var health = results[0].status === "fulfilled" ? results[0].value : null;
+          var status = results[1].status === "fulfilled" ? results[1].value : null;
+          var ops = results[2].status === "fulfilled" ? results[2].value : null;
+          var readiness = results[3].status === "fulfilled" ? results[3].value : null;
+          var doctor = results[4].status === "fulfilled" ? results[4].value : null;
+          var approvals = results[5].status === "fulfilled" ? results[5].value : null;
+          var alerts = results[6].status === "fulfilled" ? results[6].value : null;
+          var activity = results[7].status === "fulfilled" ? results[7].value : null;
+
+          if (status && status.workspace) state.config.workspace = String(status.workspace || "default");
+          workspaceValue.textContent = state.config.workspace || "default";
+          gatewayHost.textContent = host(state.config.baseUrl);
+          gatewayUrlValue.textContent = state.config.baseUrl;
+          gatewayKeyValue.textContent = state.config.apiKey ? "Gateway key present and being sent with API calls" : "No gateway key injected";
+          runtimeStatus.textContent = health && health.ok ? ("Runtime healthy | " + health.service + " " + (health.version || "")) : "Runtime unreachable";
+          doctorValue.textContent = doctor ? summarizeDoctor(doctor) : "Doctor request failed";
+
+          if (ops && ops.summary) updateSummaryCards(ops.summary, activity && activity.activity ? activity.activity : [], readiness && readiness.report ? readiness.report : null);
+          if (approvals && Array.isArray(approvals.approvals)) renderQueue(approvalsList, approvals.approvals, "approval");
+          else approvalsList.innerHTML = '<div class="queue-empty">Unable to load approvals.</div>';
+          if (alerts && Array.isArray(alerts.alerts)) renderQueue(alertsList, alerts.alerts, "alert");
+          else alertsList.innerHTML = '<div class="queue-empty">Unable to load alerts.</div>';
+          state.activity = activity && Array.isArray(activity.activity) ? activity.activity : [];
+          renderFeed();
+        }
+
+        async function resolveApproval(id, decision, note) {
+          try {
+            await requestApi("/api/ops/approvals/resolve", {
+              method: "POST",
+              body: { workspace: state.config.workspace, id: id, decision: decision, note: String(note || "").trim() }
+            });
+            pushSessionFeed({ tone: "success", icon: "ok", message: "Approval " + decision + "d", code: String(id || ""), meta: "queue action | just now" });
+            await refreshDashboard();
+          } catch (error) {
+            pushSessionFeed({ tone: "err", icon: "no", message: errorText(error, "Approval update failed"), meta: "queue action | just now" });
+          }
+        }
+
+        async function acknowledgeAlert(id) {
+          try {
+            await requestApi("/api/ops/alerts/ack", {
+              method: "POST",
+              body: { workspace: state.config.workspace, id: id }
+            });
+            pushSessionFeed({ tone: "success", icon: "ok", message: "Alert acknowledged", code: String(id || ""), meta: "queue action | just now" });
+            await refreshDashboard();
+          } catch (error) {
+            pushSessionFeed({ tone: "err", icon: "no", message: errorText(error, "Alert acknowledge failed"), meta: "queue action | just now" });
+          }
+        }
+
+        function closeWs() {
+          if (!state.ws) return;
+          try { state.ws.close(); } catch (_) {}
+          state.ws = null;
+        }
+
+        function connectWs(sessionId) {
+          closeWs();
+          if (!sessionId) return;
+          try {
+            var base = new URL(state.config.baseUrl);
+            var wsUrl = new URL("/ws", base);
+            wsUrl.protocol = base.protocol === "https:" ? "wss:" : "ws:";
+            wsUrl.searchParams.set("sessionId", sessionId);
+            if (state.config.apiKey) wsUrl.searchParams.set("gatewayKey", state.config.apiKey);
+            state.ws = new WebSocket(wsUrl.toString());
+            state.ws.onmessage = function (event) {
+              var msg = {};
+              try { msg = JSON.parse(String(event.data || "{}")); } catch (_) { msg = { type: "output", data: String(event.data || "") }; }
+              var type = String(msg.type || "event");
+              if (type === "plan" && Array.isArray(msg.steps)) {
+                state.pendingActions = msg.steps;
+                state.pendingMessage = "Live plan received. Review and approve when ready.";
+                renderPendingApproval();
+              }
+              if (type === "step_start" && state.pendingActions.length) {
+                state.pendingActions = [];
+                state.pendingMessage = "Approved plan is now executing.";
+                renderPendingApproval();
+              }
+              pushSessionFeed({
+                tone: type === "error" ? "err" : type === "step_done" ? "success" : "info",
+                icon: type === "error" ? "no" : type === "step_done" ? "ok" : "log",
+                message: String(msg.summary || msg.message || msg.data || type),
+                meta: [type, msg.step ? ("step " + msg.step) : "", "live event"].filter(Boolean).join(" | ")
+              });
+            };
+          } catch (error) {
+            pushSessionFeed({ tone: "warn", icon: "!", message: errorText(error, "WebSocket unavailable"), meta: "live event" });
+          }
+        }
+
+        async function ensureSession(forceNew) {
+          if (state.sessionId && !forceNew) return state.sessionId;
+          var out = await requestApi("/api/chat/start", { method: "POST", body: forceNew ? {} : { sessionId: state.sessionId || undefined } });
+          state.sessionId = String(out.sessionId || "");
+          sessionStorage.setItem("social_flow_studio_session", state.sessionId);
+          connectWs(state.sessionId);
+          return state.sessionId;
+        }
+
+        function pendingActionsFrom(result) {
+          if (Array.isArray(result.pendingActions) && result.pendingActions.length) return result.pendingActions;
+          if (result.response && Array.isArray(result.response.actions) && result.response.actions.length) return result.response.actions;
+          return [];
+        }
+
+        async function runPrompt() {
+          var value = promptInput.value.trim();
+          if (!value) return;
+          var mode = state.mode;
+          pushSessionFeed({ tone: "info", icon: "run", message: mode + ": ", code: shorten(value, 88), meta: "just now | request queued" });
+          try {
+            var sessionId = await ensureSession(false);
+            var result = await requestApi("/api/chat/message", { method: "POST", body: { sessionId: sessionId, message: value } });
+            state.pendingActions = pendingActionsFrom(result);
+            state.pendingMessage = result.response && result.response.message ? String(result.response.message) : "";
+            if (result.response && result.response.message) {
+              pushSessionFeed({ tone: "info", icon: "ai", message: result.response.message, meta: "agent response | just now" });
+            }
+            if (Array.isArray(result.executed) && result.executed.length) {
+              result.executed.forEach(function (row) {
+                pushSessionFeed({ tone: row.success ? "success" : "err", icon: row.success ? "ok" : "no", message: row.summary || row.error || row.tool || "execution result", meta: "agent execution | just now" });
+              });
+            }
+            if (mode === "Dry-run" && Array.isArray(result.executed) && result.executed.length) {
+              pushSessionFeed({ tone: "warn", icon: "!", message: "Dry-run advisory only: gateway auto-executed a low-risk action.", meta: "mode behavior | just now" });
+            }
+            if (state.pendingActions.length) {
+              pushSessionFeed({
+                tone: "warn",
+                icon: "?",
+                message: mode === "Dry-run" ? "Dry-run captured. Approval stays disabled." : "Plan ready and awaiting approval.",
+                meta: mode === "Dry-run" ? "dry-run | no execution" : "approve or reject from Agent Approval"
+              });
+            }
+            promptInput.value = "";
+            updateCount();
+            document.querySelectorAll(".tag").forEach(function (button) { button.classList.remove("selected"); });
+            renderPendingApproval();
+            await refreshDashboard();
+          } catch (error) {
+            pushSessionFeed({ tone: "err", icon: "no", message: errorText(error, "Run failed"), meta: "just now" });
+          }
+        }
+
+        async function approvePendingPlan() {
+          if (!state.pendingActions.length || state.mode === "Dry-run") return;
+          try {
+            var sessionId = await ensureSession(false);
+            var result = await requestApi("/api/chat/message", { method: "POST", body: { sessionId: sessionId, message: "yes" } });
+            state.pendingActions = pendingActionsFrom(result);
+            state.pendingMessage = result.response && result.response.message ? String(result.response.message) : "";
+            pushSessionFeed({ tone: "info", icon: "run", message: "Approval sent. Executing approved plan.", meta: "approval response | just now" });
+            if (Array.isArray(result.executed) && result.executed.length) {
+              result.executed.forEach(function (row) {
+                pushSessionFeed({ tone: row.success ? "success" : "err", icon: row.success ? "ok" : "no", message: row.summary || row.error || row.tool || "execution result", meta: "approved execution | just now" });
+              });
+            } else if (result.response && result.response.message) {
+              pushSessionFeed({ tone: "info", icon: "ai", message: result.response.message, meta: "approval response | just now" });
+            }
+            renderPendingApproval();
+            await refreshDashboard();
+          } catch (error) {
+            pushSessionFeed({ tone: "err", icon: "no", message: errorText(error, "Approval failed"), meta: "approval response" });
+          }
+        }
+
+        async function rejectPendingPlan() {
+          if (!state.pendingActions.length) return;
+          try {
+            var sessionId = await ensureSession(false);
+            var result = await requestApi("/api/chat/message", { method: "POST", body: { sessionId: sessionId, message: "no" } });
+            state.pendingActions = pendingActionsFrom(result);
+            state.pendingMessage = result.response && result.response.message ? String(result.response.message) : "Plan rejected.";
+            if (result.response && result.response.message) {
+              pushSessionFeed({ tone: "warn", icon: "no", message: result.response.message, meta: "rejected | just now" });
+            }
+            renderPendingApproval();
+          } catch (error) {
+            pushSessionFeed({ tone: "err", icon: "no", message: errorText(error, "Reject failed"), meta: "approval response" });
+          }
+        }
+
+        async function runDoctor() {
+          try {
+            var out = await requestApi("/api/sdk/doctor");
+            doctorValue.textContent = summarizeDoctor(out);
+            pushSessionFeed({ tone: out.data && out.data.ok ? "success" : "warn", icon: out.data && out.data.ok ? "ok" : "!", message: "Doctor snapshot updated", meta: summarizeDoctor(out) });
+          } catch (error) {
+            pushSessionFeed({ tone: "err", icon: "no", message: errorText(error, "Doctor failed"), meta: "diagnostics" });
+          }
+        }
+
+        async function startFreshWorkflow() {
+          state.pendingActions = [];
+          state.pendingMessage = "";
+          state.sessionFeed = [];
+          state.activity = [];
+          renderFeed();
+          renderPendingApproval();
+          promptInput.value = "";
+          updateCount();
+          try {
+            await ensureSession(true);
+            pushSessionFeed({ tone: "info", icon: "new", message: "New workflow session started", meta: "session reset | just now" });
+            await refreshDashboard();
+          } catch (error) {
+            pushSessionFeed({ tone: "err", icon: "no", message: errorText(error, "Unable to start a new session"), meta: "session reset" });
+          }
+          promptInput.focus();
+        }
+
+        document.querySelectorAll(".mode-btn").forEach(function (button) {
+          button.addEventListener("click", function () { setMode(button.getAttribute("data-mode") || "Plan"); });
+        });
+        document.querySelectorAll(".tag").forEach(function (button) {
+          button.addEventListener("click", function () {
+            var selected = !button.classList.contains("selected");
+            button.classList.toggle("selected", selected);
+            if (selected) appendPrompt(button.getAttribute("data-insert") || "");
+          });
+        });
+        document.querySelectorAll(".workflow-card").forEach(function (button) {
+          button.addEventListener("click", function () { typePrompt(button.getAttribute("data-fill") || ""); });
+        });
+        document.querySelectorAll(".nav-item").forEach(function (button) {
+          button.addEventListener("click", function () {
+            document.querySelectorAll(".nav-item").forEach(function (other) { other.classList.remove("active"); });
+            button.classList.add("active");
+          });
+        });
+        document.getElementById("runBtn").addEventListener("click", runPrompt);
+        document.getElementById("doctorBtn").addEventListener("click", runDoctor);
+        document.getElementById("workflowBtn").addEventListener("click", startFreshWorkflow);
+        document.getElementById("refreshFeedBtn").addEventListener("click", refreshDashboard);
+        document.getElementById("refreshApprovalsBtn").addEventListener("click", refreshDashboard);
+        document.getElementById("refreshAlertsBtn").addEventListener("click", refreshDashboard);
+        approvePlanBtn.addEventListener("click", approvePendingPlan);
+        rejectPlanBtn.addEventListener("click", rejectPendingPlan);
+        promptInput.addEventListener("input", updateCount);
+        promptInput.addEventListener("keydown", function (event) {
+          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+            event.preventDefault();
+            runPrompt();
+          }
+        });
+
+        setMode(state.mode);
+        updateCount();
+        gatewayHost.textContent = host(state.config.baseUrl);
+        gatewayUrlValue.textContent = state.config.baseUrl;
+        gatewayKeyValue.textContent = state.config.apiKey ? "Gateway key present and being sent with API calls" : gatewayKeyValue.textContent;
+        if (state.sessionId) connectWs(state.sessionId);
+        renderPendingApproval();
+        refreshDashboard();
+        window.setInterval(refreshDashboard, REFRESH_INTERVAL_MS);
+      })();
+    </script>
   </body>
 </html>

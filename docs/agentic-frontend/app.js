@@ -1,7 +1,28 @@
 const STORAGE_KEY = "social_flow_agentic_frontend_v1";
 const REFRESH_INTERVAL_MS = 30000;
+
+function defaultGatewayBaseUrl() {
+  const injectedUrl = String(window.__SOCIAL_FLOW_GATEWAY__?.url || "").trim();
+  if (injectedUrl) {
+    try {
+      return new URL(injectedUrl).toString().replace(/\/$/, "");
+    } catch {
+      // ignore malformed injected value and fall through
+    }
+  }
+
+  const locationBase = `${window.location.protocol}//${window.location.host}`;
+  const host = String(window.location.hostname || "").toLowerCase();
+  const port = String(window.location.port || "");
+  if ((host === "127.0.0.1" || host === "localhost") && port === "4173") {
+    return `${window.location.protocol}//${host}:1310`;
+  }
+
+  return locationBase;
+}
+
 const DEFAULT_CONFIG = {
-  baseUrl: `${window.location.protocol}//${window.location.host}`,
+  baseUrl: defaultGatewayBaseUrl(),
   apiKey: "",
   userApiKey: "",
   workspace: "default",
@@ -184,7 +205,20 @@ function loadConfig() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
-    return { ...DEFAULT_CONFIG, ...(parsed || {}) };
+    const merged = { ...DEFAULT_CONFIG, ...(parsed || {}) };
+    merged.baseUrl = normalizeBaseUrl(merged.baseUrl);
+
+    // Auto-repair the common local static-host misconfiguration where API calls
+    // are pointed at the frontend host (:4173) instead of the gateway (:1310).
+    const host = String(window.location.hostname || "").toLowerCase();
+    const isLocalStaticHost = (host === "127.0.0.1" || host === "localhost")
+      && String(window.location.port || "") === "4173";
+    const usingFrontendAsGateway = /https?:\/\/(127\.0\.0\.1|localhost):4173$/i.test(merged.baseUrl);
+    if (isLocalStaticHost && usingFrontendAsGateway) {
+      merged.baseUrl = DEFAULT_CONFIG.baseUrl;
+    }
+
+    return merged;
   } catch {
     return { ...DEFAULT_CONFIG };
   }

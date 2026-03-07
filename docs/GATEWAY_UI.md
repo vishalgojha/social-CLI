@@ -20,7 +20,9 @@ Supported workflow categories:
 - Developer operations (auth status, token debug, webhook subscription checks)
 
 Root `/` is disabled by default in current builds.
-Bundled Studio UI is served at `/studio/app` and contextual guidance is served at `/studio` (or `/studio/context`).
+Studio switcher UI is served at `/studio` (or `/studio/context`) and can toggle between bundled Studio and licensed full function-calling screens.
+Bundled Studio UI is served at `/studio/app`.
+Licensed full function-calling UI is served at `/studio/full/`.
 If you want gateway to serve additional static Studio assets, set:
 
 - `SOCIAL_STUDIO_ASSET_DIRS=<comma-separated-absolute-or-relative-dirs>`
@@ -29,8 +31,9 @@ Each directory must be inside allowed gateway roots (project root / configured C
 
 Studio routes:
 
-- `GET /studio` or `GET /studio/context` (health/auth/readiness-aware launch page)
+- `GET /studio` or `GET /studio/context` (single-entry Studio switcher)
 - `GET /studio/app` (bundled Studio frontend SPA)
+- `GET /studio/full/` (licensed full function-calling frontend)
 
 ## Endpoints
 
@@ -89,6 +92,13 @@ Studio routes:
 - `GET /api/cli/commands`
 - `POST /api/cli/execute`
 - `WS /ws`
+
+Browser automation note:
+
+- Hosted tool catalog now includes `browser.*` function-calling tools (`browser.session_create`, `browser.goto`, `browser.click`, `browser.type`, `browser.press`, `browser.wait_for`, `browser.extract_text`, `browser.screenshot`, `browser.session_close`).
+- Install runtime dependency before using interactive browser tools:
+  - `npm install playwright`
+  - `npx playwright install chromium`
 
 ## SDK Contract
 
@@ -174,5 +184,6 @@ It includes:
 Default behavior:
 
 - Without frontend overrides, `social studio` opens bundled app route: `/studio/app`
-- Context landing remains reachable at `/studio`
+- Studio switcher remains reachable at `/studio`
+- Licensed full function-calling app remains reachable at `/studio/full/`
 

@@ -126,6 +126,201 @@ function resolveStudioAsset(routePath) {
   return '';
 }
 
+function fullStudioAssetRoot() {
+  const explicit = String(process.env.SOCIAL_STUDIO_FULL_ASSET_DIR || '').trim();
+  const candidates = [];
+  if (explicit) candidates.push(path.resolve(explicit));
+  candidates.push(path.resolve(__dirname, '..', '..', 'docs', 'agentic-frontend'));
+  candidates.push(path.resolve(__dirname, '..', '..', '..', 'docs', 'agentic-frontend'));
+  candidates.push(path.resolve(process.cwd(), 'docs', 'agentic-frontend'));
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    if (!fs.existsSync(candidate) || !fs.statSync(candidate).isDirectory()) continue;
+    const indexPath = path.join(candidate, 'index.html');
+    if (!fs.existsSync(indexPath) || !fs.statSync(indexPath).isFile()) continue;
+    return candidate;
+  }
+  return '';
+}
+
+function resolveFullStudioAsset(routePath) {
+  const root = fullStudioAssetRoot();
+  if (!root) return '';
+
+  const requested = String(routePath || '/').trim();
+  const normalized = requested === '/' ? '/index.html' : path.posix.normalize(requested);
+  if (!normalized.startsWith('/')) return '';
+  if (normalized.includes('\0')) return '';
+
+  const rel = normalized.replace(/^\/+/, '');
+  if (!rel) return '';
+  const ext = path.posix.extname(normalized);
+  const trySpaFallback = !ext;
+
+  const candidate = path.resolve(root, rel);
+  if (
+    isPathInsideRoot(root, candidate)
+    && fs.existsSync(candidate)
+    && fs.statSync(candidate).isFile()
+  ) return candidate;
+
+  if (trySpaFallback) {
+    const indexPath = path.resolve(root, 'index.html');
+    if (
+      isPathInsideRoot(root, indexPath)
+      && fs.existsSync(indexPath)
+      && fs.statSync(indexPath).isFile()
+    ) return indexPath;
+  }
+  return '';
+}
+
+function studioShellHtml({ initialMode = 'app' } = {}) {
+  const mode = String(initialMode || '').toLowerCase() === 'full' ? 'full' : 'app';
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Social Flow Studio</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #081018;
+      --bg-soft: #101a24;
+      --card: #132233;
+      --line: #1f344a;
+      --text: #e8f2ff;
+      --muted: #9fb3c8;
+      --accent: #27d3a2;
+      --accent-soft: rgba(39, 211, 162, 0.2);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; font-family: "Segoe UI", sans-serif; background: radial-gradient(120% 140% at 0% 0%, #10283b 0%, var(--bg) 56%); color: var(--text); }
+    body { display: flex; flex-direction: column; }
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.8rem;
+      padding: 0.9rem 1rem;
+      border-bottom: 1px solid var(--line);
+      background: rgba(8, 16, 24, 0.82);
+      backdrop-filter: blur(6px);
+    }
+    .title-wrap { min-width: 18rem; }
+    .eyebrow { margin: 0 0 0.2rem; font-size: 0.72rem; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); }
+    h1 { margin: 0; font-size: 1.05rem; font-weight: 650; }
+    .meta { margin: 0.3rem 0 0; color: var(--muted); font-size: 0.82rem; }
+    .switcher {
+      display: inline-flex;
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.2rem;
+      gap: 0.2rem;
+      align-items: center;
+    }
+    .switcher button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .switcher button.active {
+      background: var(--accent-soft);
+      color: var(--text);
+      box-shadow: inset 0 0 0 1px rgba(39, 211, 162, 0.32);
+    }
+    .switcher button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .tools { display: flex; gap: 0.5rem; align-items: center; }
+    .tools a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.76rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.38rem 0.62rem;
+      background: var(--bg-soft);
+    }
+    .tools a:hover { color: var(--text); border-color: #2b4a67; }
+    .frame-wrap { flex: 1; min-height: 0; }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
+    }
+    @media (max-width: 760px) {
+      .topbar { padding: 0.75rem; }
+      .switcher { width: 100%; justify-content: space-between; }
+      .switcher button { flex: 1; }
+      .tools { width: 100%; justify-content: flex-end; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="title-wrap">
+      <p class="eyebrow">Social Flow Gateway</p>
+      <h1>Studio Switcher</h1>
+      <p class="meta">Single entry UI. Toggle between bundled Studio and licensed full function-calling workspace.</p>
+    </div>
+    <div class="switcher" role="tablist" aria-label="Studio Mode">
+      <button id="mode-app" type="button" role="tab" data-mode="app">Bundled Studio</button>
+      <button id="mode-full" type="button" role="tab" data-mode="full">Licensed Full Function Calling</button>
+    </div>
+    <div class="tools">
+      <a href="/api/status?doctor=1" target="_blank" rel="noreferrer">Status</a>
+      <a href="/api/platform/distribution" target="_blank" rel="noreferrer">License/Tiers</a>
+    </div>
+  </header>
+  <main class="frame-wrap">
+    <iframe id="studio-frame" title="Social Flow Studio"></iframe>
+  </main>
+  <script>
+    (() => {
+      const routes = { app: '/studio/app', full: '/studio/full/' };
+      const storageKey = 'social_flow_studio_mode';
+      const params = new URLSearchParams(window.location.search);
+      const queryMode = params.get('mode');
+      const savedMode = window.localStorage.getItem(storageKey);
+      const fallback = '${mode}';
+      const initial = (queryMode === 'full' || queryMode === 'app')
+        ? queryMode
+        : ((savedMode === 'full' || savedMode === 'app') ? savedMode : fallback);
+      const frame = document.getElementById('studio-frame');
+      const buttons = Array.from(document.querySelectorAll('.switcher button'));
+
+      function apply(mode) {
+        const next = mode === 'full' ? 'full' : 'app';
+        window.localStorage.setItem(storageKey, next);
+        buttons.forEach((btn) => {
+          const active = btn.dataset.mode === next;
+          btn.classList.toggle('active', active);
+          btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        if (frame.getAttribute('src') !== routes[next]) frame.setAttribute('src', routes[next]);
+        const out = new URL(window.location.href);
+        out.searchParams.set('mode', next);
+        history.replaceState({}, '', out.pathname + out.search);
+      }
+
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => apply(btn.dataset.mode || 'app'));
+      });
+      apply(initial);
+    })();
+  </script>
+</body>
+</html>`;
+}
+
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload, null, 2);
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -150,6 +345,13 @@ function studioUiMissingPayload() {
   return {
     ok: false,
     error: 'Bundled Studio frontend is not installed. Add a build to assets/studio or set SOCIAL_STUDIO_ASSET_DIR(S), then open /studio/app.'
+  };
+}
+
+function fullStudioUiMissingPayload() {
+  return {
+    ok: false,
+    error: 'Licensed full function-calling UI is not installed. Add docs/agentic-frontend or set SOCIAL_STUDIO_FULL_ASSET_DIR.'
   };
 }
 
@@ -997,7 +1199,10 @@ class ChatRuntime {
     this.agent = new AutonomousAgent({
       context: this.context,
       config,
-      options: { debug: Boolean(options.debug) }
+      options: {
+        debug: Boolean(options.debug),
+        requireExplicitApproval: true
+      }
     });
     this.resumed = false;
   }
@@ -1010,7 +1215,10 @@ class ChatRuntime {
     this.agent = new AutonomousAgent({
       context: this.context,
       config,
-      options: { debug: Boolean(this.options.debug) }
+      options: {
+        debug: Boolean(this.options.debug),
+        requireExplicitApproval: true
+      }
     });
     this.resumed = true;
   }
@@ -1407,18 +1615,27 @@ class GatewayServer {
     if (response.message) {
       this.broadcastWs('output', { sessionId, data: String(response.message || '') });
     }
-    if (actions.length) {
+    if (actions.length && response.needsInput) {
       this.broadcastWs('plan', {
         sessionId,
         steps: actions.map((step, idx) => ({
           id: idx + 1,
           tool: String(step.tool || ''),
           description: String(step.description || step.tool || ''),
-          params: step.params && typeof step.params === 'object' ? step.params : {}
+          params: step.params && typeof step.params === 'object' ? step.params : {},
+          risk: String(step.risk || '').trim()
         }))
       });
+    }
+    if (actions.length && !response.needsInput) {
       actions.forEach((_, idx) => {
-        this.broadcastWs('step_start', { sessionId, step: idx + 1 });
+        const step = actions[idx] || {};
+        this.broadcastWs('step_start', {
+          sessionId,
+          step: idx + 1,
+          tool: String(step.tool || ''),
+          summary: String(step.description || step.tool || 'Executing step')
+        });
       });
     }
     executed.forEach((row, idx) => {
@@ -3702,12 +3919,41 @@ class GatewayServer {
     const isStudioAppRoute = route === '/studio/app'
       || route === '/studio/app/'
       || route.startsWith('/studio/app/');
+    const isStudioFullRoute = route === '/studio/full'
+      || route === '/studio/full/'
+      || route.startsWith('/studio/full/');
     if (isStudioHomeRoute) {
+      const mode = String(parsedUrl.searchParams.get('mode') || '').trim().toLowerCase() === 'full'
+        ? 'full'
+        : 'app';
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store'
+      });
+      res.end(studioShellHtml({ initialMode: mode }));
+      return;
+    }
+
+    if (route === '/studio/full') {
       res.writeHead(302, {
-        Location: '/studio/app',
+        Location: '/studio/full/',
         'Cache-Control': 'no-store'
       });
       res.end();
+      return;
+    }
+
+    if (isStudioFullRoute) {
+      const fullAssetRoute = route === '/studio/full/' ? '/' : route.slice('/studio/full'.length);
+      const fullStaticFile = resolveFullStudioAsset(fullAssetRoute);
+      if (fullStaticFile) {
+        const isHtml = fullStaticFile.toLowerCase().endsWith('.html');
+        sendFile(res, 200, fullStaticFile, {
+          'Cache-Control': isHtml ? 'no-store' : 'public, max-age=300'
+        });
+        return;
+      }
+      sendJson(res, 404, fullStudioUiMissingPayload());
       return;
     }
 
@@ -3721,7 +3967,7 @@ class GatewayServer {
     if (route === '/' || route === '/index.html') {
       sendJson(res, 410, {
         ok: false,
-        error: 'Root route is disabled. Open /studio/app for bundled Studio UI or /api/status?doctor=1 for diagnostics.'
+        error: 'Root route is disabled. Open /studio for Studio switcher, /studio/app for bundled Studio UI, or /api/status?doctor=1 for diagnostics.'
       });
       return;
     }
@@ -3817,7 +4063,7 @@ class GatewayServer {
 
   async stop() {
     if (this.hosted && typeof this.hosted.stop === 'function') {
-      this.hosted.stop();
+      await this.hosted.stop();
     }
     if (this.wsServer) {
       for (const ws of this.wsClients) {

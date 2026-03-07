@@ -197,7 +197,7 @@ module.exports = [
     }
   },
   {
-    name: 'gateway studio route redirects to bundled studio app',
+    name: 'gateway studio route serves switcher shell',
     fn: async () => {
       const oldHome = process.env.META_CLI_HOME;
       process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
@@ -209,8 +209,11 @@ module.exports = [
           method: 'GET',
           pathName: '/studio'
         });
-        assert.equal(studio.status, 302);
-        assert.equal(String(studio.headers.location || ''), '/studio/app');
+        assert.equal(studio.status, 200);
+        assert.equal(String(studio.headers['content-type'] || '').includes('text/html'), true);
+        assert.equal(String(studio.raw || '').includes('Studio Switcher'), true);
+        assert.equal(String(studio.raw || '').includes('/studio/app'), true);
+        assert.equal(String(studio.raw || '').includes('/studio/full/'), true);
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;
@@ -218,7 +221,7 @@ module.exports = [
     }
   },
   {
-    name: 'gateway studio context alias redirects to bundled studio app',
+    name: 'gateway studio context alias serves switcher shell',
     fn: async () => {
       const oldHome = process.env.META_CLI_HOME;
       process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
@@ -230,8 +233,52 @@ module.exports = [
           method: 'GET',
           pathName: '/studio/context'
         });
-        assert.equal(studio.status, 302);
-        assert.equal(String(studio.headers.location || ''), '/studio/app');
+        assert.equal(studio.status, 200);
+        assert.equal(String(studio.headers['content-type'] || '').includes('text/html'), true);
+        assert.equal(String(studio.raw || '').includes('Studio Switcher'), true);
+      } finally {
+        await server.stop();
+        process.env.META_CLI_HOME = oldHome;
+      }
+    }
+  },
+  {
+    name: 'gateway studio full route redirects to trailing slash',
+    fn: async () => {
+      const oldHome = process.env.META_CLI_HOME;
+      process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
+      const server = createGatewayServer({ host: '127.0.0.1', port: 0 });
+      try {
+        await server.start();
+        const full = await requestRaw({
+          port: server.port,
+          method: 'GET',
+          pathName: '/studio/full'
+        });
+        assert.equal(full.status, 302);
+        assert.equal(String(full.headers.location || ''), '/studio/full/');
+      } finally {
+        await server.stop();
+        process.env.META_CLI_HOME = oldHome;
+      }
+    }
+  },
+  {
+    name: 'gateway studio full route serves licensed function-calling frontend',
+    fn: async () => {
+      const oldHome = process.env.META_CLI_HOME;
+      process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
+      const server = createGatewayServer({ host: '127.0.0.1', port: 0 });
+      try {
+        await server.start();
+        const full = await requestRaw({
+          port: server.port,
+          method: 'GET',
+          pathName: '/studio/full/'
+        });
+        assert.equal(full.status, 200);
+        assert.equal(String(full.headers['content-type'] || '').includes('text/html'), true);
+        assert.equal(String(full.raw || '').includes('Social Flow Agentic Frontend Screens'), true);
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;
@@ -347,8 +394,9 @@ module.exports = [
           method: 'GET',
           pathName: '/studio'
         });
-        assert.equal(studio.status, 302);
-        assert.equal(String(studio.headers.location || ''), '/studio/app');
+        assert.equal(studio.status, 200);
+        assert.equal(String(studio.headers['content-type'] || '').includes('text/html'), true);
+        assert.equal(String(studio.raw || '').includes('Studio Switcher'), true);
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;
@@ -833,7 +881,7 @@ module.exports = [
     }
   },
   {
-    name: 'gateway chat deterministic command executes immediately without pending confirmation',
+    name: 'gateway chat deterministic command requires explicit approval before execution',
     fn: async () => {
       const oldHome = process.env.META_CLI_HOME;
       process.env.META_CLI_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-gw-test-'));
@@ -867,10 +915,32 @@ module.exports = [
         assert.equal(msgRes.status, 200);
         assert.equal(msgRes.data.ok, true);
         assert.equal(Array.isArray(msgRes.data.executed), true);
-        assert.equal(msgRes.data.executed.length, 1);
+        assert.equal(msgRes.data.executed.length, 0);
         assert.equal(Array.isArray(msgRes.data.pendingActions), true);
-        assert.equal(msgRes.data.pendingActions.length, 0);
+        assert.equal(msgRes.data.pendingActions.length, 1);
+        assert.equal(msgRes.data.response.needsInput, true);
+        assert.equal(msgRes.data.response.actions[0].tool, 'auth.status');
         assert.equal(Array.isArray(msgRes.data.timeline), true);
+
+        const approveRes = await requestJson({
+          port: server.port,
+          method: 'POST',
+          pathName: '/api/chat/message',
+          body: {
+            sessionId: startRes.data.sessionId,
+            message: 'yes'
+          }
+        });
+
+        assert.equal(approveRes.status, 200);
+        assert.equal(approveRes.data.ok, true);
+        assert.equal(Array.isArray(approveRes.data.executed), true);
+        assert.equal(approveRes.data.executed.length, 1);
+        assert.equal(approveRes.data.executed[0].tool, 'auth.status');
+        assert.equal(Array.isArray(approveRes.data.pendingActions), true);
+        assert.equal(approveRes.data.pendingActions.length, 0);
+        assert.equal(approveRes.data.response.needsInput, false);
+        assert.equal(Array.isArray(approveRes.data.timeline), true);
       } finally {
         await server.stop();
         process.env.META_CLI_HOME = oldHome;
@@ -1424,6 +1494,9 @@ module.exports = [
         assert.equal(tools.data.ok, true);
         assert.equal(Array.isArray(tools.data.tools), true);
         assert.equal(tools.data.tools.some((row) => row.key === 'meta.status'), true);
+        assert.equal(tools.data.tools.some((row) => row.key === 'browser.fetch_page'), true);
+        assert.equal(tools.data.tools.some((row) => row.key === 'browser.session_create'), true);
+        assert.equal(tools.data.tools.some((row) => row.key === 'browser.goto'), true);
 
         const agents = await requestJson({
           port: server.port,
@@ -1435,6 +1508,7 @@ module.exports = [
         assert.equal(agents.data.ok, true);
         assert.equal(Array.isArray(agents.data.agents), true);
         assert.equal(agents.data.agents.some((row) => row.slug === 'ops-agent'), true);
+        assert.equal(agents.data.agents.some((row) => row.slug === 'browser-agent'), true);
 
         const addAgent = await requestJson({
           port: server.port,

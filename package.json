@@ -1,6 +1,6 @@
 {
   "name": "@vishalgojha/social-flow",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "description": "Meta Operations Control Plane for Facebook, Instagram, WhatsApp, and Ads Manager (CLI, Gateway, SDK).",
   "main": "dist-legacy/index.js",
   "bin": {

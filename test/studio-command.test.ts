@@ -54,5 +54,42 @@ module.exports = [
       assert.equal(result.ok, false);
       assert.equal(String(result.reason || '').includes('Path not found'), true);
     }
+  },
+  {
+    name: 'studio launch target defaults to bundled app when no frontend override is supplied',
+    fn: () => {
+      const result = studio._private.pickStudioLaunchUrl('', 'http://127.0.0.1:1310/studio/app');
+      assert.equal(result, 'http://127.0.0.1:1310/studio/app');
+    }
+  },
+  {
+    name: 'studio launch target prefers explicit frontend override when supplied',
+    fn: () => {
+      const result = studio._private.pickStudioLaunchUrl(
+        'http://127.0.0.1:4173',
+        'http://127.0.0.1:1310/studio/app'
+      );
+      assert.equal(result, 'http://127.0.0.1:4173');
+    }
+  },
+  {
+    name: 'studio route recovery triggers when gateway health is ok but bundled route is missing',
+    fn: () => {
+      const result = studio._private.studioRouteNeedsRecovery(
+        { status: 200, data: { ok: true } },
+        { status: 404, data: {} }
+      );
+      assert.equal(result, true);
+    }
+  },
+  {
+    name: 'studio route recovery does not trigger when bundled route responds 200',
+    fn: () => {
+      const result = studio._private.studioRouteNeedsRecovery(
+        { status: 200, data: { ok: true } },
+        { status: 200, data: {} }
+      );
+      assert.equal(result, false);
+    }
   }
 ];

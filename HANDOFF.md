@@ -4,6 +4,92 @@
 
 This handoff captures the current TypeScript migration status and release readiness for `social-flow`.
 
+## Update - 2026-03-08
+
+### Studio Approval-First + Launcher Recovery
+
+- Bundled Studio UI was restored at `assets/studio/index.html` as the main execution surface.
+- Studio prompt flow is now approval-first:
+  - prompt plans first
+  - agent waits for explicit `yes` / `no`
+  - no auto-confirm path remains in gateway chat runtime
+- Gateway chat runtime now forces explicit approval for Studio/gateway sessions:
+  - `lib/chat/agent.ts`
+  - `lib/gateway/server.ts`
+- WebSocket plan events now carry pending steps for the approval panel, and `step_start` is emitted only once execution actually begins.
+- `social studio` now:
+  - defaults to `/studio/app`
+  - probes `/studio/app`
+  - treats a healthy gateway with missing Studio route as stale and attempts replacement
+
+### Validation Run (Current)
+
+- `npm run build:legacy-ts`
+  - Result: passed
+- Focused compiled tests:
+  - `chat agent creates pending action then executes on yes` -> pass
+  - `chat agentic mode auto-executes non-high-risk actions` -> pass
+  - `gateway chat deterministic command requires explicit approval before execution` -> pass
+  - `gateway chat requires API key before ambiguous intent fallback` -> pass
+  - `studio-command` test set -> pass
+- Built gateway smoke check:
+  - `/studio/app` returned `200`
+  - served HTML contained:
+    - `Agent Approval`
+    - `approvePlanBtn`
+    - `rejectPlanBtn`
+    - `window.__SOCIAL_FLOW_GATEWAY__`
+
+### Local Environment Note
+
+- Shell `social` command initially resolved to global package version `0.2.17` under:
+  - `C:\Users\visha\AppData\Roaming\npm\social.ps1`
+- Workspace package version is now `0.2.18`.
+- Local manual fix performed:
+  - `npm install -g C:\users\visha\social-flow --no-fund --no-audit`
+- After upgrade, `social studio --no-open` correctly targeted `/studio/app`.
+
+### Sandbox Caveat
+
+- In the Codex shell, detached/background gateway processes on Windows do not persist reliably after the command returns.
+- Route verification was done while the process was alive, but long-running background confirmation should be performed from a normal user terminal using:
+  - `social start`
+  - `social studio`
+
+## Update - 2026-03-06
+
+### Validation Workflow Run (Current)
+
+- Command: `git status --short`
+  - Output:
+    ```text
+     M .npm-cache/_cacache/index-v5/fc/ee/fc3e1dd6706bd557d2840d92ff10cdd6928b92fb8c46d2195dfbd8d4b2be
+     M commands/studio.ts
+     M docs/GATEWAY_UI.md
+     M docs/agentic-frontend/app.js
+     M lib/gateway/server.ts
+     M test/gateway.test.ts
+    ?? .tmp/
+    ```
+- Command: `git diff --name-only`
+  - Output:
+    ```text
+    .npm-cache/_cacache/index-v5/fc/ee/fc3e1dd6706bd557d2840d92ff10cdd6928b92fb8c46d2195dfbd8d4b2be
+    commands/studio.ts
+    docs/GATEWAY_UI.md
+    docs/agentic-frontend/app.js
+    lib/gateway/server.ts
+    test/gateway.test.ts
+    ```
+- Command: `pnpm test`
+  - Result: passed (`123` tests, `0` failed).
+- Command: `pnpm build`
+  - Result: passed.
+- Command check: `skills/social-flow/scripts/hosted-smoke.mjs`
+  - Result: file missing; hosted smoke skipped.
+- ClawHub publish readiness:
+  - Result: no skill package path found in this repo (`skills/social-flow` missing and no `SKILL.md` present), so publish step is currently skipped.
+
 ## Update - 2026-03-05
 
 ### Pending Task Refresh (Current)

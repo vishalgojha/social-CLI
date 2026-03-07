@@ -898,8 +898,11 @@ class AutonomousAgent {
       const highRisk = hasHighRisk(decision.actions, this.devToolByName, this.specialToolByName);
       const allLowRisk = decision.actions.every((a) => toolRisk(a.tool, this.devToolByName, this.specialToolByName) === 'low');
       const autoApproved = Boolean(this.options.yes) || Boolean(this.options.agentic);
-      const autoRun = (!highRisk && autoApproved) ||
-        (!highRisk && allLowRisk && isLikelyCliCommand(userInput));
+      const requireExplicitApproval = Boolean(this.options.requireExplicitApproval);
+      const autoRun = !requireExplicitApproval && (
+        (!highRisk && autoApproved) ||
+        (!highRisk && allLowRisk && isLikelyCliCommand(userInput))
+      );
 
       if (autoRun) {
         decision.message = `${decision.message}\n\nExecuting now.`;
