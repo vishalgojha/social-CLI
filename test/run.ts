@@ -45,6 +45,7 @@ async function run() {
       'hub.test',
       'industry.test',
       'ui-chrome.test',
+      'onboard-command.test',
       'readiness.test',
       'guidance.test'
     ];

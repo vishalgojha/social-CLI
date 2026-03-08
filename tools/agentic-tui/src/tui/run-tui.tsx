@@ -85,6 +85,40 @@ function roleGlyph(role: ChatTurn["role"]): string {
   return "sys";
 }
 
+function SectionHeading(props: { label: string }): JSX.Element {
+  const theme = useTheme();
+  const rule = "─".repeat(Math.max(12, 74 - String(props.label || "").length));
+  return (
+    <Box>
+      <Text color={theme.success}>◇</Text>
+      <Text color={theme.accent} bold>{` ${props.label} `}</Text>
+      <Text color={theme.muted}>{rule}</Text>
+    </Box>
+  );
+}
+
+function FramedBlock(props: {
+  title: string;
+  children: React.ReactNode;
+  borderColor?: string;
+}): JSX.Element {
+  const theme = useTheme();
+  return (
+    <Box
+      marginTop={1}
+      paddingX={1}
+      borderStyle="single"
+      borderColor={props.borderColor || theme.muted}
+      flexDirection="column"
+    >
+      <Text color={theme.accent} bold>{props.title}</Text>
+      <Box marginTop={1} flexDirection="column">
+        {props.children}
+      </Box>
+    </Box>
+  );
+}
+
 function newSessionId(): string {
   return `hatch_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -549,7 +583,8 @@ function HatchRuntime(): JSX.Element {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([
-    newTurn("system", "Hatch online. Conversational planner is active. Ask naturally, or use /help.")
+    newTurn("system", "Wake up, Social Flow."),
+    newTurn("assistant", "I am online. Tell me what you want to connect, check, or run.")
   ]);
   const [showHelp, setShowHelp] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
@@ -1361,73 +1396,95 @@ function HatchRuntime(): JSX.Element {
 
   return (
     <Box flexDirection="column">
-      <Text color={theme.accent}>
-        Social Flow Hatch | runtime {runtimeLabel} | phase {state.phase.toLowerCase()} | risk {(state.currentRisk || "LOW").toLowerCase()} | confidence {confidenceLabel} | account {selectedAccount} | industry {industryLabel} | ai {aiLabel} | memory {memoryLabel} | open {unresolvedCount} | connected {connectedCount}/3
-      </Text>
-      <Text color={theme.muted}>
-        latest: {topActivity ? `${shortTime(topActivity.at)} ${topActivity.message.slice(0, 72)}` : "idle"}
-      </Text>
-      <Text color={theme.muted}>Type naturally. Press ? for help, / for command palette, d for diagnostics view, q to quit.</Text>
+      <SectionHeading label="Social Flow hatch" />
+      <FramedBlock title="Runtime">
+        <Text color={theme.text}>
+          profile {config?.activeProfile || "default"} | session {shortText(memory.sessionId, 22)} | connected {connectedCount}/3 | ai {aiLabel}
+        </Text>
+        <Text color={phaseTone}>
+          phase {state.phase.toLowerCase()} | risk {(state.currentRisk || "LOW").toLowerCase()} | confidence {confidenceLabel} | account {selectedAccount}
+        </Text>
+        <Text color={theme.muted}>
+          industry {industryLabel} | memory {memoryLabel} | open items {unresolvedCount} | runtime {runtimeLabel}
+        </Text>
+        <Text color={theme.muted}>
+          latest {topActivity ? `${shortTime(topActivity.at)} ${topActivity.message.slice(0, 72)}` : "idle"}
+        </Text>
+        {configState.loading ? <Text color={theme.muted}>config loading...</Text> : null}
+        {configState.error ? <Text color={theme.error}>config error: {configState.error}</Text> : null}
+      </FramedBlock>
 
+      <SectionHeading label="Transcript" />
       <Box marginTop={1} flexDirection="column">
-        {chatTurns.slice(-20).map((turn) => (
-          <Text key={turn.id} color={turn.role === "user" ? theme.accent : turn.role === "assistant" ? theme.text : theme.muted}>
-            [{shortTime(turn.at)}] {roleGlyph(turn.role)}: {turn.text || "..."}
-          </Text>
+        {chatTurns.slice(-16).map((turn) => (
+          turn.role === "user" ? (
+            <Box key={turn.id} marginTop={1} paddingX={1} borderStyle="single" borderColor={theme.muted}>
+              <Text color={theme.text}>{turn.text || "..."}</Text>
+            </Box>
+          ) : (
+            <Box key={turn.id} marginTop={1}>
+              <Text color={turn.role === "assistant" ? theme.text : theme.muted}>
+                {turn.role === "system" ? `· ${turn.text || "..."}` : (turn.text || "...")}
+              </Text>
+            </Box>
+          )
         ))}
       </Box>
 
       {verboseMode ? (
-        <Box marginTop={1} flexDirection="column">
-          <Text color={theme.accent}>diagnostics</Text>
+        <>
+          <SectionHeading label="Diagnostics" />
+          <FramedBlock title="Execution rail" borderColor={state.currentRisk === "HIGH" ? riskTone : theme.muted}>
           <Text color={phaseTone}>phase={state.phase} risk={state.currentRisk || "LOW"} confidence={confidenceLabel} action={state.currentIntent?.action || "none"} missing={state.missingSlots.join(", ") || "none"}</Text>
-          {configState.loading ? <Text color={theme.muted}>config: loading...</Text> : null}
-          {configState.error ? <Text color={theme.error}>config error: {configState.error}</Text> : null}
           <Text color={theme.muted}>graph={config?.graphVersion || "v20.0"} account={selectedAccount}</Text>
           <Select options={accountOptions} onChange={(value) => setSelectedAccount(value)} />
           {rightRailCollapsed ? (
-            <Text color={theme.muted}>details collapsed (press x to expand queue/log/result view)</Text>
+            <Text color={theme.muted}>Press x to expand queue, logs, rollback, and result view.</Text>
           ) : (
             <>
-              <Text color={theme.muted}>queue:</Text>
+              <Text color={theme.accent}>queue</Text>
               {recentQueue.length ? recentQueue.map((x) => (
                 <Text key={x.id} color={x.status === "FAILED" ? theme.error : x.status === "RUNNING" ? theme.accent : theme.text}>
                   [{shortTime(x.createdAt)}] {x.action} {x.status}
                 </Text>
               )) : <Text color={theme.muted}>no queued actions</Text>}
-              <Text color={theme.muted}>logs:</Text>
+              <Text color={theme.accent}>logs</Text>
               {recentLogs.length ? recentLogs.map((x, idx) => (
                 <Text key={`l-${idx}`} color={logLevelColor(x.level)}>
                   [{shortTime(x.at)}] {logLevelGlyph(x.level)} {x.message}
                 </Text>
               )) : <Text color={theme.muted}>no runtime logs</Text>}
-              <Text color={theme.muted}>rollback:</Text>
+              <Text color={theme.accent}>rollback</Text>
               {recentRollbacks.length ? recentRollbacks.map((x) => (
                 <Text key={`${x.at}_${x.action}`} color={theme.text}>
                   [{shortTime(x.at)}] {x.action} {x.status}
                 </Text>
               )) : <Text color={theme.muted}>no rollback entries</Text>}
-              <Text color={theme.muted}>result:</Text>
+              <Text color={theme.accent}>result</Text>
               <Text color={resultPreview ? theme.text : theme.muted}>{resultPreview || "no results yet"}</Text>
             </>
           )}
-        </Box>
+          </FramedBlock>
+        </>
       ) : null}
 
       {replaySuggestions.length > 0 ? (
-        <Box marginTop={1} flexDirection="column">
-          <Text color={theme.muted}>replay suggestions (up/down):</Text>
+        <>
+          <SectionHeading label="Replay suggestions" />
+          <FramedBlock title="Replay">
           {replaySuggestions.map((item, idx) => (
             <Text key={item.id} color={idx === replaySuggestionIndex ? theme.accent : theme.text}>
               {idx === replaySuggestionIndex ? ">" : " "} {item.id} {item.action}
             </Text>
           ))}
-        </Box>
+          </FramedBlock>
+        </>
       ) : null}
 
       {showPalette ? (
-        <Box marginTop={1} flexDirection="column">
-          <Text color={theme.accent}>command palette</Text>
+        <>
+          <SectionHeading label="Command palette" />
+          <FramedBlock title="Palette">
           <Select
             options={[
               { label: "Doctor", value: "doctor" },
@@ -1448,25 +1505,30 @@ function HatchRuntime(): JSX.Element {
               void parseAndQueueIntent(value);
             }}
           />
-        </Box>
+          </FramedBlock>
+        </>
       ) : null}
 
       {showHelp ? (
-        <Box marginTop={1} flexDirection="column">
-          <Text color={theme.accent}>help</Text>
+        <>
+          <SectionHeading label="Help" />
+          <FramedBlock title="Operator notes">
           <Text color={theme.text}>Workflow: describe, plan, approve, execute, review.</Text>
           <Text color={theme.text}>Commands: /help /doctor /status /config /logs /replay /why /ai ...</Text>
           <Text color={theme.text}>Memory: say `my name is ...` and later ask `what's my name`.</Text>
           <Text color={theme.text}>Keys: Enter send/confirm, a approve, r reject, e edit slots, d diagnostics.</Text>
           <Text color={theme.muted}>UI: / palette, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
-        </Box>
+          </FramedBlock>
+        </>
       ) : null}
 
-      <Box marginTop={1}>
+      <SectionHeading label={state.phase === "HIGH_RISK_APPROVAL" ? "Approval" : state.phase === "EDIT_SLOTS" ? "Edit slots" : "Compose"} />
+      <Box marginTop={1} paddingX={1} borderStyle="single" borderColor={state.currentRisk === "HIGH" ? riskTone : theme.muted}>
         <Text color={theme.accent}>{inputLabel}</Text>
         <TextInput value={inputValue} onChange={setInputValue} focus />
       </Box>
-      <Text color={state.currentRisk === "HIGH" ? riskTone : theme.muted}>{actionHint}</Text>
+      <Text color={state.currentRisk === "HIGH" ? riskTone : theme.accent}>{actionHint}</Text>
+      <Text color={theme.muted}>Enter confirm | / palette | ? help | d diagnostics | x rail | q quit</Text>
     </Box>
   );
 }

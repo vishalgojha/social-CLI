@@ -296,9 +296,8 @@ function registerTuiCommand(program: any) {
       try {
         if (!opts.skipOnboardCheck && needsOnboarding()) {
           console.log(chalk.yellow('\nFirst-run setup required before Hatch UI.'));
-          console.log(chalk.gray('Guided path: setup -> status -> hatch.\n'));
+          console.log(chalk.gray('Running guided setup now. Hatch will open automatically when setup succeeds.\n'));
           await runSubprocess(process.execPath, [binPath, '--no-banner', 'setup', '--no-start'], env);
-          return;
         }
 
         if (fs.existsSync(distEntry)) {

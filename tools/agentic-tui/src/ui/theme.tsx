@@ -1,16 +1,16 @@
 import React, { createContext, useContext } from "react";
 
 export interface AppTheme {
-  accent: "cyan" | "blue";
-  success: "green";
-  warning: "yellow";
-  error: "red";
-  text: "white";
-  muted: "gray";
+  accent: string;
+  success: string;
+  warning: string;
+  error: string;
+  text: string;
+  muted: string;
 }
 
 const DEFAULT_THEME: AppTheme = {
-  accent: "cyan",
+  accent: "yellow",
   success: "green",
   warning: "yellow",
   error: "red",
