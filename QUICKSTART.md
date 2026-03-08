@@ -1,6 +1,6 @@
 # Social Flow Quickstart
 
-Social Flow is the execution engine for Meta operations. Use the CLI to get running fast, then expand to Gateway + SDK when needed.
+Social Flow ships the deterministic CLI by default. Use it to manage config, run profile/post/ads actions, and replay logged operations from one consistent entrypoint.
 
 ## 60-Second Start
 
@@ -8,54 +8,49 @@ Social Flow is the execution engine for Meta operations. Use the CLI to get runn
 # 1) Install
 npm install -g @vishalgojha/social-flow
 
-# 2) Guided setup + readiness checks
-social start-here
+# 2) Configure token + defaults
+social onboard
+# also provisions Chromium for browser automation unless you pass --skip-browser
 
-# 3) Open conversational control plane
-social hatch
+# 3) Validate setup
+social doctor
+social status
 ```
 
-Optional Studio UI:
+## First Commands
 
 ```bash
-social studio --url http://127.0.0.1:1310
+social profile get --fields id,name
+social post create --message "Hello team" --page-id PAGE_ID
+social ads list --account act_123
+social ai --provider deterministic "list ads account act_123"
 ```
 
-## Verify It Is Working
+## Local AI
 
 ```bash
-social auth status
-social marketing status
-social ops morning-run --workspace default
+social ai --provider ollama "get my facebook profile"
 ```
 
-## Common Next Commands
+Default Ollama base URL: `http://127.0.0.1:11434`
 
-```bash
-social marketing portfolio --preset last_7d --target-daily 250
-social marketing insights --help
-social ops approvals list --workspace default --open
-social ops alerts list --workspace default --open
-```
-
-## Source Workflow (Developers)
+## Source Workflow
 
 ```bash
 npm ci
-npm run build
+npm run build:social-ts
+npm run test:social-ts
 npm start
 ```
 
-## If Something Breaks
+## Config Notes
 
-- `social` not found: open a new terminal and rerun
-- Auth/token issue: run `social start-here` again
-- Gateway issue: run `social start --force`, then retry `social studio`
+- Current state path: `~/.social-flow/config.json`
+- Legacy `~/.social-cli` and `~/.meta-cli` config is imported automatically
+- Existing profile-based `.social-flow` config remains compatible with the latest CLI
 
-## Where To Go Next
+## Next
 
 - [README](README.md)
 - [Examples](EXAMPLES.md)
-- [Gateway UI/API](docs/GATEWAY_UI.md)
-- [Hatch UI](docs/HATCH_UI.md)
-- [SDK](sdk/README.md)
+- [Contributing](CONTRIBUTING.md)

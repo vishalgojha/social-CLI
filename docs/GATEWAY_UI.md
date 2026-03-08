@@ -94,8 +94,8 @@ Studio routes:
 Browser automation note:
 
 - Hosted tool catalog now includes `browser.*` function-calling tools (`browser.session_create`, `browser.goto`, `browser.click`, `browser.type`, `browser.press`, `browser.wait_for`, `browser.extract_text`, `browser.screenshot`, `browser.session_close`).
-- Install runtime dependency before using interactive browser tools:
-  - `npm install playwright`
+- Chromium is auto-provisioned during `social setup` and on first browser session if it is still missing.
+- Manual fallback if auto-provisioning is blocked:
   - `npx playwright install chromium`
 
 ## SDK Contract

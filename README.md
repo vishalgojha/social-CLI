@@ -4,121 +4,72 @@
   <img src="docs/assets/social-flow-logo-mint.svg" alt="Social Flow Mint Logo" width="220" />
 </p>
 
-Self-hosted execution engine for Meta operations.
+Deterministic CLI for Meta profile, post, and ads workflows.
 
-Social Flow is the execution backbone for Marketing API, Graph, Instagram, and WhatsApp workflows. It handles deterministic runs, token and scope lifecycle, safe pagination, rate-limit discipline, error recovery, deployment hygiene, and multi-account/profile switching.
+Social Flow now standardizes on the latest deterministic CLI path. The shipped `social` binary, the dev entrypoint, and the TypeScript `cli/` source all resolve to the same command surface and the same `~/.social-flow/config.json` store.
 
-Start with the CLI for operator speed. Use the same runtime through the Gateway + SDK for agents, scripts, and custom apps.
-
-## Why This Matters
-
-In Meta ops, analytics logic is rarely the hard part. Reliable execution is. Tokens expire, scopes drift, retries fail midway, and partial writes create cleanup risk. Social Flow reduces that operational risk so teams can spend time on decisions, not firefighting.
-
-## Who It Is For
-
-- Agencies running multi-account Meta operations
-- Operators managing daily ads/content/messaging workflows
-- Indie hackers automating client delivery
-- Agent builders who need a reliable Meta execution surface
-
-## 60-Second Quickstart
+## Quickstart
 
 ```bash
 # 1) Install
 npm install -g @vishalgojha/social-flow
 
-# 2) Guided setup + health checks
-social start-here
+# 2) Set token, defaults, and AI provider
+social onboard
+# also provisions Chromium for browser automation unless you pass --skip-browser
 
-# 3) Open the conversational control plane
-social hatch
+# 3) Verify local readiness
+social doctor
+social status
+
+# 4) Run a command
+social profile get --fields id,name
 ```
 
-Local AI option:
+Natural-language mode:
 
 ```bash
-social hatch --ai-provider ollama
+social ai --provider deterministic "list ads account act_123"
+social ai --provider ollama "get my facebook profile"
 ```
 
-This uses a local Ollama server by default at `http://127.0.0.1:11434` and does not require an API key.
-
-Local state now lives under `~/.social-flow/`. Existing `~/.social-cli/` state is read and migrated automatically.
-
-Optional Studio UI:
+## Core Commands
 
 ```bash
-social studio --url http://127.0.0.1:1310
+social onboard
+social doctor
+social status
+social config
+social profile get --fields id,name
+social post create --message "Hello team" --page-id PAGE_ID
+social ads list --account act_123
+social logs
+social replay <LOG_ID>
+social ai --provider deterministic "create post \"Hello\" page 12345"
 ```
 
-If `social` is not recognized, open a new terminal and retry.
+## Config Compatibility
 
-## CLI Entry Points
+- Active state lives in `~/.social-flow/config.json`
+- Existing `~/.social-cli/config.json` and `~/.meta-cli/config.json` are migrated automatically
+- Existing profile-based `~/.social-flow/config.json` files continue to work; the latest CLI now reads and writes that shared schema directly
+
+## Developer Workflow
 
 ```bash
-social auth ...        # token/app credential management
-social marketing ...   # Ads/Marketing API operations
-social whatsapp ...    # WhatsApp API operations
-social ops ...         # approvals, alerts, handoff, runbooks
-social hatch           # conversational operator control plane
-social studio          # Studio launcher
-social gateway         # API/WebSocket runtime
+npm ci
+npm run build:social-ts
+npm run test:social-ts
+npm start
 ```
 
-## Gateway + SDK
-
-Use the same execution engine programmatically:
-
-```text
-GET  /api/sdk/status
-GET  /api/sdk/doctor
-GET  /api/sdk/actions
-POST /api/sdk/actions/plan
-POST /api/sdk/actions/execute
-```
-
-Hosted multi-agent + BYOK layer (additive):
-
-```text
-POST /api/orchestrate
-POST /api/keys
-GET  /api/keys
-GET  /api/agents
-GET  /api/tools
-GET  /api/recipes
-GET  /api/triggers
-```
-
-## Common Operator Commands
-
-```bash
-social marketing status
-social marketing portfolio --preset last_7d --target-daily 250
-social marketing insights --help
-social ops morning-run --workspace default
-social ops approvals list --workspace default --open
-social ops alerts list --workspace default --open
-```
+`npm run dev` uses the same latest CLI entrypoint as the published `social` binary.
 
 ## Docs
 
 - [Quickstart](QUICKSTART.md)
 - [Examples](EXAMPLES.md)
-- [Gateway UI/API](docs/GATEWAY_UI.md)
-- [Hosted Platform](docs/HOSTED_PLATFORM.md)
-- [Hatch UI](docs/HATCH_UI.md)
-- [Chat Agent](docs/CHAT_AGENT.md)
-- [AI Interface](docs/AI_INTERFACE.md)
-- [SDK](sdk/README.md)
-- [Deployment](DEPLOYMENT.md)
 - [Contributing](CONTRIBUTING.md)
-
-## Safety
-
-High-risk actions should be reviewed before execution.
-
-- Use `social doctor` before production runs
-- Prefer plan-first flows in `social hatch` / `social ai`
-- Use `social ops` approvals for team workflows
 
 ## License
 

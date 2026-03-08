@@ -1,4 +1,6 @@
 import { Command } from "commander";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 
@@ -7,7 +9,28 @@ import { parseIntentWithAi } from "../core/ai/intent-from-ai.js";
 import { parseNaturalLanguageToIntent } from "../core/intent-parser.js";
 import { listLogs, readLogById } from "../core/log-store.js";
 import { routeIntent } from "../core/router.js";
-import type { Intent } from "../core/types.js";
+import type { AiProvider, ApiName, Intent } from "../core/types.js";
+
+const { ensurePlaywrightChromium, getPlaywrightRuntimeStatus } = require("../lib/playwright-runtime");
+
+function loadPackageMeta(): { version?: string; description?: string } {
+  const candidates = [
+    path.resolve(__dirname, "..", "package.json"),
+    path.resolve(__dirname, "..", "..", "package.json")
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(readFileSync(candidate, "utf8")) as { version?: string; description?: string };
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return {};
+}
+
+const packageMeta = loadPackageMeta();
 
 function printJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
@@ -22,37 +45,125 @@ async function prompt(question: string): Promise<string> {
   }
 }
 
+function normalizeDefaultApi(raw: string): ApiName {
+  const value = String(raw || "").trim().toLowerCase();
+  if (value === "instagram") return "instagram";
+  if (value === "whatsapp") return "whatsapp";
+  return "facebook";
+}
+
+function normalizeAiProvider(raw: string): AiProvider {
+  const value = String(raw || "").trim().toLowerCase();
+  if (value === "openrouter") return "openrouter";
+  if (value === "xai" || value === "grok") return "xai";
+  if (value === "openai") return "openai";
+  return "ollama";
+}
+
+function defaultModelForProvider(provider: AiProvider): string {
+  if (provider === "openrouter") return "openai/gpt-4o-mini";
+  if (provider === "xai") return "grok-2-latest";
+  if (provider === "openai") return "gpt-4o-mini";
+  return "qwen2.5:7b";
+}
+
+function defaultBaseUrlForProvider(provider: AiProvider): string {
+  if (provider === "openrouter") return "https://openrouter.ai/api/v1";
+  if (provider === "xai") return "https://api.x.ai/v1";
+  if (provider === "openai") return "https://api.openai.com/v1";
+  return "http://127.0.0.1:11434";
+}
+
+function envApiKeyForProvider(provider: AiProvider): string {
+  if (provider === "openrouter") {
+    return process.env.SOCIAL_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || "";
+  }
+  if (provider === "xai") {
+    return process.env.SOCIAL_XAI_API_KEY || process.env.XAI_API_KEY || "";
+  }
+  if (provider === "openai") {
+    return process.env.SOCIAL_AI_API_KEY || process.env.OPENAI_API_KEY || "";
+  }
+  return "";
+}
+
+function serializeBrowserRuntime(
+  runtime: {
+    packageInstalled?: boolean;
+    chromiumInstalled?: boolean;
+    executablePath?: string;
+    installCommand?: string;
+    error?: string;
+  },
+  extra: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    ready: Boolean(runtime.packageInstalled && runtime.chromiumInstalled),
+    package_installed: Boolean(runtime.packageInstalled),
+    chromium_installed: Boolean(runtime.chromiumInstalled),
+    executable_path: runtime.executablePath || null,
+    install_command: runtime.installCommand || "npx playwright install chromium",
+    ...(runtime.error ? { error: runtime.error } : {}),
+    ...extra
+  };
+}
+
 const program = new Command();
 
 program
   .name("social")
-  .description("Deterministic Social Flow")
-  .version("0.3.0");
+  .description(packageMeta.description || "Deterministic Social Flow")
+  .version(packageMeta.version || "0.0.0");
 
 program
   .command("onboard")
-  .description("Initialize ~/.social-flow/config.json")
-  .action(async () => {
+  .alias("setup")
+  .description("Initialize ~/.social-flow/config.json and browser runtime")
+  .option("--skip-browser", "skip automatic Chromium provisioning", false)
+  .action(async (opts: { skipBrowser?: boolean }) => {
     const cfg = await readConfig();
-    cfg.token = await prompt("Meta token: ");
+    const defaultApi = normalizeDefaultApi(
+      (await prompt(`Default API [${cfg.defaultApi || "facebook"}]: `)) || cfg.defaultApi || "facebook"
+    );
+    cfg.defaultApi = defaultApi;
+    cfg.token = await prompt(`${defaultApi} token: `);
     cfg.graphVersion = (await prompt("Graph version [v20.0]: ")) || "v20.0";
     const scopes = await prompt("Scopes CSV: ");
     cfg.scopes = scopes.split(",").map((x) => x.trim()).filter(Boolean);
     cfg.defaultPageId = (await prompt("Default page ID (optional): ")) || undefined;
     cfg.defaultAdAccountId = (await prompt("Default ad account ID (optional): ")) || undefined;
-    const aiProviderRaw = (await prompt("AI provider [ollama|openai] (optional, default ollama): ")) || "ollama";
-    const aiProvider = aiProviderRaw.toLowerCase() === "openai" ? "openai" : "ollama";
-    const aiModel = await prompt(`AI model (optional, default ${aiProvider === "openai" ? "gpt-4o-mini" : "qwen2.5:7b"}): `);
-    const aiBase = await prompt(`AI base URL (optional, default ${aiProvider === "openai" ? "https://api.openai.com/v1" : "http://127.0.0.1:11434"}): `);
+    const currentProvider = normalizeAiProvider(cfg.ai?.provider || "ollama");
+    const aiProvider = normalizeAiProvider(
+      (await prompt(`AI provider [${currentProvider}] (ollama|openai|openrouter|xai): `)) || currentProvider
+    );
+    const aiModelDefault = cfg.ai?.model || defaultModelForProvider(aiProvider);
+    const aiBaseDefault = cfg.ai?.baseUrl || defaultBaseUrlForProvider(aiProvider);
+    const aiModel = await prompt(`AI model (optional, default ${aiModelDefault}): `);
+    const aiBase = await prompt(`AI base URL (optional, default ${aiBaseDefault}): `);
     const aiKey = await prompt("AI API key (optional, leave blank to use env var): ");
     cfg.ai = {
       provider: aiProvider,
-      model: aiModel || (aiProvider === "openai" ? "gpt-4o-mini" : "qwen2.5:7b"),
-      baseUrl: aiBase || (aiProvider === "openai" ? "https://api.openai.com/v1" : "http://127.0.0.1:11434"),
+      model: aiModel || aiModelDefault,
+      baseUrl: aiBase || aiBaseDefault,
       apiKey: aiKey || ""
     };
     await writeConfig(cfg);
-    printJson({ ok: true, path: await configPath() });
+    let browserRuntime = serializeBrowserRuntime(getPlaywrightRuntimeStatus(), {
+      skipped: Boolean(opts.skipBrowser)
+    });
+    if (!opts.skipBrowser) {
+      const provisioned = await ensurePlaywrightChromium({
+        stdio: process.stdout.isTTY ? "inherit" : "pipe"
+      });
+      browserRuntime = serializeBrowserRuntime(getPlaywrightRuntimeStatus(), {
+        installed_now: Boolean(provisioned.installed)
+      });
+    }
+    printJson({
+      ok: true,
+      path: await configPath(),
+      browser_runtime: browserRuntime
+    });
   });
 
 program
@@ -61,10 +172,20 @@ program
   .action(async () => {
     const cfg = await readConfig();
     const issues: string[] = [];
+    const browserRuntime = getPlaywrightRuntimeStatus();
     if (!cfg.token || cfg.token.length < 20) issues.push("Token missing/invalid");
     if (!cfg.graphVersion) issues.push("Graph version missing");
     if (!Array.isArray(cfg.scopes)) issues.push("Scopes missing");
-    printJson({ ok: issues.length === 0, issues, config_path: await configPath() });
+    if (!browserRuntime.packageInstalled) issues.push("Playwright package missing");
+    else if (!browserRuntime.chromiumInstalled) issues.push(`Chromium runtime missing (${browserRuntime.installCommand})`);
+    printJson({
+      ok: issues.length === 0,
+      issues,
+      active_profile: cfg.activeProfile || "default",
+      default_api: cfg.defaultApi || "facebook",
+      config_path: cfg.configPath || await configPath(),
+      browser_runtime: serializeBrowserRuntime(browserRuntime)
+    });
   });
 
 program
@@ -72,8 +193,14 @@ program
   .description("Show non-sensitive status")
   .action(async () => {
     const cfg = await readConfig();
+    const browserRuntime = getPlaywrightRuntimeStatus();
     printJson({
       token_set: !!cfg.token,
+      active_profile: cfg.activeProfile || "default",
+      default_api: cfg.defaultApi || "facebook",
+      configured_api_tokens: Object.fromEntries(
+        Object.entries(cfg.apiTokens || {}).map(([api, token]) => [api, !!String(token || "")])
+      ),
       graph_version: cfg.graphVersion,
       scopes: cfg.scopes,
       default_page_id: cfg.defaultPageId || null,
@@ -81,7 +208,8 @@ program
       ai_provider: cfg.ai?.provider || "ollama",
       ai_model: cfg.ai?.model || null,
       ai_base_url: cfg.ai?.baseUrl || null,
-      ai_key_set: !!cfg.ai?.apiKey
+      ai_key_set: !!cfg.ai?.apiKey,
+      browser_runtime: serializeBrowserRuntime(browserRuntime)
     });
   });
 
@@ -174,7 +302,7 @@ program
   .command("ai")
   .description("Natural language interface (deterministic or AI-assisted)")
   .argument("<intent...>", "intent text")
-  .option("--provider <provider>", "deterministic|ollama|openai", "deterministic")
+  .option("--provider <provider>", "deterministic|ollama|openai|openrouter|xai", "deterministic")
   .option("--model <model>", "AI model name")
   .option("--base-url <url>", "AI base URL")
   .option("--api-key <key>", "API key for openai-compatible providers")
@@ -182,7 +310,7 @@ program
   .action(async (
     parts: string[],
     opts: {
-      provider: "deterministic" | "ollama" | "openai";
+      provider: "deterministic" | AiProvider;
       model?: string;
       baseUrl?: string;
       apiKey?: string;
@@ -192,21 +320,14 @@ program
     const text = parts.join(" ");
     const cfg = await readConfig();
     const provider = opts.provider || "deterministic";
-    const model =
-      opts.model ||
-      cfg.ai?.model ||
-      (provider === "openai" ? "gpt-4o-mini" : "qwen2.5:7b");
+    const resolvedProvider = provider === "deterministic" ? "ollama" : normalizeAiProvider(provider);
+    const model = opts.model || cfg.ai?.model || defaultModelForProvider(resolvedProvider);
     const baseUrl =
       opts.baseUrl ||
       process.env.SOCIAL_AI_BASE_URL ||
       cfg.ai?.baseUrl ||
-      (provider === "openai" ? "https://api.openai.com/v1" : "http://127.0.0.1:11434");
-    const apiKey =
-      opts.apiKey ||
-      process.env.SOCIAL_AI_API_KEY ||
-      process.env.OPENAI_API_KEY ||
-      cfg.ai?.apiKey ||
-      "";
+      defaultBaseUrlForProvider(resolvedProvider);
+    const apiKey = opts.apiKey || envApiKeyForProvider(resolvedProvider) || cfg.ai?.apiKey || "";
 
     let intent: Intent;
     if (provider === "deterministic") {
@@ -214,7 +335,7 @@ program
     } else {
       try {
         intent = await parseIntentWithAi(text, {
-          provider: provider === "openai" ? "openai" : "ollama",
+          provider: resolvedProvider,
           model,
           baseUrl,
           apiKey

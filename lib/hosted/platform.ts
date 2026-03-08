@@ -5,6 +5,7 @@ const { randomBytes, createCipheriv, createDecipheriv, createHash } = require('c
 const storage = require('./storage');
 const { WebchatChannel } = require('../channels/webchat');
 const { BaileysChannel } = require('../channels/baileys');
+const { loadPlaywrightOrThrow } = require('../playwright-runtime');
 
 const TOOL_NAME = 'Social Flow';
 const TIER_2_PRICE_USD = 49;
@@ -157,45 +158,6 @@ const SERVICE_LIMITS_PER_MIN = {
 
 const TRIGGER_TYPES = new Set(['cron', 'webhook', 'event']);
 const PLAYWRIGHT_TIMEOUT_MS = 15_000;
-
-let PLAYWRIGHT_INSTANCE = null;
-let PLAYWRIGHT_LOAD_ATTEMPTED = false;
-
-function browserDriverMissingError(cause = null) {
-  const error = new Error('Playwright driver missing. Install with: npm install playwright && npx playwright install chromium');
-  error.code = 'BROWSER_DRIVER_MISSING';
-  error.status = 503;
-  if (cause) {
-    error.cause = cause;
-  }
-  return error;
-}
-
-function loadPlaywrightOrThrow() {
-  if (PLAYWRIGHT_INSTANCE) return PLAYWRIGHT_INSTANCE;
-  if (PLAYWRIGHT_LOAD_ATTEMPTED) throw browserDriverMissingError();
-  PLAYWRIGHT_LOAD_ATTEMPTED = true;
-
-  const candidates = ['playwright', 'playwright-core'];
-  let lastError = null;
-  for (let i = 0; i < candidates.length; i += 1) {
-    try {
-      // eslint-disable-next-line global-require, import/no-dynamic-require
-      const loaded = require(candidates[i]);
-      if (loaded && loaded.chromium && typeof loaded.chromium.launch === 'function') {
-        PLAYWRIGHT_INSTANCE = loaded;
-        return PLAYWRIGHT_INSTANCE;
-      }
-      if (loaded && loaded.default && loaded.default.chromium && typeof loaded.default.chromium.launch === 'function') {
-        PLAYWRIGHT_INSTANCE = loaded.default;
-        return PLAYWRIGHT_INSTANCE;
-      }
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw browserDriverMissingError(lastError);
-}
 
 function normalizeWaitUntil(value) {
   const raw = String(value || '').trim().toLowerCase();
@@ -762,7 +724,7 @@ class HostedPlatform {
 
   async createBrowserSession(userId, payload = {}) {
     const safeUserId = storage.sanitizeId(userId);
-    const playwright = loadPlaywrightOrThrow();
+    const playwright = await loadPlaywrightOrThrow({ stdio: 'pipe' });
 
     const headless = payload.headless !== false;
     const viewportWidth = Math.max(320, Math.min(3840, toNumber(payload.viewportWidth, 1366)));

@@ -1,4 +1,6 @@
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH";
+export type ApiName = "facebook" | "instagram" | "whatsapp";
+export type AiProvider = "ollama" | "openai" | "openrouter" | "xai";
 
 export type IntentAction =
   | "onboard"
@@ -24,10 +26,14 @@ export interface SocialConfig {
   token: string;
   graphVersion: string;
   scopes: string[];
+  defaultApi?: ApiName;
+  activeProfile?: string;
+  configPath?: string;
+  apiTokens?: Partial<Record<ApiName, string>>;
   defaultPageId?: string;
   defaultAdAccountId?: string;
   ai?: {
-    provider?: "ollama" | "openai";
+    provider?: AiProvider;
     model?: string;
     baseUrl?: string;
     apiKey?: string;

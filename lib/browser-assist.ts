@@ -1,34 +1,5 @@
 const { openUrl } = require('./open-url');
-
-let PLAYWRIGHT_INSTANCE = null;
-let PLAYWRIGHT_LOAD_ATTEMPTED = false;
-
-function loadPlaywrightOrThrow() {
-  if (PLAYWRIGHT_INSTANCE) return PLAYWRIGHT_INSTANCE;
-  if (PLAYWRIGHT_LOAD_ATTEMPTED) throw new Error('Playwright unavailable');
-  PLAYWRIGHT_LOAD_ATTEMPTED = true;
-
-  const candidates = ['playwright', 'playwright-core'];
-  let lastError = null;
-  for (let i = 0; i < candidates.length; i += 1) {
-    try {
-      // eslint-disable-next-line global-require, import/no-dynamic-require
-      const loaded = require(candidates[i]);
-      if (loaded && loaded.chromium && typeof loaded.chromium.launch === 'function') {
-        PLAYWRIGHT_INSTANCE = loaded;
-        return PLAYWRIGHT_INSTANCE;
-      }
-      if (loaded && loaded.default && loaded.default.chromium && typeof loaded.default.chromium.launch === 'function') {
-        PLAYWRIGHT_INSTANCE = loaded.default;
-        return PLAYWRIGHT_INSTANCE;
-      }
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError || new Error('Playwright unavailable');
-}
+const { loadPlaywrightOrThrow } = require('./playwright-runtime');
 
 function noOpClose() {
   return Promise.resolve();
@@ -49,7 +20,7 @@ async function createBrowserAssistSession(options = {}) {
   }
 
   try {
-    const playwright = loadPlaywrightOrThrow();
+    const playwright = await loadPlaywrightOrThrow({ stdio: 'pipe' });
     const browser = await playwright.chromium.launch({ headless: false });
     const context = await browser.newContext({
       viewport: { width: 1440, height: 920 }

@@ -14,6 +14,9 @@
     "cli/**/*.ts",
     "core/**/*.ts",
     "executors/**/*.ts",
+    "lib/playwright-runtime.ts",
+    "lib/app-paths.ts",
+    "lib/hosted/storage.ts",
     "utils/**/*.ts",
     "tests/**/*.ts"
   ]
