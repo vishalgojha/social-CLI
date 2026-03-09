@@ -1,5 +1,8 @@
 const STORAGE_KEY = "social_flow_agentic_frontend_v1";
 const REFRESH_INTERVAL_MS = 30000;
+const WS_RECONNECT_MIN_MS = 1000;
+const WS_RECONNECT_MAX_MS = 15000;
+const WS_RECONNECT_JITTER_MS = 300;
 
 function defaultGatewayBaseUrl() {
   const injectedUrl = String(window.__SOCIAL_FLOW_GATEWAY__?.url || "").trim();
@@ -35,6 +38,9 @@ const state = {
   chatSessionId: "",
   pendingActions: [],
   ws: null,
+  wsReconnectTimer: null,
+  wsReconnectAttempts: 0,
+  wsAutoReconnect: false,
   wsEvents: [],
   setupSnapshot: null,
   setupDraftInitialized: false,
@@ -50,6 +56,7 @@ const nodes = {
   sideRail: document.querySelector(".side-rail"),
   sidebarToggle: $("sidebar-toggle"),
   sidebarScrim: $("sidebar-scrim"),
+  moduleTabs: Array.from(document.querySelectorAll(".module-tab")),
   navDrawers: Array.from(document.querySelectorAll(".nav-drawer")),
   navDrawerToggles: Array.from(document.querySelectorAll(".nav-drawer-toggle")),
   viewKicker: $("view-kicker"),
@@ -193,6 +200,7 @@ const nodes = {
 
   webchatWidgetLabel: $("webchat-widget-label"),
   webchatWidgetCreate: $("webchat-widget-create"),
+  webchatWidgetCopy: $("webchat-widget-copy"),
   webchatWidgetReload: $("webchat-widget-reload"),
   webchatWidgetList: $("webchat-widget-list"),
   webchatPublicWidgetKey: $("webchat-public-widget-key"),
@@ -226,6 +234,7 @@ const nodes = {
   baileysSend: $("baileys-send"),
   baileysMessagesReload: $("baileys-messages-reload"),
   baileysOutput: $("baileys-output"),
+  baileysMessages: $("baileys-messages"),
 
   logsLimit: $("logs-limit"),
   logsReload: $("logs-reload"),
@@ -234,94 +243,94 @@ const nodes = {
 
 const SCREEN_META = {
   command: {
-    group: "mission",
-    kicker: "Mission Control",
+    group: "overview",
+    kicker: "Overview",
     title: "Command Deck",
-    summary: "A single at-a-glance surface for readiness, risk, and workload pressure."
+    summary: "Use the home screen to confirm readiness, triage approvals, and choose the next lane."
+  },
+  approvals: {
+    group: "overview",
+    kicker: "Overview",
+    title: "Approvals",
+    summary: "Resolve pending decisions quickly with context, audit-safe notes, and clean queue visibility."
+  },
+  logs: {
+    group: "overview",
+    kicker: "Overview",
+    title: "Logs",
+    summary: "Review traces, runtime history, and recent hosted events without leaving the state lane."
   },
   copilot: {
-    group: "mission",
-    kicker: "Mission Control",
+    group: "run",
+    kicker: "Run Flows",
     title: "Agent Copilot",
     summary: "Conversational control with live execution events and approval-safe plan execution."
   },
-  approvals: {
-    group: "mission",
-    kicker: "Mission Control",
-    title: "Approvals Center",
-    summary: "Resolve pending decisions quickly with context and audit-safe notes."
-  },
   diagnose: {
-    group: "mission",
-    kicker: "Mission Control",
+    group: "run",
+    kicker: "Run Flows",
     title: "Ads Diagnosis",
     summary: "Run guided diagnosis commands from a user-friendly form and capture immediate operator actions."
   },
   launchpad: {
-    group: "ops",
-    kicker: "Operations",
-    title: "Ops Launchpad",
-    summary: "One-click operational flows for team onboarding, guardrails, and recurring routines."
-  },
-  setup: {
-    group: "ops",
-    kicker: "Operations",
-    title: "Setup Concierge",
-    summary: "Connect tokens, app credentials, and AI providers without editing process environment variables."
-  },
-  admin: {
-    group: "ops",
-    kicker: "Operations",
-    title: "Workspace Admin",
-    summary: "Self-hosted deployment confidence for hardening, storage, team access, and operator activity."
-  },
-  logs: {
-    group: "ops",
-    kicker: "Operations",
-    title: "Logs",
-    summary: "Structured execution logs, traces, and hosted runtime history."
-  },
-  keys: {
-    group: "builder",
-    kicker: "Builder",
-    title: "BYOK Keys",
-    summary: "Store per-user encrypted provider keys with masked reads and fast operator controls."
+    group: "run",
+    kicker: "Run Flows",
+    title: "Launchpad",
+    summary: "One-click operational flows for onboarding, guardrails, recurring routines, and runbooks."
   },
   agents: {
-    group: "builder",
-    kicker: "Builder",
+    group: "build",
+    kicker: "Build",
     title: "Agents",
     summary: "Manage built-in specialists and custom crews from a visual registry."
   },
   tools: {
-    group: "builder",
-    kicker: "Builder",
+    group: "build",
+    kicker: "Build",
     title: "Tool Registry",
     summary: "Typed callable tools with service-aligned contracts and descriptions."
   },
   recipes: {
-    group: "builder",
-    kicker: "Builder",
+    group: "build",
+    kicker: "Build",
     title: "Recipes",
     summary: "Compose saved workflow stacks, execute them, and inspect outputs in one surface."
   },
   triggers: {
-    group: "builder",
-    kicker: "Builder",
+    group: "build",
+    kicker: "Build",
     title: "Triggers",
     summary: "Map cron, webhook, and event entry points to reusable recipes."
   },
   webchat: {
     group: "channels",
     kicker: "Channels",
-    title: "Webchat Channel",
-    summary: "Operate widget keys, public sessions, and operator replies from one modular inbox."
+    title: "Website Chat",
+    summary: "Run site conversations, visitor tests, and operator replies from one cleaner inbox."
   },
   baileys: {
     group: "channels",
     kicker: "Channels",
-    title: "Baileys Channel",
-    summary: "Manage WhatsApp Web sessions, QR flows, and message history with clear operator controls."
+    title: "WhatsApp Web",
+    summary: "Manage WhatsApp lines, QR pairing, and message history with operator-friendly controls."
+  },
+  setup: {
+    group: "configure",
+    kicker: "Configure",
+    title: "Setup",
+    summary: "Connect tokens, app credentials, and AI providers without editing process environment variables."
+  },
+  keys: {
+    group: "configure",
+    kicker: "Configure",
+    title: "Keys",
+    summary: "Store per-user encrypted provider keys with masked reads and fast operator controls."
+  },
+  admin: {
+    group: "configure",
+    kicker: "Configure",
+    title: "Admin",
+    summary: "Self-hosted deployment confidence for hardening, storage, team access, and operator activity."
   }
 };
 
@@ -402,8 +411,24 @@ function setStatus(kind, text) {
 }
 
 function setSession(sessionId) {
-  const short = sessionId ? `${sessionId.slice(0, 12)}...` : "--";
-  nodes.sessionPill.textContent = `Session: ${short}`;
+  const id = String(sessionId || "").trim();
+  if (!id) {
+    nodes.sessionPill.textContent = "Copilot: waiting";
+    return;
+  }
+  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+    nodes.sessionPill.textContent = "Copilot: live";
+    return;
+  }
+  if (state.ws && state.ws.readyState === WebSocket.CONNECTING) {
+    nodes.sessionPill.textContent = "Copilot: connecting";
+    return;
+  }
+  if (state.wsReconnectTimer || state.wsAutoReconnect) {
+    nodes.sessionPill.textContent = "Copilot: reconnecting";
+    return;
+  }
+  nodes.sessionPill.textContent = "Copilot: session ready";
 }
 
 function escapeHtml(value) {
@@ -491,6 +516,76 @@ function formatDateTime(value) {
   }
 }
 
+function firstPresent(values, fallback = "") {
+  for (const value of values) {
+    const text = String(value || "").trim();
+    if (text) return text;
+  }
+  return fallback;
+}
+
+function activityStamp(...values) {
+  const value = values.find(Boolean);
+  return value ? `Updated ${formatDateTime(value)}` : "";
+}
+
+async function copyTextToClipboard(value, { success = "Copied.", empty = "Nothing to copy yet." } = {}) {
+  const text = String(value || "").trim();
+  if (!text) {
+    toast(empty, "err");
+    return false;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(success, "ok");
+    return true;
+  } catch {
+    toast("Copy failed. Select and copy manually.", "err");
+    return false;
+  }
+}
+
+function selectBaileysSession(sessionId, { focusComposer = false, loadMessages = false } = {}) {
+  const id = String(sessionId || "").trim();
+  nodes.baileysSessionId.value = id;
+  if (focusComposer) {
+    window.requestAnimationFrame(() => nodes.baileysTo?.focus());
+  }
+  if (loadMessages) {
+    void loadBaileysMessages();
+  }
+}
+
+function extractBaileysSession(payload) {
+  if (payload && typeof payload.session === "object" && payload.session) return payload.session;
+  if (payload && typeof payload === "object") return payload;
+  return {};
+}
+
+function formatBaileysPairingOutput(payload, fallback = "") {
+  const session = extractBaileysSession(payload);
+  const lines = [];
+  const title = firstPresent([session.label, session.phone, session.id], "WhatsApp line");
+  lines.push(`Line: ${title}`);
+  if (session.status) lines.push(`State: ${labelFromKey(session.status)}`);
+
+  if (session.qr) {
+    lines.push("QR ready. Scan it from WhatsApp on the phone.");
+    if (session.qrUpdatedAt) lines.push(`Updated ${formatDateTime(session.qrUpdatedAt)}`);
+    lines.push("");
+    lines.push("Raw QR payload:");
+    lines.push(String(session.qr));
+    return lines.join("\n");
+  }
+
+  if (session.lastConnectedAt) lines.push(`Connected ${formatDateTime(session.lastConnectedAt)}`);
+  if (session.lastDisconnectedAt) lines.push(`Last disconnected ${formatDateTime(session.lastDisconnectedAt)}`);
+  if (session.lastError) lines.push(`Note: ${session.lastError}`);
+  if (fallback) lines.push(fallback);
+
+  return lines.filter(Boolean).join("\n");
+}
+
 function labelFromKey(value) {
   return String(value || "")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
@@ -535,13 +630,15 @@ function setDrawerState(drawer, open) {
 }
 
 function openDrawer(group, { exclusive = false } = {}) {
+  void exclusive;
   nodes.navDrawers.forEach((drawer) => {
     const isMatch = drawer.dataset.navDrawer === group;
-    if (isMatch) {
-      setDrawerState(drawer, true);
-      return;
-    }
-    if (exclusive) setDrawerState(drawer, false);
+    setDrawerState(drawer, isMatch);
+  });
+  nodes.moduleTabs.forEach((button) => {
+    const isMatch = button.dataset.moduleTarget === group;
+    button.classList.toggle("active", isMatch);
+    button.setAttribute("aria-selected", isMatch ? "true" : "false");
   });
 }
 
@@ -1291,20 +1388,66 @@ function addWsEvent(type, summary) {
   });
 }
 
-function closeWs() {
+function clearWsReconnectTimer() {
+  if (!state.wsReconnectTimer) return;
+  window.clearTimeout(state.wsReconnectTimer);
+  state.wsReconnectTimer = null;
+}
+
+function nextWsReconnectDelay() {
+  const backoff = Math.min(
+    WS_RECONNECT_MAX_MS,
+    WS_RECONNECT_MIN_MS * (2 ** Math.min(state.wsReconnectAttempts, 4))
+  );
+  return backoff + Math.floor(Math.random() * WS_RECONNECT_JITTER_MS);
+}
+
+function disposeWs() {
   if (!state.ws) return;
+  const ws = state.ws;
+  state.ws = null;
+  ws.onopen = null;
+  ws.onclose = null;
+  ws.onerror = null;
+  ws.onmessage = null;
   try {
-    state.ws.close();
+    ws.close();
   } catch {
     // Ignore ws close errors.
   }
-  state.ws = null;
 }
 
-function connectWs(sessionId) {
-  closeWs();
+function scheduleWsReconnect(reason = "connection closed") {
+  const sessionId = String(state.chatSessionId || "").trim();
+  if (!state.wsAutoReconnect || !sessionId || state.ws || state.wsReconnectTimer) {
+    setSession(sessionId);
+    return;
+  }
+
+  const delayMs = nextWsReconnectDelay();
+  state.wsReconnectAttempts += 1;
+  addWsEvent("ws", `${reason}. Retrying in ${Math.ceil(delayMs / 1000)}s.`);
+  state.wsReconnectTimer = window.setTimeout(() => {
+    state.wsReconnectTimer = null;
+    connectWs(sessionId, { isReconnect: true });
+  }, delayMs);
+  setSession(sessionId);
+}
+
+function closeWs() {
+  state.wsAutoReconnect = false;
+  state.wsReconnectAttempts = 0;
+  clearWsReconnectTimer();
+  disposeWs();
+  setSession(state.chatSessionId);
+}
+
+function connectWs(sessionId, { isReconnect = false } = {}) {
+  clearWsReconnectTimer();
+  disposeWs();
   if (!sessionId) return;
   try {
+    state.wsAutoReconnect = true;
     const base = new URL(state.config.baseUrl);
     const wsUrl = new URL("/ws", base);
     wsUrl.protocol = base.protocol === "https:" ? "wss:" : "ws:";
@@ -1313,12 +1456,29 @@ function connectWs(sessionId) {
 
     const ws = new WebSocket(wsUrl.toString());
     state.ws = ws;
+    setSession(sessionId);
 
-    ws.onopen = () => addWsEvent("ws", "connected");
-    ws.onerror = () => addWsEvent("ws", "error");
-    ws.onclose = () => addWsEvent("ws", "closed");
+    ws.onopen = () => {
+      if (state.ws !== ws) return;
+      state.wsReconnectAttempts = 0;
+      clearWsReconnectTimer();
+      addWsEvent("ws", isReconnect ? "reconnected" : "connected");
+      setSession(sessionId);
+    };
+    ws.onerror = () => {
+      if (state.ws !== ws) return;
+      addWsEvent("ws", "error");
+    };
+    ws.onclose = (event) => {
+      if (state.ws !== ws) return;
+      state.ws = null;
+      addWsEvent("ws", event.wasClean ? "closed" : "disconnected");
+      setSession(sessionId);
+      scheduleWsReconnect("session disconnected");
+    };
 
     ws.onmessage = (event) => {
+      if (state.ws !== ws) return;
       let msg = {};
       try {
         msg = JSON.parse(String(event.data || "{}"));
@@ -1342,7 +1502,10 @@ function connectWs(sessionId) {
       }
     };
   } catch (error) {
+    state.wsAutoReconnect = false;
+    state.wsReconnectAttempts = 0;
     addWsEvent("ws", errorText(error, "connection failed"));
+    setSession(sessionId);
   }
 }
 
@@ -2074,12 +2237,12 @@ async function loadWebchatWidgetKeys() {
   try {
     const out = await requestApi("/api/channels/webchat/widget-keys");
     const keys = Array.isArray(out?.keys) ? out.keys : [];
-    renderStackList(nodes.webchatWidgetList, keys, "No widget keys yet.", (row) => {
+    renderStackList(nodes.webchatWidgetList, keys, "No access keys yet.", (row) => {
       const card = makeHostedCard({
-        title: row.label || row.id || "widget-key",
+        title: row.label || "Website access key",
         eyebrow: row.status || "active",
-        meta: row.id ? `id ${row.id}` : "",
-        body: row.keyMask ? `Masked key ${row.keyMask}` : "Widget key ready.",
+        meta: activityStamp(row.updatedAt, row.createdAt),
+        body: row.keyMask ? `Stored key ${row.keyMask}` : "Ready for site chat.",
         chips: [row.keyMask || "", row.status || "active"],
         icon: "webchat"
       });
@@ -2095,7 +2258,7 @@ async function loadWebchatWidgetKeys() {
       return card;
     });
   } catch (error) {
-    nodes.webchatWidgetList.textContent = `Unable to load widget keys: ${errorText(error)}`;
+    nodes.webchatWidgetList.textContent = `Unable to load access keys: ${errorText(error)}`;
   }
 }
 
@@ -2109,23 +2272,28 @@ async function createWebchatWidgetKey() {
     const secret = String(out?.key?.key || "");
     if (secret) {
       nodes.webchatPublicWidgetKey.value = secret;
-      nodes.webchatPublicOutput.textContent = `New widget key (save now): ${secret}`;
+      nodes.webchatPublicOutput.textContent = [
+        "New website install key created.",
+        "Copy it now. The full key is only shown once.",
+        "",
+        secret
+      ].join("\n");
     }
     nodes.webchatWidgetLabel.value = "";
-    toast("Widget key created.", "ok");
+    toast("Access key created.", "ok");
     await loadWebchatWidgetKeys();
   } catch (error) {
-    toast(errorText(error, "Failed to create widget key"), "err");
+    toast(errorText(error, "Failed to create access key"), "err");
   }
 }
 
 async function deleteWebchatWidgetKey(id) {
   try {
     await requestApi(`/api/channels/webchat/widget-keys/${encodeURIComponent(id)}`, { method: "DELETE" });
-    toast("Widget key deleted.", "ok");
+    toast("Access key deleted.", "ok");
     await loadWebchatWidgetKeys();
   } catch (error) {
-    toast(errorText(error, "Failed to delete widget key"), "err");
+    toast(errorText(error, "Failed to delete access key"), "err");
   }
 }
 
@@ -2133,10 +2301,10 @@ async function startPublicWebchatSession() {
   const widgetKey = String(nodes.webchatPublicWidgetKey.value || "").trim();
   const visitorId = String(nodes.webchatPublicVisitor.value || "").trim();
   if (!widgetKey) {
-    toast("Widget key is required.", "err");
+    toast("Website access key is required.", "err");
     return;
   }
-  nodes.webchatPublicOutput.textContent = "Starting public session...";
+  nodes.webchatPublicOutput.textContent = "Starting test conversation...";
   try {
     const out = await requestApi("/api/webchat/public/session/start", {
       method: "POST",
@@ -2144,12 +2312,16 @@ async function startPublicWebchatSession() {
     });
     nodes.webchatPublicToken.value = String(out.sessionToken || "");
     nodes.webchatSessionId.value = String(out?.session?.id || "");
-    nodes.webchatPublicOutput.textContent = pretty(out);
-    toast("Public webchat session started.", "ok");
+    nodes.webchatPublicOutput.textContent = [
+      "Test conversation started.",
+      out.sessionToken ? "Temporary reply token added above." : "",
+      out?.session?.id ? "Conversation selected in the reply panel." : ""
+    ].filter(Boolean).join("\n");
+    toast("Website chat started.", "ok");
     await loadWebchatSessions();
   } catch (error) {
     nodes.webchatPublicOutput.textContent = `Error: ${errorText(error)}`;
-    toast(errorText(error, "Failed to start public session"), "err");
+    toast(errorText(error, "Failed to start website chat"), "err");
   }
 }
 
@@ -2157,7 +2329,7 @@ async function sendPublicWebchatMessage() {
   const sessionToken = String(nodes.webchatPublicToken.value || "").trim();
   const text = String(nodes.webchatPublicMessage.value || "").trim();
   if (!sessionToken || !text) {
-    toast("Session token and message are required.", "err");
+    toast("Temporary reply token and message are required.", "err");
     return;
   }
   try {
@@ -2169,14 +2341,17 @@ async function sendPublicWebchatMessage() {
         metadata: { source: "agentic-ui-public" }
       }
     });
-    nodes.webchatPublicOutput.textContent = pretty(out);
+    nodes.webchatPublicOutput.textContent = [
+      "Visitor message sent.",
+      out?.session?.id ? "Conversation refreshed in the reply panel." : ""
+    ].filter(Boolean).join("\n");
     nodes.webchatPublicMessage.value = "";
     if (out?.session?.id) nodes.webchatSessionId.value = String(out.session.id);
-    toast("Public message sent.", "ok");
+    toast("Visitor message sent.", "ok");
     await Promise.all([loadWebchatSessions(), loadWebchatSessionMessages()]);
   } catch (error) {
     nodes.webchatPublicOutput.textContent = `Error: ${errorText(error)}`;
-    toast(errorText(error, "Failed to send public message"), "err");
+    toast(errorText(error, "Failed to send visitor message"), "err");
   }
 }
 
@@ -2184,37 +2359,38 @@ async function loadWebchatSessions() {
   try {
     const out = await requestApi("/api/channels/webchat/sessions?limit=120");
     const sessions = Array.isArray(out?.sessions) ? out.sessions : [];
-    renderStackList(nodes.webchatSessionsList, sessions, "No webchat sessions yet.", (row) => {
+    renderStackList(nodes.webchatSessionsList, sessions, "No website conversations yet.", (row) => {
       const card = makeHostedCard({
-        title: row.visitorId || row.id || "session",
+        title: firstPresent([row.visitorName, row.visitorId, row.email, row.phone], "Website visitor"),
         eyebrow: row.status || "open",
-        meta: row.id ? `session ${row.id}` : "webchat session",
+        meta: activityStamp(row.lastMessageAt, row.updatedAt, row.createdAt),
         body: row.lastMessagePreview || "No messages yet.",
-        chips: [`${row.messageCount || 0} message(s)`],
+        chips: [`${row.messageCount || 0} message${Number(row.messageCount || 0) === 1 ? "" : "s"}`],
         icon: "webchat"
       });
       const actionRow = document.createElement("div");
       actionRow.className = "row";
       const selectBtn = document.createElement("button");
       selectBtn.type = "button";
-      selectBtn.textContent = "Open";
+      selectBtn.textContent = "Reply";
       selectBtn.addEventListener("click", () => {
         nodes.webchatSessionId.value = String(row.id || "");
         loadWebchatSessionMessages();
+        window.requestAnimationFrame(() => nodes.webchatSessionMessage?.focus());
       });
       actionRow.appendChild(selectBtn);
       card.appendChild(actionRow);
       return card;
     });
   } catch (error) {
-    nodes.webchatSessionsList.textContent = `Unable to load webchat sessions: ${errorText(error)}`;
+    nodes.webchatSessionsList.textContent = `Unable to load website conversations: ${errorText(error)}`;
   }
 }
 
 async function loadWebchatSessionMessages() {
   const sessionId = String(nodes.webchatSessionId.value || "").trim();
   if (!sessionId) {
-    nodes.webchatSessionMessages.textContent = "Select a webchat session to load messages.";
+    nodes.webchatSessionMessages.textContent = "Choose a conversation to load messages.";
     return;
   }
   nodes.webchatSessionMessages.textContent = "Loading messages...";
@@ -2230,7 +2406,7 @@ async function replyWebchatSession() {
   const sessionId = String(nodes.webchatSessionId.value || "").trim();
   const text = String(nodes.webchatSessionMessage.value || "").trim();
   if (!sessionId || !text) {
-    toast("Session ID and reply text are required.", "err");
+    toast("Choose a conversation and enter a reply.", "err");
     return;
   }
   try {
@@ -2249,7 +2425,7 @@ async function replyWebchatSession() {
 async function setWebchatSessionStatus(status) {
   const sessionId = String(nodes.webchatSessionId.value || "").trim();
   if (!sessionId) {
-    toast("Session ID is required.", "err");
+    toast("Choose a conversation first.", "err");
     return;
   }
   try {
@@ -2257,10 +2433,10 @@ async function setWebchatSessionStatus(status) {
       method: "POST",
       body: { status }
     });
-    toast(`Session marked ${status}.`, "ok");
+    toast(`Conversation marked ${status}.`, "ok");
     await Promise.all([loadWebchatSessions(), loadWebchatSessionMessages()]);
   } catch (error) {
-    toast(errorText(error, "Failed to update session status"), "err");
+    toast(errorText(error, "Failed to update conversation"), "err");
   }
 }
 
@@ -2268,30 +2444,47 @@ async function loadBaileysSessions() {
   try {
     const out = await requestApi("/api/channels/baileys/sessions?limit=120");
     const sessions = Array.isArray(out?.sessions) ? out.sessions : [];
-    renderStackList(nodes.baileysSessionsList, sessions, "No Baileys sessions yet.", (row) => {
+    renderStackList(nodes.baileysSessionsList, sessions, "No WhatsApp lines yet.", (row) => {
       const card = makeHostedCard({
-        title: row.label || row.id || "baileys-session",
+        title: firstPresent([row.label, row.phone, row.name], "WhatsApp line"),
         eyebrow: row.status || "idle",
-        meta: row.id ? `session ${row.id}` : "baileys",
-        body: row.lastError || row.lastMessagePreview || "Ready for connection and messaging.",
-        chips: [row.phone || "", row.phone ? "phone linked" : "phone optional"],
+        meta: activityStamp(row.qrUpdatedAt, row.lastConnectedAt, row.updatedAt, row.createdAt),
+        body: row.qr
+          ? "QR ready. Scan from WhatsApp on the phone to finish pairing."
+          : (row.lastError || row.lastMessagePreview || "Ready to pair and chat."),
+        chips: [
+          row.phone || "",
+          row.qr ? "qr ready" : "",
+          row.status === "connected" ? "ready to chat" : "",
+          row.phone ? "phone linked" : "phone optional"
+        ],
         icon: "baileys"
       });
       const actionRow = document.createElement("div");
       actionRow.className = "row";
-      const selectBtn = document.createElement("button");
-      selectBtn.type = "button";
-      selectBtn.textContent = "Select";
-      selectBtn.addEventListener("click", () => {
-        nodes.baileysSessionId.value = String(row.id || "");
-        loadBaileysMessages();
+      const pairBtn = document.createElement("button");
+      pairBtn.type = "button";
+      pairBtn.textContent = row.qr ? "Refresh QR" : "Show QR";
+      pairBtn.addEventListener("click", () => {
+        selectBaileysSession(row.id);
+        nodes.baileysOutput.textContent = formatBaileysPairingOutput(row, "Starting pairing...");
+        connectBaileysSession();
       });
-      actionRow.appendChild(selectBtn);
+      const chatBtn = document.createElement("button");
+      chatBtn.type = "button";
+      chatBtn.className = "secondary";
+      chatBtn.textContent = "Chat";
+      chatBtn.addEventListener("click", () => {
+        selectBaileysSession(row.id, { focusComposer: true, loadMessages: true });
+        nodes.baileysOutput.textContent = formatBaileysPairingOutput(row, "Ready for chat.");
+      });
+      actionRow.appendChild(pairBtn);
+      actionRow.appendChild(chatBtn);
       card.appendChild(actionRow);
       return card;
     });
   } catch (error) {
-    nodes.baileysSessionsList.textContent = `Unable to load Baileys sessions: ${errorText(error)}`;
+    nodes.baileysSessionsList.textContent = `Unable to load WhatsApp lines: ${errorText(error)}`;
   }
 }
 
@@ -2303,33 +2496,43 @@ async function createBaileysSession() {
       method: "POST",
       body: { label, phone, metadata: { source: "agentic-ui" } }
     });
-    nodes.baileysSessionId.value = String(out?.session?.id || "");
-    nodes.baileysOutput.textContent = pretty(out);
+    selectBaileysSession(String(out?.session?.id || ""));
+    nodes.baileysOutput.textContent = "WhatsApp line created.\nNext: tap Show QR to pair this phone.";
+    nodes.baileysMessages.textContent = "Pair this line first, then load messages here.";
     nodes.baileysLabel.value = "";
-    toast("Baileys session created.", "ok");
+    nodes.baileysPhone.value = "";
+    toast("WhatsApp line created.", "ok");
     await loadBaileysSessions();
+    window.requestAnimationFrame(() => nodes.baileysConnect?.focus());
   } catch (error) {
-    toast(errorText(error, "Failed to create Baileys session"), "err");
+    toast(errorText(error, "Failed to create WhatsApp line"), "err");
   }
 }
 
 async function connectBaileysSession() {
   const sessionId = String(nodes.baileysSessionId.value || "").trim();
   if (!sessionId) {
-    toast("Baileys session ID is required.", "err");
+    toast("Choose a WhatsApp line first.", "err");
     return;
   }
-  nodes.baileysOutput.textContent = "Connecting session...";
+  nodes.baileysOutput.textContent = "Connecting WhatsApp line...";
   try {
     const out = await requestApi(`/api/channels/baileys/sessions/${encodeURIComponent(sessionId)}/connect`, {
       method: "POST",
       body: {}
     });
-    nodes.baileysOutput.textContent = pretty(out);
-    toast("Baileys connect started.", "ok");
+    const session = extractBaileysSession(out);
+    nodes.baileysOutput.textContent = formatBaileysPairingOutput(
+      session,
+      "Connection started. Refresh this line in a moment if the QR takes a second to appear."
+    );
+    if (session?.status === "connected") {
+      nodes.baileysMessages.textContent = "Line connected. Load messages to review recent chat.";
+    }
+    toast("WhatsApp connection started.", "ok");
   } catch (error) {
     nodes.baileysOutput.textContent = `Error: ${errorText(error)}`;
-    toast(errorText(error, "Baileys connect failed"), "err");
+    toast(errorText(error, "WhatsApp connection failed"), "err");
   } finally {
     await loadBaileysSessions();
   }
@@ -2338,7 +2541,7 @@ async function connectBaileysSession() {
 async function disconnectBaileysSession() {
   const sessionId = String(nodes.baileysSessionId.value || "").trim();
   if (!sessionId) {
-    toast("Baileys session ID is required.", "err");
+    toast("Choose a WhatsApp line first.", "err");
     return;
   }
   try {
@@ -2346,18 +2549,20 @@ async function disconnectBaileysSession() {
       method: "POST",
       body: {}
     });
-    nodes.baileysOutput.textContent = pretty(out);
-    toast("Baileys session disconnected.", "ok");
+    const session = extractBaileysSession(out);
+    nodes.baileysOutput.textContent = formatBaileysPairingOutput(session, "WhatsApp line disconnected.");
+    nodes.baileysMessages.textContent = "This line is disconnected. Reconnect to resume chat.";
+    toast("WhatsApp line disconnected.", "ok");
     await loadBaileysSessions();
   } catch (error) {
-    toast(errorText(error, "Baileys disconnect failed"), "err");
+    toast(errorText(error, "WhatsApp disconnect failed"), "err");
   }
 }
 
 async function deleteBaileysSession() {
   const sessionId = String(nodes.baileysSessionId.value || "").trim();
   if (!sessionId) {
-    toast("Baileys session ID is required.", "err");
+    toast("Choose a WhatsApp line first.", "err");
     return;
   }
   try {
@@ -2365,11 +2570,12 @@ async function deleteBaileysSession() {
       method: "DELETE"
     });
     nodes.baileysSessionId.value = "";
-    nodes.baileysOutput.textContent = "Session deleted.";
-    toast("Baileys session deleted.", "ok");
+    nodes.baileysOutput.textContent = "WhatsApp line deleted.";
+    nodes.baileysMessages.textContent = "Create or choose another line to load messages.";
+    toast("WhatsApp line deleted.", "ok");
     await loadBaileysSessions();
   } catch (error) {
-    toast(errorText(error, "Failed to delete Baileys session"), "err");
+    toast(errorText(error, "Failed to delete WhatsApp line"), "err");
   }
 }
 
@@ -2378,7 +2584,7 @@ async function sendBaileysMessage() {
   const to = String(nodes.baileysTo.value || "").trim();
   const text = String(nodes.baileysMessage.value || "").trim();
   if (!sessionId || !text) {
-    toast("Session ID and message are required.", "err");
+    toast("Choose a WhatsApp line and enter a message.", "err");
     return;
   }
   try {
@@ -2386,27 +2592,32 @@ async function sendBaileysMessage() {
       method: "POST",
       body: { to, text, metadata: { source: "agentic-ui" } }
     });
-    nodes.baileysOutput.textContent = pretty(out);
+    nodes.baileysOutput.textContent = [
+      "WhatsApp message sent.",
+      to ? `Recipient: ${to}` : ""
+    ].filter(Boolean).join("\n");
     nodes.baileysMessage.value = "";
-    toast("Baileys message sent.", "ok");
+    toast("WhatsApp message sent.", "ok");
     await Promise.all([loadBaileysSessions(), loadBaileysMessages(), loadHostedLogs()]);
+    window.requestAnimationFrame(() => nodes.baileysMessage?.focus());
   } catch (error) {
     nodes.baileysOutput.textContent = `Error: ${errorText(error)}`;
-    toast(errorText(error, "Failed to send Baileys message"), "err");
+    toast(errorText(error, "Failed to send WhatsApp message"), "err");
   }
 }
 
 async function loadBaileysMessages() {
   const sessionId = String(nodes.baileysSessionId.value || "").trim();
   if (!sessionId) {
-    nodes.baileysOutput.textContent = "Select a Baileys session to load messages.";
+    nodes.baileysMessages.textContent = "Choose a WhatsApp line to load messages.";
     return;
   }
+  nodes.baileysMessages.textContent = "Loading messages...";
   try {
     const out = await requestApi(`/api/channels/baileys/sessions/${encodeURIComponent(sessionId)}/messages?limit=200`);
-    nodes.baileysOutput.textContent = pretty(out.messages || []);
+    nodes.baileysMessages.textContent = pretty(out.messages || []);
   } catch (error) {
-    nodes.baileysOutput.textContent = `Error: ${errorText(error)}`;
+    nodes.baileysMessages.textContent = `Error: ${errorText(error)}`;
   }
 }
 
@@ -2449,6 +2660,17 @@ function bindEvents() {
     button.addEventListener("click", () => activateScreen(button.dataset.screenTarget || "command"));
   });
 
+  nodes.moduleTabs.forEach((button) => {
+    button.setAttribute("aria-selected", button.classList.contains("active") ? "true" : "false");
+    button.addEventListener("click", () => {
+      const group = String(button.dataset.moduleTarget || "").trim();
+      const target = String(button.dataset.moduleScreen || "").trim()
+        || nodes.screenLinks.find((item) => item.dataset.navGroup === group)?.dataset.screenTarget
+        || "command";
+      activateScreen(target);
+    });
+  });
+
   nodes.navDrawers.forEach((drawer) => setDrawerState(drawer, drawer.classList.contains("is-open")));
   nodes.navDrawerToggles.forEach((button) => {
     button.addEventListener("click", () => {
@@ -2486,6 +2708,16 @@ function bindEvents() {
   });
   window.addEventListener("resize", () => {
     if (!isCompactNavigation()) closeSidebar();
+  });
+  window.addEventListener("online", () => {
+    if (!state.chatSessionId || state.ws || !state.wsAutoReconnect) return;
+    clearWsReconnectTimer();
+    connectWs(state.chatSessionId, { isReconnect: true });
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden || !state.chatSessionId || state.ws || !state.wsAutoReconnect) return;
+    clearWsReconnectTimer();
+    connectWs(state.chatSessionId, { isReconnect: true });
   });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeSidebar();
@@ -2622,6 +2854,10 @@ function bindEvents() {
   nodes.triggerReload.addEventListener("click", () => loadHostedTriggers());
 
   nodes.webchatWidgetCreate.addEventListener("click", () => createWebchatWidgetKey());
+  nodes.webchatWidgetCopy.addEventListener("click", () => copyTextToClipboard(nodes.webchatPublicWidgetKey.value, {
+    success: "Install key copied.",
+    empty: "Create a new website key first. Full keys are only shown once."
+  }));
   nodes.webchatWidgetReload.addEventListener("click", () => loadWebchatWidgetKeys());
   nodes.webchatPublicStart.addEventListener("click", () => startPublicWebchatSession());
   nodes.webchatPublicSend.addEventListener("click", () => sendPublicWebchatMessage());

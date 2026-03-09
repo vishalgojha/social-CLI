@@ -6,7 +6,7 @@
   <title>Social Flow Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -18,100 +18,92 @@
 
   <div class="app-shell">
     <aside class="side-rail">
+
       <div class="brand-block">
         <div class="brand-mark">
           <span class="brand-badge">SF</span>
           <div>
-            <p class="eyebrow">Social Flow Studio</p>
-            <h1>AI operator workspace</h1>
+            <p class="eyebrow">Workspace</p>
+            <h1>Social Flow</h1>
           </div>
         </div>
-        <p class="brand-copy">A live control surface for approvals, diagnostics, channels, recipes, and safe execution.</p>
+        <p class="brand-copy">A shared workspace for operators, automations, and live conversations. Read the room in Overview, act in Run, shape systems in Build, handle inboxes in Channels, and keep trust work in Configure.</p>
         <div class="brand-flags">
-          <span class="brand-flag">Live gateway</span>
-          <span class="brand-flag soft">Multi-tool ops</span>
+          <span class="brand-flag">Desktop studio</span>
+          <span class="brand-flag soft">Embedded runtime</span>
+        </div>
+        <div class="brand-path" aria-label="Studio lanes">
+          <span class="brand-step">Overview</span>
+          <span class="brand-step">Run</span>
+          <span class="brand-step">Build</span>
+          <span class="brand-step">Channels</span>
+          <span class="brand-step">Configure</span>
         </div>
         <div class="brand-grid">
           <div class="brand-metric">
-            <strong>15</strong>
-            <span>Surfaces</span>
+            <strong>5</strong>
+            <span>Sections</span>
           </div>
           <div class="brand-metric">
-            <strong>4</strong>
-            <span>Drawers</span>
+            <strong>15</strong>
+            <span>Views</span>
           </div>
           <div class="brand-metric">
             <strong>1</strong>
-            <span>Workspace</span>
+            <span>Runtime</span>
           </div>
         </div>
       </div>
 
-      <nav class="screen-nav" aria-label="Screen Navigation">
-        <section class="nav-drawer is-open" data-nav-drawer="mission">
-          <button type="button" class="nav-drawer-toggle" data-drawer-target="mission">
-            <span class="nav-drawer-copy">
-              <strong>Mission Control</strong>
-              <small>overview, copilot, approvals</small>
-            </span>
-            <span class="nav-drawer-meta">4</span>
-          </button>
+      <div class="module-switcher" role="tablist" aria-label="Studio modules">
+        <button type="button" class="module-tab active" data-module-target="overview" data-module-screen="command">
+          <span class="module-tab-eyebrow">Overview</span>
+          <strong>Read the state</strong>
+          <small>command, approvals, logs</small>
+        </button>
+        <button type="button" class="module-tab" data-module-target="run" data-module-screen="copilot">
+          <span class="module-tab-eyebrow">Run</span>
+          <strong>Execute work</strong>
+          <small>copilot, diagnosis, launchpad</small>
+        </button>
+        <button type="button" class="module-tab" data-module-target="build" data-module-screen="agents">
+          <span class="module-tab-eyebrow">Build</span>
+          <strong>Shape capability</strong>
+          <small>agents, tools, recipes, triggers</small>
+        </button>
+        <button type="button" class="module-tab" data-module-target="channels" data-module-screen="webchat">
+          <span class="module-tab-eyebrow">Channels</span>
+          <strong>Handle conversations</strong>
+          <small>webchat, WhatsApp</small>
+        </button>
+        <button type="button" class="module-tab" data-module-target="configure" data-module-screen="setup">
+          <span class="module-tab-eyebrow">Configure</span>
+          <strong>Manage trust</strong>
+          <small>setup, keys, admin</small>
+        </button>
+      </div>
+
+      <nav class="screen-nav modular-nav" aria-label="Screen Navigation">
+        <section class="nav-drawer module-panel is-open" data-nav-drawer="overview">
+          <div class="module-panel-head">
+            <p class="eyebrow">Overview</p>
+            <h2>Read the state</h2>
+            <p class="micro-copy">Start here for readiness, queue pressure, and recent traces.</p>
+          </div>
           <div class="nav-drawer-body">
-            <button type="button" class="screen-link active" data-screen-target="command" data-nav-group="mission">
+            <button type="button" class="screen-link active" data-screen-target="command" data-nav-group="overview">
               <span class="nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h16M4 17.5h10"/><path d="M17 15l3 3-3 3"/></svg>
               </span>
-              <span class="nav-copy"><strong>Command Deck</strong><small>readiness, risk, sources</small></span>
+              <span class="nav-copy"><strong>Command Deck</strong><small>readiness, priorities, sources</small></span>
             </button>
-            <button type="button" class="screen-link" data-screen-target="copilot" data-nav-group="mission">
-              <span class="nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M12 3v4"/><path d="M7 8.5A4.5 4.5 0 0 1 11.5 4h1A4.5 4.5 0 0 1 17 8.5V11a4 4 0 0 0 1.2 2.8L20 15.5V18H4v-2.5l1.8-1.7A4 4 0 0 0 7 11Z"/><path d="M9 21h6"/></svg>
-              </span>
-              <span class="nav-copy"><strong>Agent Copilot</strong><small>chat, plans, execution</small></span>
-            </button>
-            <button type="button" class="screen-link" data-screen-target="approvals" data-nav-group="mission">
+            <button type="button" class="screen-link" data-screen-target="approvals" data-nav-group="overview">
               <span class="nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M8 12.5l2.5 2.5L16 9.5"/><path d="M12 3l7 4v5c0 4.2-2.4 7.2-7 9-4.6-1.8-7-4.8-7-9V7l7-4Z"/></svg>
               </span>
-              <span class="nav-copy"><strong>Approvals Center</strong><small>decisions and alerts</small></span>
+              <span class="nav-copy"><strong>Approvals</strong><small>decisions, alerts, audit notes</small></span>
             </button>
-            <button type="button" class="screen-link" data-screen-target="diagnose" data-nav-group="mission">
-              <span class="nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M7 16V9"/><path d="M12 16V5"/><path d="M17 16v-4"/></svg>
-              </span>
-              <span class="nav-copy"><strong>Ads Diagnosis</strong><small>operator diagnosis form</small></span>
-            </button>
-          </div>
-        </section>
-
-        <section class="nav-drawer is-open" data-nav-drawer="ops">
-          <button type="button" class="nav-drawer-toggle" data-drawer-target="ops">
-            <span class="nav-drawer-copy">
-              <strong>Operations</strong>
-              <small>launch flows and setup state</small>
-            </span>
-            <span class="nav-drawer-meta">4</span>
-          </button>
-          <div class="nav-drawer-body">
-            <button type="button" class="screen-link" data-screen-target="launchpad" data-nav-group="ops">
-              <span class="nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M5 19h14"/><path d="M8 16l4-11 4 11"/><path d="M9.5 12h5"/></svg>
-              </span>
-              <span class="nav-copy"><strong>Ops Launchpad</strong><small>guardrails and runbooks</small></span>
-            </button>
-            <button type="button" class="screen-link" data-screen-target="setup" data-nav-group="ops">
-              <span class="nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M12 3v4"/><path d="M12 17v4"/><path d="M3 12h4"/><path d="M17 12h4"/><path d="M6.5 6.5l2.8 2.8"/><path d="M14.7 14.7l2.8 2.8"/><path d="M17.5 6.5l-2.8 2.8"/><path d="M9.3 14.7l-2.8 2.8"/><circle cx="12" cy="12" r="3.5"/></svg>
-              </span>
-              <span class="nav-copy"><strong>Setup Concierge</strong><small>save credentials and finish</small></span>
-            </button>
-            <button type="button" class="screen-link" data-screen-target="admin" data-nav-group="ops">
-              <span class="nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 4.2-2.4 7.2-7 9-4.6-1.8-7-4.8-7-9V7l7-4Z"/><path d="M8.5 12.5l2.2 2.2 4.8-5"/></svg>
-              </span>
-              <span class="nav-copy"><strong>Workspace Admin</strong><small>deploy, team access, hardening</small></span>
-            </button>
-            <button type="button" class="screen-link" data-screen-target="logs" data-nav-group="ops">
+            <button type="button" class="screen-link" data-screen-target="logs" data-nav-group="overview">
               <span class="nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M6 5.5h12"/><path d="M6 12h12"/><path d="M6 18.5h8"/></svg>
               </span>
@@ -120,40 +112,60 @@
           </div>
         </section>
 
-        <section class="nav-drawer is-open" data-nav-drawer="builder">
-          <button type="button" class="nav-drawer-toggle" data-drawer-target="builder">
-            <span class="nav-drawer-copy">
-              <strong>Builder</strong>
-              <small>credentials, agents, tools, automations</small>
-            </span>
-            <span class="nav-drawer-meta">5</span>
-          </button>
+        <section class="nav-drawer module-panel" data-nav-drawer="run">
+          <div class="module-panel-head">
+            <p class="eyebrow">Run</p>
+            <h2>Execute work</h2>
+            <p class="micro-copy">Use guided interfaces when you are ready to act, not when you are still orienting.</p>
+          </div>
           <div class="nav-drawer-body">
-            <button type="button" class="screen-link" data-screen-target="keys" data-nav-group="builder">
+            <button type="button" class="screen-link" data-screen-target="copilot" data-nav-group="run">
               <span class="nav-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><circle cx="8.5" cy="12" r="3.5"/><path d="M12 12h8"/><path d="M17 12v3"/><path d="M20 12v2"/></svg>
+                <svg viewBox="0 0 24 24"><path d="M12 3v4"/><path d="M7 8.5A4.5 4.5 0 0 1 11.5 4h1A4.5 4.5 0 0 1 17 8.5V11a4 4 0 0 0 1.2 2.8L20 15.5V18H4v-2.5l1.8-1.7A4 4 0 0 0 7 11Z"/><path d="M9 21h6"/></svg>
               </span>
-              <span class="nav-copy"><strong>Keys</strong><small>BYOK vault and secrets</small></span>
+              <span class="nav-copy"><strong>Agent Copilot</strong><small>chat, plans, execution</small></span>
             </button>
-            <button type="button" class="screen-link" data-screen-target="agents" data-nav-group="builder">
+            <button type="button" class="screen-link" data-screen-target="diagnose" data-nav-group="run">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M7 16V9"/><path d="M12 16V5"/><path d="M17 16v-4"/></svg>
+              </span>
+              <span class="nav-copy"><strong>Ads Diagnosis</strong><small>operator diagnosis form</small></span>
+            </button>
+            <button type="button" class="screen-link" data-screen-target="launchpad" data-nav-group="run">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M5 19h14"/><path d="M8 16l4-11 4 11"/><path d="M9.5 12h5"/></svg>
+              </span>
+              <span class="nav-copy"><strong>Launchpad</strong><small>guardrails, runbooks, routines</small></span>
+            </button>
+          </div>
+        </section>
+
+        <section class="nav-drawer module-panel" data-nav-drawer="build">
+          <div class="module-panel-head">
+            <p class="eyebrow">Build</p>
+            <h2>Shape capability</h2>
+            <p class="micro-copy">Design reusable automation and tool contracts without cluttering operational screens.</p>
+          </div>
+          <div class="nav-drawer-body">
+            <button type="button" class="screen-link" data-screen-target="agents" data-nav-group="build">
               <span class="nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 19c1.5-3 4-4.5 7-4.5S17.5 16 19 19"/><path d="M4 7h2"/><path d="M18 7h2"/></svg>
               </span>
               <span class="nav-copy"><strong>Agents</strong><small>built-ins and custom crews</small></span>
             </button>
-            <button type="button" class="screen-link" data-screen-target="tools" data-nav-group="builder">
+            <button type="button" class="screen-link" data-screen-target="tools" data-nav-group="build">
               <span class="nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M14 5l5 5"/><path d="M10 19l-5-5"/><path d="M13 6l-7 7"/><path d="M18 11l-7 7"/></svg>
               </span>
               <span class="nav-copy"><strong>Tools</strong><small>service capabilities</small></span>
             </button>
-            <button type="button" class="screen-link" data-screen-target="recipes" data-nav-group="builder">
+            <button type="button" class="screen-link" data-screen-target="recipes" data-nav-group="build">
               <span class="nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M7 4.5h10"/><path d="M7 9.5h10"/><path d="M7 14.5h6"/><path d="M17 17.5l2 2 3-4"/></svg>
               </span>
               <span class="nav-copy"><strong>Recipes</strong><small>saved workflow stacks</small></span>
             </button>
-            <button type="button" class="screen-link" data-screen-target="triggers" data-nav-group="builder">
+            <button type="button" class="screen-link" data-screen-target="triggers" data-nav-group="build">
               <span class="nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M12 3v5"/><path d="M12 16v5"/><path d="M5 12h5"/><path d="M14 12h5"/><circle cx="12" cy="12" r="4"/></svg>
               </span>
@@ -162,41 +174,66 @@
           </div>
         </section>
 
-        <section class="nav-drawer is-open" data-nav-drawer="channels">
-          <button type="button" class="nav-drawer-toggle" data-drawer-target="channels">
-            <span class="nav-drawer-copy">
-              <strong>Channels</strong>
-              <small>session operations and messaging</small>
-            </span>
-            <span class="nav-drawer-meta">2</span>
-          </button>
+        <section class="nav-drawer module-panel" data-nav-drawer="channels">
+          <div class="module-panel-head">
+            <p class="eyebrow">Channels</p>
+            <h2>Handle conversations</h2>
+            <p class="micro-copy">Keep inbound conversations and operator replies together instead of scattering them across the app.</p>
+          </div>
           <div class="nav-drawer-body">
             <button type="button" class="screen-link" data-screen-target="webchat" data-nav-group="channels">
               <span class="nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M5 6h14v9H9l-4 4Z"/><path d="M9 10h6"/><path d="M9 13h4"/></svg>
               </span>
-              <span class="nav-copy"><strong>Webchat</strong><small>widget keys and sessions</small></span>
+              <span class="nav-copy"><strong>Website Chat</strong><small>site inbox and access</small></span>
             </button>
             <button type="button" class="screen-link" data-screen-target="baileys" data-nav-group="channels">
               <span class="nav-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M7 5.5h10A3.5 3.5 0 0 1 20.5 9v5A3.5 3.5 0 0 1 17 17.5H9l-4 3v-4A3.5 3.5 0 0 1 3.5 14V9A3.5 3.5 0 0 1 7 5.5Z"/><path d="M9 10h6"/><path d="M9 13h5"/></svg>
               </span>
-              <span class="nav-copy"><strong>Baileys</strong><small>WhatsApp Web sessions</small></span>
+              <span class="nav-copy"><strong>WhatsApp</strong><small>connected lines and messages</small></span>
+            </button>
+          </div>
+        </section>
+
+        <section class="nav-drawer module-panel" data-nav-drawer="configure">
+          <div class="module-panel-head">
+            <p class="eyebrow">Configure</p>
+            <h2>Manage trust</h2>
+            <p class="micro-copy">Keep setup, keys, and admin in one place so policy work is separate from live operations.</p>
+          </div>
+          <div class="nav-drawer-body">
+            <button type="button" class="screen-link" data-screen-target="setup" data-nav-group="configure">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 3v4"/><path d="M12 17v4"/><path d="M3 12h4"/><path d="M17 12h4"/><path d="M6.5 6.5l2.8 2.8"/><path d="M14.7 14.7l2.8 2.8"/><path d="M17.5 6.5l-2.8 2.8"/><path d="M9.3 14.7l-2.8 2.8"/><circle cx="12" cy="12" r="3.5"/></svg>
+              </span>
+              <span class="nav-copy"><strong>Setup</strong><small>connect providers and tokens</small></span>
+            </button>
+            <button type="button" class="screen-link" data-screen-target="keys" data-nav-group="configure">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="8.5" cy="12" r="3.5"/><path d="M12 12h8"/><path d="M17 12v3"/><path d="M20 12v2"/></svg>
+              </span>
+              <span class="nav-copy"><strong>Keys</strong><small>BYOK vault and secrets</small></span>
+            </button>
+            <button type="button" class="screen-link" data-screen-target="admin" data-nav-group="configure">
+              <span class="nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 4.2-2.4 7.2-7 9-4.6-1.8-7-4.8-7-9V7l7-4Z"/><path d="M8.5 12.5l2.2 2.2 4.8-5"/></svg>
+              </span>
+              <span class="nav-copy"><strong>Admin</strong><small>team, storage, hardening</small></span>
             </button>
           </div>
         </section>
       </nav>
 
       <section class="card gateway-config">
-        <h2>Gateway Connection</h2>
+        <div class="gateway-head">
+          <p class="eyebrow">Workspace Context</p>
+          <h2>Connection + operator identity</h2>
+          <p class="micro-copy">Keep the gateway, workspace, and operator settings together here. These values stay in this browser only.</p>
+        </div>
+
         <label for="cfg-base-url">Gateway URL</label>
         <input id="cfg-base-url" type="text" placeholder="http://127.0.0.1:1310" />
-
-        <label for="cfg-api-key">Gateway API Key</label>
-        <input id="cfg-api-key" type="password" placeholder="x-gateway-key (if required)" />
-
-        <label for="cfg-user-api-key">User API Key</label>
-        <input id="cfg-user-api-key" type="password" placeholder="x-api-key for hosted routes" />
 
         <label for="cfg-workspace">Workspace</label>
         <input id="cfg-workspace" type="text" placeholder="default" />
@@ -207,11 +244,16 @@
         <label for="cfg-operator-name">Operator Name</label>
         <input id="cfg-operator-name" type="text" placeholder="Your Name" />
 
+        <label for="cfg-api-key">Gateway API Key</label>
+        <input id="cfg-api-key" type="password" placeholder="x-gateway-key (if required)" />
+
+        <label for="cfg-user-api-key">User API Key</label>
+        <input id="cfg-user-api-key" type="password" placeholder="x-api-key for hosted routes" />
+
         <div class="row">
-          <button id="cfg-save" type="button">Save</button>
-          <button id="cfg-ping" type="button" class="secondary">Ping</button>
+          <button id="cfg-save" type="button">Save Context</button>
+          <button id="cfg-ping" type="button" class="secondary">Ping Gateway</button>
         </div>
-        <p class="micro-copy">These settings are stored in your browser only.</p>
       </section>
     </aside>
 
@@ -224,65 +266,85 @@
             <span></span>
           </button>
           <div class="view-copy">
-            <p id="view-kicker" class="eyebrow topbar-kicker">Mission Control</p>
+            <p id="view-kicker" class="eyebrow topbar-kicker">Overview</p>
             <h2 id="view-title">Command Deck</h2>
-            <p id="view-summary" class="muted">A single at-a-glance surface for readiness, risk, and workload pressure.</p>
+            <p id="view-summary" class="muted">Use the home screen to confirm readiness, triage approvals, and choose the next lane.</p>
           </div>
         </div>
         <div class="topbar-actions">
           <div class="status-cluster">
             <span id="status-pill" class="pill warn">Gateway: checking</span>
             <span id="workspace-pill" class="pill soft">Workspace: --</span>
-            <span id="session-pill" class="pill soft">Session: --</span>
+            <span id="session-pill" class="pill soft">Copilot: waiting</span>
           </div>
           <button id="refresh-all" type="button" class="secondary">Refresh Data</button>
         </div>
       </header>
 
       <section id="screen-command" class="screen active" data-screen="command">
-        <article class="hero-stage">
+        <article class="card hero-stage command-stage">
           <div class="hero-copy">
-            <p class="eyebrow">Your operator team is online</p>
-            <h2>Your <span>social ops workforce</span> is ready to work.</h2>
-            <p class="muted hero-muted">Run lead capture, approvals, diagnostics, channels, and automations from one calm workspace modeled for always-on execution.</p>
-            <div class="hero-badges" aria-label="Studio capabilities">
-              <span class="hero-badge">Browser</span>
-              <span class="hero-badge">Channels</span>
-              <span class="hero-badge">Recipes</span>
-              <span class="hero-badge">Approvals</span>
+            <p class="eyebrow">Workspace overview</p>
+            <h2>Keep every lane <span>in sync.</span></h2>
+            <p class="muted hero-muted">Use the command deck as the shared home for readiness, approvals, and source posture. From there, move into execution, build systems, or work live conversations without collapsing everything into one noisy screen.</p>
+            <div class="hero-badges">
+              <span class="hero-badge">Desktop workspace</span>
+              <span class="hero-badge">Embedded gateway</span>
+              <span class="hero-badge">Shared state</span>
+            </div>
+            <div class="hero-kpi-strip">
+              <div class="hero-kpi">
+                <span>Operator lanes</span>
+                <strong>5</strong>
+              </div>
+              <div class="hero-kpi">
+                <span>Work surfaces</span>
+                <strong>15</strong>
+              </div>
+              <div class="hero-kpi">
+                <span>Gateway mode</span>
+                <strong>Local</strong>
+              </div>
             </div>
           </div>
-          <div class="hero-console" aria-hidden="true">
+
+          <div class="hero-console operator-loop">
             <div class="hero-console-head">
               <span class="console-dot"></span>
               <span class="console-dot"></span>
               <span class="console-dot"></span>
-              <span class="hero-console-title">studio.live</span>
+              <span class="hero-console-title">lane map</span>
             </div>
-            <div class="hero-console-body">
-              <div class="hero-task">
-                <p class="hero-task-label">Approval queue</p>
-                <strong>4 decisions waiting</strong>
-                <span>Open alerts triaged, notes attached, audit trail preserved.</span>
-              </div>
-              <div class="hero-kpi-strip">
-                <div class="hero-kpi">
-                  <span>Workflow runs</span>
-                  <strong>28</strong>
-                </div>
-                <div class="hero-kpi">
-                  <span>Sources ready</span>
-                  <strong>11/13</strong>
-                </div>
-                <div class="hero-kpi">
-                  <span>Channels</span>
-                  <strong>6 live</strong>
-                </div>
-              </div>
-              <div class="hero-task alt">
-                <p class="hero-task-label">Copilot pulse</p>
-                <strong>Morning run prepared</strong>
-                <span>Budget checks, inbox triage, trigger health, and channel replies ready for review.</span>
+            <div class="hero-console-body workflow-map" aria-label="Module summaries">
+              <button type="button" class="screen-link workflow-card active" data-screen-target="command" data-nav-group="overview">
+                <span class="workflow-card-eyebrow">Overview</span>
+                <strong class="workflow-card-title">Read the current state</strong>
+                <span class="workflow-card-copy">Command, approvals, and logs stay together so triage happens before action.</span>
+              </button>
+              <button type="button" class="screen-link workflow-card" data-screen-target="copilot" data-nav-group="run">
+                <span class="workflow-card-eyebrow">Run</span>
+                <strong class="workflow-card-title">Execute guided work</strong>
+                <span class="workflow-card-copy">Copilot, diagnosis, and launch routines live in one execution lane.</span>
+              </button>
+              <button type="button" class="screen-link workflow-card" data-screen-target="agents" data-nav-group="build">
+                <span class="workflow-card-eyebrow">Build</span>
+                <strong class="workflow-card-title">Shape reusable capability</strong>
+                <span class="workflow-card-copy">Agents, tools, recipes, and triggers stay out of live ops until needed.</span>
+              </button>
+              <button type="button" class="screen-link workflow-card" data-screen-target="webchat" data-nav-group="channels">
+                <span class="workflow-card-eyebrow">Channels</span>
+                <strong class="workflow-card-title">Handle conversations</strong>
+                <span class="workflow-card-copy">Webchat and WhatsApp surfaces stay grouped for faster operator response.</span>
+              </button>
+              <button type="button" class="screen-link workflow-card" data-screen-target="setup" data-nav-group="configure">
+                <span class="workflow-card-eyebrow">Configure</span>
+                <strong class="workflow-card-title">Manage trust and setup</strong>
+                <span class="workflow-card-copy">Keys, policy, and admin changes stay separate from action screens.</span>
+              </button>
+              <div class="workflow-card workflow-card-note" aria-hidden="true">
+                <span class="workflow-card-eyebrow">Operating model</span>
+                <strong class="workflow-card-title">State first, then action</strong>
+                <span class="workflow-card-copy">The shell is designed to keep context, execution, and configuration visibly distinct.</span>
               </div>
             </div>
           </div>
@@ -290,7 +352,7 @@
 
         <div class="screen-head">
           <h2>Command Deck</h2>
-          <p class="muted">A single at-a-glance surface for readiness, risk, and workload pressure.</p>
+          <p class="muted">Use the deck as the home screen: confirm readiness, triage approvals, and jump into the right lane without hunting for tools.</p>
         </div>
 
         <div class="metric-grid">
@@ -874,112 +936,177 @@
 
       <section id="screen-webchat" class="screen" data-screen="webchat">
         <div class="screen-head">
-          <h2>Webchat Channel</h2>
-          <p class="muted">Manage widget keys, public sessions, and operator replies with persisted chat history.</p>
+          <h2>Website Chat</h2>
+          <p class="muted">For website widget install and testing. An admin creates the install key once; visitors never see or enter it.</p>
         </div>
+
+        <article class="card">
+          <div class="row spread">
+            <div>
+              <h3>Website Conversations</h3>
+              <p class="micro-copy">This is the operator inbox. Use it to open conversations and reply without touching install settings.</p>
+            </div>
+            <button id="webchat-sessions-reload" type="button" class="secondary">Reload Conversations</button>
+          </div>
+          <div id="webchat-sessions-list" class="stack-list">No conversations loaded.</div>
+        </article>
 
         <div class="dual-grid">
           <article class="card">
-            <h3>Widget Keys + Public Test</h3>
-            <label for="webchat-widget-label">Widget Key Label</label>
-            <input id="webchat-widget-label" type="text" placeholder="main-website" />
+            <h3>Reply to Conversation</h3>
+            <label for="webchat-session-id">Selected Conversation</label>
+            <input id="webchat-session-id" type="text" placeholder="Choose a conversation above or paste its code" />
+            <p class="micro-copy">This is normally filled for you when you open a conversation.</p>
+            <label for="webchat-session-message">Reply Message</label>
+            <input id="webchat-session-message" type="text" placeholder="Thanks for reaching out..." />
             <div class="row">
-              <button id="webchat-widget-create" type="button">Create Widget Key</button>
-              <button id="webchat-widget-reload" type="button" class="secondary">Reload Keys</button>
+              <button id="webchat-session-reply" type="button">Send Reply</button>
+              <button id="webchat-session-open" type="button" class="secondary">Mark Open</button>
+              <button id="webchat-session-close" type="button" class="secondary">Mark Closed</button>
             </div>
-
-            <label for="webchat-public-widget-key">Widget Key (full secret)</label>
-            <input id="webchat-public-widget-key" type="text" placeholder="wk_xxxxx" />
-            <label for="webchat-public-visitor">Visitor ID (optional)</label>
-            <input id="webchat-public-visitor" type="text" placeholder="visitor_001" />
             <div class="row">
-              <button id="webchat-public-start" type="button">Start Public Session</button>
+              <button id="webchat-session-messages-reload" type="button" class="secondary">Load Messages</button>
             </div>
+            <pre id="webchat-session-messages" class="mono-block">Choose a conversation to inspect messages.</pre>
+          </article>
 
-            <label for="webchat-public-token">Session Token</label>
-            <input id="webchat-public-token" type="text" placeholder="token from start response" />
-            <label for="webchat-public-message">Public Message</label>
-            <input id="webchat-public-message" type="text" placeholder="Hi, I need help with pricing." />
+          <details class="card advanced-panel">
+            <summary>
+              <div>
+                <p class="eyebrow">Advanced / Admin</p>
+                <h3>Website Widget Install + Test</h3>
+                <p class="micro-copy">Create the install key once, copy it for your site widget, then use this panel only for internal testing.</p>
+              </div>
+              <span class="advanced-toggle">Reveal</span>
+            </summary>
+            <div class="advanced-body">
+              <label for="webchat-widget-label">Access Key Name</label>
+              <input id="webchat-widget-label" type="text" placeholder="main-website" />
+              <div class="row">
+                <button id="webchat-widget-create" type="button">Create Access Key</button>
+                <button id="webchat-widget-copy" type="button" class="secondary">Copy New Key</button>
+                <button id="webchat-widget-reload" type="button" class="secondary">Reload Keys</button>
+              </div>
+              <p class="micro-copy">The full key is only shown when it is created. Visitors never need it.</p>
+
+              <label for="webchat-public-widget-key">Install Key (admin only)</label>
+              <input id="webchat-public-widget-key" type="text" placeholder="Shown here when you create a new key" />
+              <label for="webchat-public-visitor">Visitor Name or Reference (optional)</label>
+              <input id="webchat-public-visitor" type="text" placeholder="pricing-page-visitor" />
+              <div class="row">
+                <button id="webchat-public-start" type="button">Start Test Conversation</button>
+              </div>
+
+              <label for="webchat-public-token">Temporary Reply Token</label>
+              <input id="webchat-public-token" type="text" placeholder="added after you start a test conversation" />
+              <label for="webchat-public-message">Visitor Message</label>
+              <input id="webchat-public-message" type="text" placeholder="Hi, I need help with pricing." />
+              <div class="row">
+                <button id="webchat-public-send" type="button">Send Visitor Message</button>
+              </div>
+
+              <pre id="webchat-public-output" class="mono-block">Create a key, copy it once, then use it here for an internal website chat test.</pre>
+            </div>
+          </details>
+        </div>
+
+        <details class="card advanced-panel">
+          <summary>
+            <div>
+              <p class="eyebrow">Advanced / Admin</p>
+              <h3>Saved Access Keys</h3>
+              <p class="micro-copy">Stored keys are shown masked only. Create a new one if you need the full value again.</p>
+            </div>
+            <span class="advanced-toggle">Reveal</span>
+          </summary>
+          <div class="advanced-body">
+            <div id="webchat-widget-list" class="stack-list">No access keys loaded.</div>
+          </div>
+        </details>
+      </section>
+
+      <section id="screen-baileys" class="screen" data-screen="baileys">
+        <div class="screen-head">
+          <h2>WhatsApp Web</h2>
+          <p class="muted">No install key needed here. Create a line and show the QR code to pair WhatsApp, then chat.</p>
+        </div>
+
+        <article class="card journey-card">
+          <p class="eyebrow">QR-First Flow</p>
+          <h3>Pair a phone, then start chatting.</h3>
+          <div class="step-strip">
+            <div class="step-card">
+              <span class="step-number">1</span>
+              <div>
+                <strong>Create a line</strong>
+                <p>Give the phone a simple name so the operator can find it later.</p>
+              </div>
+            </div>
+            <div class="step-card">
+              <span class="step-number">2</span>
+              <div>
+                <strong>Show QR</strong>
+                <p>Select the line and start pairing from WhatsApp on the phone.</p>
+              </div>
+            </div>
+            <div class="step-card">
+              <span class="step-number">3</span>
+              <div>
+                <strong>Chat</strong>
+                <p>Once paired, send messages and load history from the same screen.</p>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <div class="dual-grid">
+          <article class="card">
+            <h3>1. Create or Choose a Line</h3>
+            <label for="baileys-label">Line Name</label>
+            <input id="baileys-label" type="text" placeholder="support-phone-1" />
+            <label for="baileys-phone">Phone Number (optional)</label>
+            <input id="baileys-phone" type="text" placeholder="+9199XXXXXX" />
             <div class="row">
-              <button id="webchat-public-send" type="button">Send Public Message</button>
+              <button id="baileys-create" type="button">Create Line</button>
+              <button id="baileys-reload" type="button" class="secondary">Reload Lines</button>
             </div>
-
-            <pre id="webchat-public-output" class="mono-block">Public route output appears here.</pre>
+            <p class="micro-copy">This is the QR-first flow. No customer-facing key is required.</p>
+            <div id="baileys-sessions-list" class="stack-list">No WhatsApp lines loaded.</div>
           </article>
 
           <article class="card">
-            <h3>Stored Widget Keys</h3>
-            <div id="webchat-widget-list" class="stack-list">No widget keys loaded.</div>
+            <h3>2. Pair With QR</h3>
+            <label for="baileys-session-id">Active Line</label>
+            <input id="baileys-session-id" type="text" placeholder="Choose a line above or paste its code" />
+            <p class="micro-copy">This is normally filled for you when you select a line. The pair button uses this active line.</p>
+            <div class="row">
+              <button id="baileys-connect" type="button">Connect / Show QR</button>
+              <button id="baileys-disconnect" type="button" class="secondary">Disconnect</button>
+              <button id="baileys-delete" type="button" class="secondary">Delete</button>
+            </div>
+            <p class="micro-copy">OpenClaw-style pairing: select the line, tap Show QR, then scan from WhatsApp on the phone.</p>
+            <pre id="baileys-output" class="mono-block">Select a line, then tap Show QR to pair this phone.</pre>
           </article>
         </div>
 
         <article class="card">
           <div class="row spread">
-            <h3>Webchat Sessions</h3>
-            <button id="webchat-sessions-reload" type="button" class="secondary">Reload Sessions</button>
-          </div>
-          <div id="webchat-sessions-list" class="stack-list">No sessions loaded.</div>
-        </article>
-
-        <article class="card">
-          <h3>Operator Reply</h3>
-          <label for="webchat-session-id">Session ID</label>
-          <input id="webchat-session-id" type="text" placeholder="wsess_xxx" />
-          <label for="webchat-session-message">Reply Message</label>
-          <input id="webchat-session-message" type="text" placeholder="Thanks for reaching out..." />
-          <div class="row">
-            <button id="webchat-session-reply" type="button">Send Reply</button>
-            <button id="webchat-session-open" type="button" class="secondary">Open</button>
-            <button id="webchat-session-close" type="button" class="secondary">Close</button>
-          </div>
-          <div class="row">
-            <button id="webchat-session-messages-reload" type="button" class="secondary">Load Messages</button>
-          </div>
-          <pre id="webchat-session-messages" class="mono-block">Select a session to inspect messages.</pre>
-        </article>
-      </section>
-
-      <section id="screen-baileys" class="screen" data-screen="baileys">
-        <div class="screen-head">
-          <h2>Baileys Channel</h2>
-          <p class="muted">Operate WhatsApp Web sessions with QR pairing, connection controls, and message history.</p>
-        </div>
-
-        <div class="dual-grid">
-          <article class="card">
-            <h3>Create Session</h3>
-            <label for="baileys-label">Session Label</label>
-            <input id="baileys-label" type="text" placeholder="support-phone-1" />
-            <label for="baileys-phone">Default Phone (optional)</label>
-            <input id="baileys-phone" type="text" placeholder="+9199XXXXXX" />
-            <div class="row">
-              <button id="baileys-create" type="button">Create Session</button>
-              <button id="baileys-reload" type="button" class="secondary">Reload Sessions</button>
+            <div>
+              <h3>3. Chat</h3>
+              <p class="micro-copy">After pairing, send a message or load the conversation history for the active line.</p>
             </div>
-            <div id="baileys-sessions-list" class="stack-list">No Baileys sessions loaded.</div>
-          </article>
-
-          <article class="card">
-            <h3>Session Controls + Messaging</h3>
-            <label for="baileys-session-id">Session ID</label>
-            <input id="baileys-session-id" type="text" placeholder="bwsess_xxx" />
-            <div class="row">
-              <button id="baileys-connect" type="button">Connect / Get QR</button>
-              <button id="baileys-disconnect" type="button" class="secondary">Disconnect</button>
-              <button id="baileys-delete" type="button" class="secondary">Delete</button>
-            </div>
-
-            <label for="baileys-to">Recipient (`jid` or phone)</label>
-            <input id="baileys-to" type="text" placeholder="+91XXXXXXXXXX or 91xxxx@s.whatsapp.net" />
+            <button id="baileys-messages-reload" type="button" class="secondary">Load Messages</button>
+          </div>
+            <label for="baileys-to">Recipient Phone Number</label>
+            <input id="baileys-to" type="text" placeholder="+91XXXXXXXXXX" />
+            <p class="micro-copy">Advanced format still works if you need a full WhatsApp address.</p>
             <label for="baileys-message">Message</label>
             <input id="baileys-message" type="text" placeholder="Hello from Social Flow." />
             <div class="row">
               <button id="baileys-send" type="button">Send Message</button>
-              <button id="baileys-messages-reload" type="button" class="secondary">Load Messages</button>
             </div>
-            <pre id="baileys-output" class="mono-block">Baileys output and messages appear here.</pre>
-          </article>
-        </div>
+            <pre id="baileys-messages" class="mono-block">Pair a line first, then load messages here.</pre>
+        </article>
       </section>
 
       <section id="screen-logs" class="screen" data-screen="logs">
