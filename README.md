@@ -64,6 +64,10 @@ If the Go binary is not on PATH, set:
 SOCIAL_TUI_BIN=/path/to/social-tui
 ```
 
+Onboarding notes:
+- Facebook/Instagram: opens Graph Explorer to generate a token.
+- WhatsApp: opens Meta App Dashboard (WhatsApp API Setup) for token generation.
+
 ## Config Compatibility
 
 - Active state lives in `~/.social-flow/config.json`

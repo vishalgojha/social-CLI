@@ -40,6 +40,10 @@ If the Go binary is not on PATH, set:
 SOCIAL_TUI_BIN=/path/to/social-tui
 ```
 
+Onboarding notes:
+- Facebook/Instagram: opens Graph Explorer to generate a token.
+- WhatsApp: opens Meta App Dashboard (WhatsApp API Setup) for token generation.
+
 ## Local AI
 
 ```bash
