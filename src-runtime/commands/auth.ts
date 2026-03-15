@@ -99,6 +99,11 @@ function tokenHelpUrl(api: ApiName, apiVersion: string): string {
   return `https://developers.facebook.com/tools/explorer/?version=${encodeURIComponent(apiVersion)}`;
 }
 
+function whatsappTokenHelpUrl(appId?: string): string {
+  if (!appId) return '';
+  return `https://developers.facebook.com/apps/${encodeURIComponent(appId)}/whatsapp-business/wa-dev-console/`;
+}
+
 function supportsAutomaticOauth(api: ApiName) {
   return api === 'facebook' || api === 'instagram';
 }
@@ -485,9 +490,48 @@ function registerAuthCommands(program: any) {
         if (!token) {
           const url = tokenHelpUrl(api, apiVersion);
           if (api === 'whatsapp') {
-            console.log(chalk.gray('\nWhatsApp token hint:'));
-            console.log(chalk.cyan('  Meta App Dashboard -> WhatsApp -> API Setup -> Generate access token'));
-            console.log(chalk.gray('  Then paste the token below.\n'));
+            const appUrl = whatsappTokenHelpUrl(appId);
+            const fallbackUrl = 'https://developers.facebook.com/apps/';
+
+            console.log(chalk.gray('\nWhatsApp token setup:'));
+            if (canOpen) {
+              console.log(chalk.gray('Opening Meta App Dashboard...'));
+              console.log(chalk.cyan(`  ${appUrl || fallbackUrl}\n`));
+              await openBrowserPage(appUrl || fallbackUrl, {
+                canOpen,
+                browserSession: await ensureBrowserSession()
+              });
+            } else {
+              console.log(chalk.gray('Meta App Dashboard URL:'));
+              console.log(chalk.cyan(`  ${appUrl || fallbackUrl}`));
+            }
+            console.log(chalk.gray('  Steps: Meta App Dashboard -> WhatsApp -> API Setup -> Generate access token.'));
+            if (!appUrl) {
+              console.log(chalk.gray('  Tip: Configure App ID to jump directly next time (social auth app).\n'));
+            } else {
+              console.log('');
+            }
+          } else if (api === 'instagram') {
+            if (url) {
+              if (canOpen) {
+                console.log(chalk.gray('\nOpening Instagram token page...'));
+                console.log(chalk.cyan(`  ${url}\n`));
+                await openBrowserPage(url, {
+                  canOpen,
+                  browserSession: await ensureBrowserSession()
+                });
+              } else {
+                console.log(chalk.gray('\nInstagram token page:'));
+                console.log(chalk.cyan(`  ${url}\n`));
+              }
+              console.log(chalk.gray('  Steps: Graph API Explorer -> select your app -> add Instagram scopes -> Generate access token.'));
+              await confirmBrowserReady({
+                api,
+                url,
+                canOpen,
+                browserSession: await ensureBrowserSession()
+              });
+            }
           } else if (url) {
             if (canOpen) {
               console.log(chalk.gray(`\nOpening ${api} token page...`));
