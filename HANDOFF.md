@@ -4,6 +4,78 @@
 
 This handoff captures the current TypeScript migration status and release readiness for `social-flow`.
 
+## Update - 2026-03-09
+
+### Electron Desktop Scaffold (Current)
+
+- Added the first Electron app shell for `social-flow` while keeping the CLI intact.
+- Added desktop files:
+  - `desktop/main.cjs`
+  - `desktop/preload.cjs`
+  - `desktop/services/social-engine.cjs`
+  - `desktop/renderer/index.html`
+  - `desktop/renderer/styles.css`
+  - `desktop/renderer/app.js`
+- Updated package metadata:
+  - `package.json` now includes `desktop:start` and `desktop:check`
+  - local install completed for `electron@35.7.5`
+  - `package-lock.json` is now updated
+- First desktop UI includes:
+  - overview hero shell
+  - config editor
+  - doctor panel
+  - recent logs panel
+  - quick `profile:get` action
+
+### Validation Run (Current)
+
+- `npm --prefix C:\Users\visha\social-flow run desktop:check`
+  - Result: passed
+- `npm --prefix C:\Users\visha\social-flow run build:social-ts`
+  - Result: passed
+- Desktop bootstrap smoke via `desktop/services/social-engine.cjs#getBootstrapData()`
+  - Result: passed
+  - Returned:
+    - app `Social Flow Studio`
+    - version `0.2.18`
+    - active profile `default`
+    - default API `facebook`
+    - recent logs `8`
+    - browser ready `true`
+- Local Electron binary check:
+  - `C:\Users\visha\social-flow\node_modules\.bin\electron.cmd --version`
+  - Result: `v35.7.5`
+- Short launch validation:
+  - launched local Electron binary against `desktop/main.cjs`
+  - process stayed running for 8 seconds until intentionally stopped
+  - no immediate startup crash observed
+
+### Fix That Unblocked Bootstrap
+
+- Patched `desktop/services/social-engine.cjs` so backend modules load from compiled output under `dist-social/`.
+- Important correction:
+  - Playwright runtime now loads from `dist-social/lib/playwright-runtime.js`
+  - no longer attempts to load source path `lib/playwright-runtime`
+
+### Remaining Work
+
+1. Decide whether the renderer should stay static for another slice or move now to React/Vite.
+2. Expand IPC beyond bootstrap/config/doctor/profile into more workflow actions.
+3. Add desktop-focused smoke coverage so the bridge contract stays green.
+4. Decide whether to package the app next or keep iterating in dev mode first.
+
+### Important Repo State Notes
+
+- Existing unrelated untracked files were left untouched:
+  - `dist-runtime/commands/agent.js`
+  - `dist-runtime/commands/hatch.js`
+- Root handoff is now ahead of the previous blocked-state note and should be treated as the current checkpoint.
+
+### Suggested Next Session Goal
+
+- Grow the desktop shell from a working overview app into a fuller operations surface by choosing one of:
+  - richer workflow IPC and action execution, or
+  - a renderer upgrade to React/Vite with stronger component structure.
 ## Update - 2026-03-08
 
 ### Studio Approval-First + Launcher Recovery
@@ -113,7 +185,7 @@ This handoff captures the current TypeScript migration status and release readin
 
 - Product language was shifted from "CLI tool" to "Meta Operations Control Plane".
 - Messaging now frames Social Flow as multi-surface:
-  - CLI + chat/tui
+- CLI + chat/hatch
   - gateway APIs/WebSocket
   - SDK integration
 - README, command help text, and package description were updated accordingly.
@@ -177,7 +249,7 @@ Migrated from `commands/*.js` to `src-runtime/commands/*.ts` and compiled to `di
 - `query`, `limits`
 - `post`, `utils`
 - `whatsapp`, `instagram`
-- `agent`, `tui`
+- `agent`, `hatch`
 - `chat`, `gateway`
 
 Legacy JS files for the above command modules were removed from `commands/`.
@@ -275,3 +347,5 @@ Priority order for reducing friction and improving beginner usability across ter
   - `handoff-*.md`
   - `HANDOFF_*.md`
   - `handoff-*/`
+
+

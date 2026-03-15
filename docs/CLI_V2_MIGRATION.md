@@ -50,7 +50,6 @@ Everything else moves under advanced namespace:
 - `social x utils ...`
 - `social x agent ...`
 - `social x chat ...`
-- `social x tui ...`
 - `social x onboard ...`
 
 ## Migration Table (Current -> v2)
@@ -97,14 +96,14 @@ Everything else moves under advanced namespace:
 | `social utils version set <v>` | `social config set apiVersion <v>` |
 | `social utils set-default-*` | `social config set defaults.* <value>` |
 
-### AI / Agent / Chat / TUI
+### AI / Agent / Chat / Hatch
 
 | Current | v2 |
 |---|---|
 | `social ai "..."` | `social run "..."` |
 | `social agent "..."` | `social run "..." --deterministic` (or planner mode defaulted by policy) |
 | `social chat` | `social run "..."` (interactive mode optional) |
-| `social tui` / `social hatch` | `social x tui` |
+| `social hatch` | `social x hatch` |
 | `social chat sessions` / `replay` | `social x chat sessions` / `social x chat replay` |
 
 ### Ops / Hub / Policy / Integrations / Batch
@@ -139,4 +138,3 @@ Example:
 - Core command prompt/order/labels are contract-locked.
 - `--json` output for core commands is schema-stable.
 - `social run` is the default operator path; `social x ...` is expert mode.
-

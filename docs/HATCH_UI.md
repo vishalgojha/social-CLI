@@ -6,7 +6,6 @@
 social hatch
 ```
 
-`social tui` is an alias of the same command.
 
 ## Purpose
 
