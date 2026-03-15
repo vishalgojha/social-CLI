@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const commander_1 = require("commander");
 const node_fs_1 = require("node:fs");
+const node_child_process_1 = require("node:child_process");
 const node_path_1 = __importDefault(require("node:path"));
 const promises_1 = __importDefault(require("node:readline/promises"));
 const node_process_1 = require("node:process");
@@ -101,6 +102,32 @@ function serializeBrowserRuntime(runtime, extra = {}) {
         ...extra
     };
 }
+function resolveTuiBinary() {
+    const repoRoot = node_path_1.default.resolve(__dirname, "..");
+    const envBin = process.env.SOCIAL_TUI_BIN;
+    const localExe = node_path_1.default.join(repoRoot, "social-tui", process.platform === "win32" ? "social-tui.exe" : "social-tui");
+    const candidates = [envBin, localExe, "social-tui"].filter((x) => Boolean(x));
+    const selected = candidates.find((candidate) => {
+        if (candidate.includes(node_path_1.default.sep)) {
+            return (0, node_fs_1.existsSync)(candidate);
+        }
+        return true;
+    });
+    return selected || null;
+}
+function runTuiOrWarn() {
+    const selected = resolveTuiBinary();
+    if (!selected) {
+        // eslint-disable-next-line no-console
+        console.error("social-tui binary not found. Build it at social-tui/ or set SOCIAL_TUI_BIN.");
+        return;
+    }
+    const child = (0, node_child_process_1.spawn)(selected, [], {
+        stdio: "inherit",
+        env: process.env
+    });
+    child.on("exit", (code) => process.exit(code === null ? 1 : code));
+}
 const program = new commander_1.Command();
 program
     .name("social")
@@ -111,6 +138,7 @@ program
     .alias("setup")
     .description("Initialize ~/.social-flow/config.json and browser runtime")
     .option("--skip-browser", "skip automatic Chromium provisioning", false)
+    .option("--no-tui", "do not launch the Go TUI after setup", false)
     .action(async (opts) => {
     const cfg = await (0, config_js_1.readConfig)();
     const defaultApi = normalizeDefaultApi((await prompt(`Default API [${cfg.defaultApi || "facebook"}]: `)) || cfg.defaultApi || "facebook");
@@ -151,6 +179,9 @@ program
         path: await (0, config_js_1.configPath)(),
         browser_runtime: browserRuntime
     });
+    if (process.stdout.isTTY && opts.tui !== false) {
+        runTuiOrWarn();
+    }
 });
 program
     .command("doctor")
@@ -206,6 +237,12 @@ program
     .action(async () => {
     const cfg = await (0, config_js_1.readConfig)();
     printJson(cfg);
+});
+program
+    .command("tui")
+    .description("Launch the Go TUI dashboard")
+    .action(async () => {
+    runTuiOrWarn();
 });
 const profile = program.command("profile").description("Profile commands");
 profile
