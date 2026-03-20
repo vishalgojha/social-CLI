@@ -164,11 +164,62 @@ async function runWabaDoctor({ token, businessId, wabaId, phoneNumberId, callbac
   };
 }
 
+function formatCheckLabel(key) {
+  const labels = {
+    token_valid: 'Token',
+    required_scopes: 'Required scopes',
+    business_id: 'Business ID',
+    waba_id: 'WhatsApp Business account (WABA) ID',
+    phone_access: 'Phone number access',
+    test_send: 'Test message',
+    webhook_config: 'Webhook config'
+  };
+  return labels[key] || key;
+}
+
+function normalizeMetaError(detail) {
+  const text = String(detail || '').trim();
+  if (!text) return '';
+  if (/error validating access token/i.test(text)) return 'Access token invalid or expired.';
+  if (/OAuthException/i.test(text)) return 'Access token error (OAuthException).';
+  if (/permission/i.test(text) && /denied/i.test(text)) return 'Permission denied for this token.';
+  return text;
+}
+
+function fixForCheck(key) {
+  if (key === 'token_valid') return 'Run: social auth login -a whatsapp';
+  if (key === 'required_scopes') return 'Regenerate token with scopes: whatsapp_business_messaging, whatsapp_business_management';
+  if (key === 'business_id') return 'Provide Meta Business ID: --business-id <id>';
+  if (key === 'waba_id') return 'Provide WABA ID: --waba-id <id> (or pass --business-id to auto-detect)';
+  if (key === 'phone_access') return 'Add a WhatsApp phone number to your WABA and re-run connect';
+  if (key === 'test_send') return 'Provide --test-to +15551234567 and --phone-number-id';
+  if (key === 'webhook_config') return 'Provide --webhook-callback-url and --webhook-verify-token';
+  return '';
+}
+
 function printDoctor(result) {
+  const fixes = new Set();
   result.checks.forEach((c) => {
     const state = c.ok === true ? chalk.green('OK') : c.ok === false ? chalk.red('FAIL') : chalk.yellow('SKIP');
-    console.log(`- ${c.key}: ${state} ${chalk.gray(c.detail || '')}`);
+    const detail = normalizeMetaError(c.detail || '');
+    console.log(`- ${formatCheckLabel(c.key)}: ${state} ${chalk.gray(detail || '')}`);
+
+    if (c.ok === false) {
+      const fix = fixForCheck(c.key);
+      if (fix) fixes.add(fix);
+    }
+    if (c.ok === null && c.key === 'required_scopes') {
+      fixes.add('Optional: set App ID/Secret with `social auth app` to enable scope verification');
+    }
+    if (c.ok === null && c.key === 'test_send') {
+      const fix = fixForCheck(c.key);
+      if (fix) fixes.add(fix);
+    }
   });
+  if (fixes.size) {
+    console.log(chalk.yellow('\nNext steps:'));
+    Array.from(fixes).forEach((fix) => console.log(chalk.gray(`  - ${fix}`)));
+  }
   console.log('');
 }
 
@@ -218,6 +269,29 @@ function registerIntegrationsCommand(program) {
         phoneNumberId = await resolvePhoneId(client, wabaId);
       }
 
+      let testTo = String(options.testTo || '').trim();
+      if (!testTo && phoneNumberId && process.stdout.isTTY) {
+        const answer = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'sendTest',
+            message: 'Send a test WhatsApp message now?',
+            default: false
+          }
+        ]);
+        if (answer.sendTest) {
+          const dest = await inquirer.prompt([
+            {
+              type: 'input',
+              name: 'testTo',
+              message: 'Test recipient phone (E.164, e.g. +15551234567):',
+              validate: (input) => String(input || '').trim().startsWith('+') || 'Enter a valid E.164 phone number'
+            }
+          ]);
+          testTo = String(dest.testTo || '').trim();
+        }
+      }
+
       const spinner = ora('Running WABA checks...').start();
       const report = await runWabaDoctor({
         token,
@@ -226,7 +300,7 @@ function registerIntegrationsCommand(program) {
         phoneNumberId,
         callbackUrl: options.webhookCallbackUrl,
         verifyToken: options.webhookVerifyToken,
-        testTo: options.testTo
+        testTo
       });
       spinner.stop();
 
