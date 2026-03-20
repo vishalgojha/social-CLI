@@ -1364,28 +1364,32 @@ function HatchRuntime(): JSX.Element {
     {
       label: "WhatsApp access token",
       ok: Boolean(config?.tokenMap.whatsapp),
+      hint: "Needed to connect your WhatsApp account.",
       fix: "social auth login -a whatsapp"
     },
     {
       label: "WhatsApp Business connected",
       ok: Boolean(waba.connected),
+      hint: "Links your business account for messaging.",
       fix: "social integrations connect waba"
     },
     {
-      label: "Business account ID (WABA)",
+      label: "WhatsApp Business account (ID)",
       ok: Boolean(waba.wabaId),
+      hint: "Helps us find your WhatsApp business account.",
       fix: "social integrations connect waba"
     },
     {
-      label: "WhatsApp phone number ID",
+      label: "WhatsApp phone number (ID)",
       ok: Boolean(waba.phoneNumberId),
+      hint: "Required to send messages.",
       fix: "social integrations connect waba"
     }
   ];
   const missingSetup = setupChecklist.filter((item) => !item.ok);
   const quickActions = [
-    { label: "Connect WhatsApp token", command: "social auth login -a whatsapp", show: !config?.tokenMap.whatsapp },
-    { label: "Connect WABA", command: "social integrations connect waba", show: !waba.wabaId || !waba.phoneNumberId },
+    { label: "Connect WhatsApp", command: "social auth login -a whatsapp", show: !config?.tokenMap.whatsapp },
+    { label: "Connect WhatsApp Business", command: "social integrations connect waba", show: !waba.wabaId || !waba.phoneNumberId },
     { label: "Run doctor", command: "social doctor", show: true },
     {
       label: "Send test message",
@@ -1393,12 +1397,12 @@ function HatchRuntime(): JSX.Element {
       show: Boolean(waba.phoneNumberId)
     }
   ].filter((item) => item.show);
-  const nextAction = missingSetup[0]?.fix
-    ? {
-      label: missingSetup[0].label,
-      command: missingSetup[0].fix
-    }
-    : quickActions.find((item) => item.command === "social doctor") || quickActions[0];
+  const nextAction = !config?.tokenMap.whatsapp
+    ? { label: "Connect WhatsApp", command: "social auth login -a whatsapp" }
+    : (!waba.wabaId || !waba.phoneNumberId)
+      ? { label: "Connect WhatsApp Business", command: "social integrations connect waba" }
+      : { label: "Run doctor", command: "social doctor" };
+  const readyCount = setupChecklist.filter((item) => item.ok).length;
   const platformStatus = {
     instagram: !!config?.tokenMap.instagram || !!config?.scopes.find((x) => x.includes("instagram")),
     facebook: !!config?.tokenMap.facebook || !!config?.tokenSet,
@@ -1477,34 +1481,45 @@ function HatchRuntime(): JSX.Element {
       {configState.loading ? null : (
         <>
           <SectionHeading label="Onboarding" />
-          <FramedBlock title="Quick start">
+          <FramedBlock title="Get started">
             {quickActions.map((item, idx) => (
               <Box key={item.command}>
                 <Text color={theme.muted}>{`Step ${idx + 1}: `}</Text>
-                <Text color={theme.text}>{item.label}: </Text>
+                <Text color={theme.text}>{item.label}</Text>
+                <Text color={theme.muted}> — </Text>
                 <Text color={theme.accent}>{item.command}</Text>
               </Box>
             ))}
             {nextAction ? (
               <Box marginTop={1}>
                 <Text color={theme.text}>Next step: </Text>
+                <Text color={theme.text}>{nextAction.label}</Text>
+                <Text color={theme.muted}> — </Text>
                 <Text color={theme.accent}>{nextAction.command}</Text>
               </Box>
             ) : null}
-            <Text color={theme.muted}>Tip: paste any command above into chat to run it.</Text>
+            <Text color={theme.muted}>Tip: copy/paste any line above into chat to run it.</Text>
+            <Text color={theme.muted}>Tip: start with Step 1 if you're unsure.</Text>
             <Text color={theme.muted}>Tip: type "waba setup" for a guided WhatsApp flow.</Text>
+            <Text color={theme.muted}>Tip: type "help" if you get stuck.</Text>
           </FramedBlock>
           <FramedBlock title="Setup checklist" borderColor={missingSetup.length ? theme.warning : theme.muted}>
+            <Text color={theme.muted}>Progress: {readyCount}/{setupChecklist.length} ready.</Text>
+            {missingSetup.length ? (
+              <Text color={theme.muted}>You're close — finish the ones marked NEEDS.</Text>
+            ) : (
+              <Text color={theme.success}>You're all set.</Text>
+            )}
             {setupChecklist.map((item) => (
-              <Box key={item.label}>
-                <Text color={item.ok ? theme.success : theme.warning}>
-                  {item.ok ? "READY" : "NEEDS"} {item.label}
-                </Text>
+              <Box key={item.label} marginTop={1} flexDirection="column">
+                <Box>
+                  <Text color={item.ok ? theme.success : theme.warning}>
+                    {item.ok ? "READY" : "NEEDS"} {item.label}
+                  </Text>
+                </Box>
+                <Text color={theme.muted}>{item.hint}</Text>
                 {!item.ok && item.fix ? (
-                  <>
-                    <Text color={theme.muted}> | fix: </Text>
-                    <Text color={theme.accent}>{item.fix}</Text>
-                  </>
+                  <Text color={theme.accent}>Do this (copy/paste): {item.fix}</Text>
                 ) : null}
               </Box>
             ))}
