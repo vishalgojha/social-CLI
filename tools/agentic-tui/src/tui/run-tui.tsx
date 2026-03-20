@@ -1360,30 +1360,30 @@ function HatchRuntime(): JSX.Element {
     webhookCallbackUrl: "",
     webhookVerifyToken: ""
   };
-  const missingSetup: Array<{ label: string; fix: string }> = [];
-  if (!config?.tokenMap.whatsapp) {
-    missingSetup.push({
+  const setupChecklist: Array<{ label: string; ok: boolean; fix?: string }> = [
+    {
       label: "WhatsApp access token",
+      ok: Boolean(config?.tokenMap.whatsapp),
       fix: "social auth login -a whatsapp"
-    });
-  }
-  if (!waba.wabaId) {
-    missingSetup.push({
+    },
+    {
       label: "WABA ID",
+      ok: Boolean(waba.wabaId),
       fix: "social integrations connect waba"
-    });
-  }
-  if (!waba.phoneNumberId) {
-    missingSetup.push({
+    },
+    {
       label: "WhatsApp phone number ID",
+      ok: Boolean(waba.phoneNumberId),
       fix: "social integrations connect waba"
-    });
-  }
-  const quickActions = [
-    { label: "Connect WhatsApp token", command: "social auth login -a whatsapp" },
-    { label: "Run doctor", command: "social doctor" },
-    { label: "Send test message", command: "social waba send --from PHONE_ID --to +15551234567 --body \"Hello\"" }
+    }
   ];
+  const missingSetup = setupChecklist.filter((item) => !item.ok);
+  const quickActions = [
+    { label: "Connect WhatsApp token", command: "social auth login -a whatsapp", show: !config?.tokenMap.whatsapp },
+    { label: "Connect WABA", command: "social integrations connect waba", show: !waba.wabaId || !waba.phoneNumberId },
+    { label: "Run doctor", command: "social doctor", show: true },
+    { label: "Send test message", command: "social waba send --from PHONE_ID --to +15551234567 --body \"Hello\"", show: true }
+  ].filter((item) => item.show);
   const platformStatus = {
     instagram: !!config?.tokenMap.instagram || !!config?.scopes.find((x) => x.includes("instagram")),
     facebook: !!config?.tokenMap.facebook || !!config?.tokenSet,
@@ -1463,25 +1463,33 @@ function HatchRuntime(): JSX.Element {
         <>
           <SectionHeading label="Onboarding" />
           <FramedBlock title="Quick actions">
-            {quickActions.map((item) => (
+            {quickActions.map((item, idx) => (
               <Box key={item.command}>
+                <Text color={theme.muted}>{`${idx + 1}. `}</Text>
                 <Text color={theme.text}>{item.label}: </Text>
                 <Text color={theme.accent}>{item.command}</Text>
               </Box>
             ))}
+            <Text color={theme.muted}>Tip: paste any command above into chat to run it.</Text>
+            <Text color={theme.muted}>Tip: type "waba setup" for a guided WhatsApp flow.</Text>
           </FramedBlock>
           <FramedBlock title="Setup gaps" borderColor={missingSetup.length ? theme.warning : theme.muted}>
-            {missingSetup.length ? (
-              missingSetup.map((item) => (
-                <Box key={item.label}>
-                  <Text color={theme.warning}>missing {item.label}</Text>
-                  <Text color={theme.muted}> | fix: </Text>
-                  <Text color={theme.accent}>{item.fix}</Text>
-                </Box>
-              ))
-            ) : (
+            {setupChecklist.map((item) => (
+              <Box key={item.label}>
+                <Text color={item.ok ? theme.success : theme.warning}>
+                  {item.ok ? "OK" : "MISSING"} {item.label}
+                </Text>
+                {!item.ok && item.fix ? (
+                  <>
+                    <Text color={theme.muted}> | fix: </Text>
+                    <Text color={theme.accent}>{item.fix}</Text>
+                  </>
+                ) : null}
+              </Box>
+            ))}
+            {!missingSetup.length ? (
               <Text color={theme.success}>All core setup steps look complete.</Text>
-            )}
+            ) : null}
           </FramedBlock>
         </>
       )}
