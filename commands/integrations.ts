@@ -180,7 +180,16 @@ function formatCheckLabel(key) {
 function normalizeMetaError(detail) {
   const text = String(detail || '').trim();
   if (!text) return '';
-  if (/error validating access token/i.test(text)) return 'Access token invalid or expired.';
+  const lower = text.toLowerCase();
+  if (lower.includes('error validating access token')) {
+    if (lower.includes('session has expired') || lower.includes('expired')) return 'Access token expired.';
+    if (lower.includes('not authorized') || lower.includes('has not authorized')) return 'App not authorized for this token.';
+    return 'Access token invalid or expired.';
+  }
+  if (/subcode\s*463/.test(lower)) return 'Access token expired.';
+  if (/subcode\s*467/.test(lower)) return 'Access token expired or re-auth required.';
+  if (/code\s*190/.test(lower)) return 'Access token invalid or expired.';
+  if (lower.includes('unsupported get request')) return 'Token valid but resource not found or insufficient permissions.';
   if (/OAuthException/i.test(text)) return 'Access token error (OAuthException).';
   if (/permission/i.test(text) && /denied/i.test(text)) return 'Permission denied for this token.';
   return text;
@@ -188,7 +197,9 @@ function normalizeMetaError(detail) {
 
 function fixForCheck(key) {
   if (key === 'token_valid') return 'Run: social auth login -a whatsapp';
-  if (key === 'required_scopes') return 'Regenerate token with scopes: whatsapp_business_messaging, whatsapp_business_management';
+  if (key === 'required_scopes') {
+    return 'Regenerate token with scopes: whatsapp_business_messaging, whatsapp_business_management (Meta App Dashboard -> WhatsApp -> API Setup).';
+  }
   if (key === 'business_id') return 'Provide Meta Business ID: --business-id <id>';
   if (key === 'waba_id') return 'Provide WABA ID: --waba-id <id> (or pass --business-id to auto-detect)';
   if (key === 'phone_access') return 'Add a WhatsApp phone number to your WABA and re-run connect';
@@ -382,3 +393,9 @@ function registerIntegrationsCommand(program) {
 }
 
 module.exports = registerIntegrationsCommand;
+
+(registerIntegrationsCommand)._private = {
+  formatCheckLabel,
+  normalizeMetaError,
+  fixForCheck
+};

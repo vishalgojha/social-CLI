@@ -46,6 +46,7 @@ async function run() {
       'industry.test',
       'ui-chrome.test',
       'onboard-command.test',
+      'integrations-command.test',
       'readiness.test',
       'guidance.test'
     ];
