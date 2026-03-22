@@ -151,6 +151,18 @@ function unresolvedHint(entry: MemoryUnresolvedRecord): string {
   return reason;
 }
 
+type QuickAction = { label: string; command: string };
+
+function dedupeQuickActions(actions: QuickAction[]): QuickAction[] {
+  const seen = new Set<string>();
+  return actions.filter((item) => {
+    const key = item.command.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function looksLikeCancelWord(input: string): boolean {
   const text = String(input || "").trim().toLowerCase();
   return text === "cancel" || text === "stop" || text === "abort" || text === "exit";
@@ -159,6 +171,11 @@ function looksLikeCancelWord(input: string): boolean {
 function looksLikeGreetingOnly(input: string): boolean {
   const text = String(input || "").trim().toLowerCase().replace(/[!?.]+$/g, "").trim();
   return /^(hi|hello|hey|yo|hola|good morning|good evening|good afternoon)(\s+[a-z]{2,20})?$/.test(text);
+}
+
+function looksLikeNextAction(input: string): boolean {
+  const text = String(input || "").trim().toLowerCase();
+  return /^(next|continue|proceed|go ahead|do it|run next|next step)$/i.test(text);
 }
 
 function extractProfileName(input: string): string {
@@ -924,9 +941,70 @@ function HatchRuntime(): JSX.Element {
     if (!input) return;
 
     const rewrittenInput = rewriteStudioShorthand(input);
-    const isGuidedSetupRequest = /^(setup|start setup|guided setup)$/i.test(rewrittenInput);
+    const isGuidedSetupRequest = /^(setup|start setup|guided setup|start|begin|get started|onboard|onboarding)$/i.test(rewrittenInput);
+    const isNextActionRequest = rewrittenInput === "__next__" || looksLikeNextAction(rewrittenInput);
     const isWabaSetupRequest = /^(waba|whatsapp)\s+setup$/i.test(rewrittenInput) || /^setup\s+(waba|whatsapp)$/i.test(rewrittenInput);
     const authAssist = detectAuthAssist(rewrittenInput);
+    const openMatch = rewrittenInput.match(/^(open|resolve|retry)\s+(\d+)\s*$/i);
+
+    if (isNextActionRequest) {
+      addTurn("user", rewrittenInput);
+      const recommended = nextAction;
+      if (!recommended) {
+        await streamAssistantTurn("No next action available yet. Try `guided setup` or `status`.");
+        return;
+      }
+      await streamAssistantTurn(`Running next action: ${recommended.label}.`);
+      dispatch({ type: "SET_INPUT", value: recommended.command });
+      await parseAndQueueIntent(recommended.command);
+      return;
+    }
+
+    if (openMatch) {
+      addTurn("user", rewrittenInput);
+      const verb = String(openMatch[1] || "").toLowerCase();
+      const index = Number(openMatch[2]) - 1;
+      const items = memory.unresolved || [];
+      if (!items.length) {
+        await streamAssistantTurn("No open items yet.");
+        return;
+      }
+      if (!Number.isFinite(index) || index < 0 || index >= items.length) {
+        await streamAssistantTurn(`Open items are 1-${items.length}. Try: open 1`);
+        return;
+      }
+      const item = items[index];
+      const hint = unresolvedHint(item);
+      const summary = `Open item ${index + 1}: ${item.text} (${hint}).`;
+      if (verb === "retry") {
+        if (item.reason?.startsWith("execution_")) {
+          await streamAssistantTurn(`${summary} Replaying the latest action.`);
+          dispatch({ type: "SET_INPUT", value: "replay latest" });
+          await parseAndQueueIntent("replay latest");
+          return;
+        }
+        await streamAssistantTurn(`${summary} Retrying it now.`);
+        dispatch({ type: "SET_INPUT", value: item.text });
+        await parseAndQueueIntent(item.text);
+        return;
+      }
+      if (item.reason?.startsWith("missing_slots")) {
+        await streamAssistantTurn(`${summary} I can reload it so you can fill the missing fields. Type: retry ${index + 1}`);
+        return;
+      }
+      if (item.reason === "intent_unresolved") {
+        await streamAssistantTurn(`${summary} Try rephrasing it, or type: retry ${index + 1}`);
+        return;
+      }
+      if (item.reason?.startsWith("execution_")) {
+        await streamAssistantTurn(`${summary} I will show logs so you can diagnose it.`);
+        dispatch({ type: "SET_INPUT", value: "logs limit 20" });
+        await parseAndQueueIntent("logs limit 20");
+        return;
+      }
+      await streamAssistantTurn(`${summary} Try: retry ${index + 1} or replay latest.`);
+      return;
+    }
 
     if (isGuidedSetupRequest) {
       addTurn("user", rewrittenInput);
@@ -1219,7 +1297,7 @@ function HatchRuntime(): JSX.Element {
       return;
     }
     if (parsedRisk === "LOW" && requiresConfirmation) {
-      const fallback = `Intent confidence is ${formatConfidence(intentConfidence)}. Confirm with Enter/a, or rephrase to improve intent match.`;
+      const fallback = `Intent confidence is ${formatConfidence(intentConfidence)}. Confirm with Enter/y, or rephrase to improve intent match.`;
       const reply = await generateConversationalReply({
         userText: rewrittenInput,
         fallback,
@@ -1234,8 +1312,8 @@ function HatchRuntime(): JSX.Element {
       return;
     }
     const fallback = state.showDetails
-      ? "Awaiting approval. Press Enter or a to continue."
-      : `Ready to run ${parsed.intent.action} (${parsedRisk.toLowerCase()} risk). Press Enter to confirm, or e to edit.`;
+      ? "Awaiting approval. Press Enter/y to continue or n to reject."
+      : `Ready to run ${parsed.intent.action} (${parsedRisk.toLowerCase()} risk). Press Enter/y to confirm, or n to reject.`;
     const reply = await generateConversationalReply({
       userText: rewrittenInput,
       fallback,
@@ -1261,6 +1339,7 @@ function HatchRuntime(): JSX.Element {
     state.currentIntent,
     state.currentRisk,
     state.showDetails,
+    nextAction,
     executeDirectRunCli,
     streamAssistantTurn,
     streamPhase
@@ -1418,6 +1497,11 @@ function HatchRuntime(): JSX.Element {
         dispatch({ type: "SET_INPUT", value: nextAction.command });
         void parseAndQueueIntent(nextAction.command);
       },
+      onLogs: () => {
+        const command = "logs limit 20";
+        dispatch({ type: "SET_INPUT", value: command });
+        void parseAndQueueIntent(command);
+      },
       onQuickAction: (index) => {
         const item = quickActions[index];
         if (!item) return;
@@ -1460,6 +1544,11 @@ function HatchRuntime(): JSX.Element {
     webhookCallbackUrl: "",
     webhookVerifyToken: ""
   };
+  const profileSummary = Array.isArray(config?.profiles) ? config?.profiles : [];
+  const logItems = Array.isArray(logsState.data) ? logsState.data : [];
+  const successCount = logItems.filter((x) => x.success).length;
+  const failCount = logItems.filter((x) => !x.success).length;
+  const lastError = logItems.find((x) => !x.success && x.error)?.error || "";
   const setupChecklist: Array<{ label: string; ok: boolean; fix?: string }> = [
     {
       label: "WhatsApp access token",
@@ -1487,7 +1576,7 @@ function HatchRuntime(): JSX.Element {
     }
   ];
   const missingSetup = setupChecklist.filter((item) => !item.ok);
-  const quickActions = [
+  const baseQuickActions = [
     { label: "Guided setup", command: "guided setup", show: missingSetup.length > 0 },
     { label: "Connect WhatsApp", command: "social auth login -a whatsapp", show: !config?.tokenMap.whatsapp },
     { label: "Connect WhatsApp Business", command: "social integrations connect waba", show: !waba.wabaId || !waba.phoneNumberId },
@@ -1497,7 +1586,17 @@ function HatchRuntime(): JSX.Element {
       command: "social waba send --from PHONE_ID --to +15551234567 --body \"Hello\"",
       show: Boolean(waba.phoneNumberId)
     }
-  ].filter((item) => item.show);
+  ].filter((item) => item.show)
+    .map((item) => ({ label: item.label, command: item.command }));
+  const recoveryQuickActions: QuickAction[] = lastError
+    ? [
+      { label: "Replay latest", command: "replay latest" },
+      { label: "Show logs", command: "logs limit 20" }
+    ]
+    : unresolvedCount > 0
+      ? [{ label: "Check status", command: "status" }]
+      : [];
+  const quickActions = dedupeQuickActions([...recoveryQuickActions, ...baseQuickActions]);
   const readyCount = setupChecklist.filter((item) => item.ok).length;
   const platformStatus = {
     instagram: !!config?.tokenMap.instagram || !!config?.scopes.find((x) => x.includes("instagram")),
@@ -1553,30 +1652,28 @@ function HatchRuntime(): JSX.Element {
   const recentLogs = state.liveLogs.slice(-10);
   const recentRollbacks = state.rollbackHistory.slice(-5);
   const resultPreview = state.results ? JSON.stringify(state.results, null, 2) : "";
-  const profileSummary = Array.isArray(config?.profiles) ? config?.profiles : [];
-  const logItems = Array.isArray(logsState.data) ? logsState.data : [];
-  const successCount = logItems.filter((x) => x.success).length;
-  const failCount = logItems.filter((x) => !x.success).length;
-  const lastError = logItems.find((x) => !x.success && x.error)?.error || "";
   const nextAction = missingSetup.length > 0
     ? { label: "Guided setup", command: "guided setup" }
-    : lastError
-      ? { label: "Replay latest", command: "replay latest" }
+    : (lastError && isSetupOrAuthError(lastError))
+      ? { label: "Guided setup", command: "guided setup" }
+      : lastError
+        ? { label: "Replay latest", command: "replay latest" }
       : unresolvedCount > 0
         ? { label: "Check status", command: "status" }
         : { label: "Run doctor", command: "social doctor" };
   const openItems = memory.unresolved.slice(0, 3);
+  const authIssue = Boolean(lastError && isSetupOrAuthError(lastError));
   const focusTone = missingSetup.length
     ? theme.warning
     : lastError
-      ? theme.error
+      ? authIssue ? theme.warning : theme.error
       : unresolvedCount > 0
         ? theme.warning
         : theme.success;
   const focusTitle = missingSetup.length
     ? "Finish setup"
     : lastError
-      ? "Resolve last error"
+      ? authIssue ? "Fix auth" : "Resolve last error"
       : unresolvedCount > 0
         ? "Clear open items"
         : "Ready for requests";
@@ -1587,11 +1684,42 @@ function HatchRuntime(): JSX.Element {
       : unresolvedCount > 0
         ? `${unresolvedCount} open item${unresolvedCount === 1 ? "" : "s"} waiting.`
         : "You're clear to run commands.";
+  const focusReason = missingSetup.length
+    ? "Setup checks are blocking full functionality."
+    : lastError
+      ? authIssue ? "Auth or permissions are blocking execution." : "The last action failed and needs recovery."
+      : unresolvedCount > 0
+        ? "There are unresolved items waiting on you."
+        : "All systems ready.";
+  const focusActions = missingSetup.length
+    ? [{ label: "Guided setup", command: "guided setup" }]
+    : lastError
+      ? authIssue
+        ? [
+          { label: "Guided setup", command: "guided setup" },
+          { label: "Check status", command: "status" },
+          { label: "Show logs", command: "logs limit 20" }
+        ]
+        : [
+          { label: "Replay latest", command: "replay latest" },
+          { label: "Show logs", command: "logs limit 20" }
+        ]
+      : unresolvedCount > 0
+        ? [
+          { label: "Check status", command: "status" },
+          { label: "Show logs", command: "logs limit 20" }
+        ]
+        : [
+          { label: "Run doctor", command: "social doctor" },
+          { label: "Check status", command: "status" }
+        ];
   const paletteOptions = [
-    { label: "Guided setup (recommended)", value: "guided setup", show: missingSetup.length > 0 },
+    ...quickActions.map((item) => ({ label: `Quick: ${item.label}`, value: item.command, show: true })),
+    { label: "Guided setup (recommended)", value: "guided setup", show: missingSetup.length > 0 || authIssue },
     nextAction ? { label: `Next step: ${nextAction.label}`, value: nextAction.command, show: true } : null,
     { label: "Doctor", value: "doctor", show: true },
     { label: "Status", value: "status", show: true },
+    { label: "Why this plan", value: "__why__", show: true },
     { label: "WABA setup guide", value: "waba setup", show: true },
     { label: "WABA send example", value: "social waba send --from PHONE_ID --to +15551234567 --body \"Hello\"", show: true },
     { label: "Config", value: "config", show: true },
@@ -1634,6 +1762,17 @@ function HatchRuntime(): JSX.Element {
           <FramedBlock title="Next move" borderColor={focusTone}>
             <Text color={focusTone}>{focusTitle}</Text>
             <Text color={theme.muted}>{focusDetail}</Text>
+            <Text color={theme.muted}>Reason: {focusReason}</Text>
+            {focusActions.length ? (
+              <Box marginTop={1} flexDirection="column">
+                <Text color={theme.accent}>Suggested actions</Text>
+                {focusActions.map((action) => (
+                  <Text key={action.command} color={theme.muted}>
+                    - {action.label}: {action.command}
+                  </Text>
+                ))}
+              </Box>
+            ) : null}
             {nextAction ? (
               <Box marginTop={1}>
                 <Text color={theme.text}>Next action: </Text>
@@ -1642,11 +1781,11 @@ function HatchRuntime(): JSX.Element {
                 <Text color={theme.accent}>{nextAction.command}</Text>
               </Box>
             ) : null}
-            <Text color={theme.muted}>Tip: press n to run the next action instantly.</Text>
+            <Text color={theme.muted}>Tip: press n to run the next action, or l to show logs.</Text>
           </FramedBlock>
 
-          <SectionHeading label="Onboarding" />
-          <FramedBlock title="Get started">
+          <SectionHeading label="Quick actions" />
+          <FramedBlock title="Quick actions">
             {quickActions.map((item, idx) => (
               <Box key={item.command}>
                 <Text color={theme.muted}>{`[${idx + 1}] `}</Text>
@@ -1664,11 +1803,12 @@ function HatchRuntime(): JSX.Element {
               </Box>
             ) : null}
             <Text color={theme.muted}>Tip: copy/paste any line above into chat to run it.</Text>
-            <Text color={theme.muted}>Tip: start with Step 1 if you're unsure.</Text>
+            <Text color={theme.muted}>Tip: start with the first action if you're unsure.</Text>
             {quickActions.length ? (
               <Text color={theme.muted}>Tip: press 1-{Math.min(9, quickActions.length)} to run a step instantly.</Text>
             ) : null}
-            <Text color={theme.muted}>Tip: press g for guided setup, n for next step, or type "waba setup" for WhatsApp only.</Text>
+            <Text color={theme.muted}>Tip: press g or type /start for guided setup, n or /next for next step.</Text>
+            <Text color={theme.muted}>Tip: type "waba setup" for WhatsApp only.</Text>
             <Text color={theme.muted}>Tip: type "help" if you get stuck.</Text>
           </FramedBlock>
           <FramedBlock title="Setup checklist" borderColor={missingSetup.length ? theme.warning : theme.muted}>
@@ -1728,9 +1868,9 @@ function HatchRuntime(): JSX.Element {
             {openItems.length ? (
               <Box marginTop={1} flexDirection="column">
                 <Text color={theme.accent}>Open items</Text>
-                {openItems.map((item) => (
+                {openItems.map((item, idx) => (
                   <Text key={`${item.at}-${item.text}`} color={theme.muted}>
-                    - {shortText(item.text, 90)} ({unresolvedHint(item)})
+                    - [{idx + 1}] {shortText(item.text, 90)} ({unresolvedHint(item)}) — open {idx + 1} | retry {idx + 1}
                   </Text>
                 ))}
               </Box>
@@ -1827,10 +1967,10 @@ function HatchRuntime(): JSX.Element {
           <SectionHeading label="Help" />
           <FramedBlock title="Operator notes">
           <Text color={theme.text}>Workflow: describe, plan, approve, execute, review.</Text>
-          <Text color={theme.text}>Commands: /help /doctor /status /config /logs /replay /why /ai ...</Text>
+          <Text color={theme.text}>Commands: /start /setup /next /open /retry /help /doctor /status /config /logs /replay /why /ai ...</Text>
           <Text color={theme.text}>Memory: say `my name is ...` and later ask `what's my name`.</Text>
-          <Text color={theme.text}>Keys: Enter send/confirm, a approve, r reject, e edit slots, d diagnostics.</Text>
-          <Text color={theme.text}>Quick: g guided setup, n next step, {`1-${Math.min(9, quickActions.length)}`} run onboarding steps.</Text>
+          <Text color={theme.text}>Keys: Enter/y approve, n/r reject, e edit slots, d diagnostics.</Text>
+          <Text color={theme.text}>Quick: g guided setup, n next step, l logs, {`1-${Math.min(9, quickActions.length)}`} run onboarding steps.</Text>
           <Text color={theme.muted}>UI: / palette, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
           </FramedBlock>
         </>
@@ -1843,7 +1983,7 @@ function HatchRuntime(): JSX.Element {
       </Box>
       <Text color={state.currentRisk === "HIGH" ? riskTone : theme.accent}>{actionHint}</Text>
       <Text color={theme.muted}>
-        Enter confirm | / palette | g guided | n next | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
+        Enter confirm | / palette | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
       </Text>
     </Box>
   );

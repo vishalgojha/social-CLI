@@ -11,6 +11,7 @@ export interface ShortcutHandlers {
   onPaletteToggle: () => void;
   onGuide: () => void;
   onNextAction: () => void;
+  onLogs: () => void;
   onQuickAction: (index: number) => void;
   onConfirm: () => void;
   onReplayUp: () => void;
@@ -66,7 +67,15 @@ export function handleShortcut(
     handlers.onApprove();
     return true;
   }
+  if (input === "y" && allowSingleKey && phase === "APPROVAL") {
+    handlers.onApprove();
+    return true;
+  }
   if (input === "r" && allowSingleKey && (isApprovalPhase(phase) || phase === "EDIT_SLOTS")) {
+    handlers.onReject();
+    return true;
+  }
+  if (input === "n" && allowSingleKey && phase === "APPROVAL") {
     handlers.onReject();
     return true;
   }
@@ -84,6 +93,10 @@ export function handleShortcut(
   }
   if (input === "n" && allowSingleKey && phase === "INPUT") {
     handlers.onNextAction();
+    return true;
+  }
+  if (input === "l" && allowSingleKey && phase === "INPUT") {
+    handlers.onLogs();
     return true;
   }
   if (allowSingleKey && phase === "INPUT" && !hasReplaySuggestions && /^[1-9]$/.test(input)) {

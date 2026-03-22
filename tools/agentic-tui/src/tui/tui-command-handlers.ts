@@ -12,8 +12,18 @@ export function handleSlashCommand(input: string): SlashCommandResult {
   if (cmd === "/help") {
     return {
       consumed: true,
-      systemMessage: "Commands: /help, /doctor, /status, /config, /logs, /replay latest, /ai <intent>. Memory: `my name is ...`."
+      systemMessage: "Commands: /start, /setup, /next, /open <n>, /retry <n>, /help, /doctor, /status, /config, /logs, /replay latest, /ai <intent>. Memory: `my name is ...`."
     };
+  }
+  if (cmd === "/start" || cmd === "/setup" || cmd === "/onboard") return { consumed: true, inputToExecute: "guided setup" };
+  if (cmd === "/next") return { consumed: true, inputToExecute: "__next__" };
+  if (cmd.startsWith("/open ")) {
+    const rest = raw.slice(6).trim();
+    return { consumed: true, inputToExecute: `open ${rest}` };
+  }
+  if (cmd.startsWith("/retry ")) {
+    const rest = raw.slice(7).trim();
+    return { consumed: true, inputToExecute: `retry ${rest}` };
   }
   if (cmd === "/doctor") return { consumed: true, inputToExecute: "doctor" };
   if (cmd === "/status") return { consumed: true, inputToExecute: "status" };

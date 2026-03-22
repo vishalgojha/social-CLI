@@ -15,6 +15,7 @@ function handlerFlags() {
     palette: false,
     guide: false,
     nextAction: false,
+    logs: false,
     quickAction: -1,
     confirm: false,
     replayUp: false,
@@ -35,6 +36,7 @@ function handlers(flags: ReturnType<typeof handlerFlags>) {
     onPaletteToggle: () => { flags.palette = true; },
     onGuide: () => { flags.guide = true; },
     onNextAction: () => { flags.nextAction = true; },
+    onLogs: () => { flags.logs = true; },
     onQuickAction: (index: number) => { flags.quickAction = index; },
     onConfirm: () => { flags.confirm = true; },
     onReplayUp: () => { flags.replayUp = true; },
@@ -66,6 +68,30 @@ export const shortcutHandlerTests: TuiTestCase[] = [
       });
       assert.equal(consumed, true);
       assert.equal(flags.edit, true);
+    }
+  },
+  {
+    name: "approval phase accepts y to approve",
+    fn: () => {
+      const flags = handlerFlags();
+      const consumed = handleShortcut("y", {}, false, handlers(flags), {
+        phase: "APPROVAL",
+        hasDraftText: false
+      });
+      assert.equal(consumed, true);
+      assert.equal(flags.approve, true);
+    }
+  },
+  {
+    name: "approval phase accepts n to reject",
+    fn: () => {
+      const flags = handlerFlags();
+      const consumed = handleShortcut("n", {}, false, handlers(flags), {
+        phase: "APPROVAL",
+        hasDraftText: false
+      });
+      assert.equal(consumed, true);
+      assert.equal(flags.reject, true);
     }
   },
   {
@@ -114,6 +140,18 @@ export const shortcutHandlerTests: TuiTestCase[] = [
       });
       assert.equal(consumed, true);
       assert.equal(flags.nextAction, true);
+    }
+  },
+  {
+    name: "l triggers logs when input draft is empty",
+    fn: () => {
+      const flags = handlerFlags();
+      const consumed = handleShortcut("l", {}, false, handlers(flags), {
+        phase: "INPUT",
+        hasDraftText: false
+      });
+      assert.equal(consumed, true);
+      assert.equal(flags.logs, true);
     }
   },
   {

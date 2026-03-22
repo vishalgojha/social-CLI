@@ -20,7 +20,7 @@ export function buildActionBarHint(state: ActionBarState): string {
   }
 
   if (state.phase === "APPROVAL" || state.phase === "EDIT_SLOTS") {
-    return `pending action: a approve | r reject | e edit slots | Enter confirm${replayHint}${verboseHint}`;
+    return `pending action: Enter/y approve | n/r reject | e edit slots${replayHint}${verboseHint}`;
   }
 
   if (state.phase === "EXECUTING") {
