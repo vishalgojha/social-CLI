@@ -9,6 +9,9 @@ export interface ShortcutHandlers {
   onReject: () => void;
   onToggleRail: () => void;
   onPaletteToggle: () => void;
+  onGuide: () => void;
+  onNextAction: () => void;
+  onQuickAction: (index: number) => void;
   onConfirm: () => void;
   onReplayUp: () => void;
   onReplayDown: () => void;
@@ -75,6 +78,19 @@ export function handleShortcut(
     handlers.onPaletteToggle();
     return true;
   }
+  if (input === "g" && allowSingleKey && phase === "INPUT") {
+    handlers.onGuide();
+    return true;
+  }
+  if (input === "n" && allowSingleKey && phase === "INPUT") {
+    handlers.onNextAction();
+    return true;
+  }
+  if (allowSingleKey && phase === "INPUT" && !hasReplaySuggestions && /^[1-9]$/.test(input)) {
+    const index = Number(input) - 1;
+    handlers.onQuickAction(index);
+    return true;
+  }
   if (hasReplaySuggestions && key.upArrow) {
     handlers.onReplayUp();
     return true;
@@ -89,4 +105,3 @@ export function handleShortcut(
   }
   return false;
 }
-

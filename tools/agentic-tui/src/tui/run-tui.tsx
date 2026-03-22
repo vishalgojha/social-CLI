@@ -142,6 +142,15 @@ function shortText(text: string, limit = 120): string {
   return `${value.slice(0, limit - 3)}...`;
 }
 
+function unresolvedHint(entry: MemoryUnresolvedRecord): string {
+  const reason = String(entry.reason || "").trim();
+  if (!reason) return "needs follow-up";
+  if (reason.startsWith("missing_slots")) return "needs fields";
+  if (reason === "intent_unresolved") return "rephrase or /help";
+  if (reason.startsWith("execution_")) return "check logs or replay";
+  return reason;
+}
+
 function looksLikeCancelWord(input: string): boolean {
   const text = String(input || "").trim().toLowerCase();
   return text === "cancel" || text === "stop" || text === "abort" || text === "exit";
@@ -589,6 +598,7 @@ type HatchMemoryState = {
 type PendingFlowState =
   | { kind: "auth_login"; stage: "choose_api" }
   | { kind: "auth_login"; stage: "await_token"; api: AuthApi };
+type PostAuthAction = null | "connect_waba";
 
 function HatchRuntime(): JSX.Element {
   const theme = useTheme();
@@ -615,6 +625,7 @@ function HatchRuntime(): JSX.Element {
     unresolved: []
   });
   const [pendingFlow, setPendingFlow] = useState<PendingFlowState | null>(null);
+  const [postAuthAction, setPostAuthAction] = useState<PostAuthAction>(null);
 
   const [configState, setConfigState] = useState<LoadState<ConfigSnapshot | null>>({
     loading: true,
@@ -913,13 +924,72 @@ function HatchRuntime(): JSX.Element {
     if (!input) return;
 
     const rewrittenInput = rewriteStudioShorthand(input);
+    const isGuidedSetupRequest = /^(setup|start setup|guided setup)$/i.test(rewrittenInput);
     const isWabaSetupRequest = /^(waba|whatsapp)\s+setup$/i.test(rewrittenInput) || /^setup\s+(waba|whatsapp)$/i.test(rewrittenInput);
     const authAssist = detectAuthAssist(rewrittenInput);
 
+    if (isGuidedSetupRequest) {
+      addTurn("user", rewrittenInput);
+      const currentConfig = configState.data;
+      const currentWaba = currentConfig?.waba || {
+        connected: false,
+        businessId: "",
+        wabaId: "",
+        phoneNumberId: "",
+        webhookCallbackUrl: "",
+        webhookVerifyToken: ""
+      };
+
+      if (!currentConfig?.tokenMap.whatsapp) {
+        setPendingFlow({ kind: "auth_login", stage: "await_token", api: "whatsapp" });
+        setPostAuthAction("connect_waba");
+        await streamAssistantTurn(buildTokenPrompt("whatsapp", "Let's connect WhatsApp first."));
+        await streamAssistantTurn("After we verify it, I'll connect WhatsApp Business automatically.");
+        return;
+      }
+
+      if (!currentWaba.wabaId || !currentWaba.phoneNumberId) {
+        await streamAssistantTurn("Starting WhatsApp Business connection now.");
+        await executeDirectRunCli({
+          command: "social integrations connect waba",
+          displayText: "social integrations connect waba",
+          rememberAs: "waba connect"
+        });
+        return;
+      }
+
+      await streamAssistantTurn("Setup looks complete. Run: social doctor");
+      return;
+    }
+
     if (isWabaSetupRequest) {
       addTurn("user", rewrittenInput);
-      setPendingFlow({ kind: "auth_login", stage: "await_token", api: "whatsapp" });
-      await streamAssistantTurn(buildTokenPrompt("whatsapp", "Let's set up WhatsApp now."));
+      const currentConfig = configState.data;
+      const currentWaba = currentConfig?.waba || {
+        connected: false,
+        businessId: "",
+        wabaId: "",
+        phoneNumberId: "",
+        webhookCallbackUrl: "",
+        webhookVerifyToken: ""
+      };
+      if (!currentConfig?.tokenMap.whatsapp) {
+        setPendingFlow({ kind: "auth_login", stage: "await_token", api: "whatsapp" });
+        setPostAuthAction("connect_waba");
+        await streamAssistantTurn(buildTokenPrompt("whatsapp", "Let's set up WhatsApp now."));
+        await streamAssistantTurn("After we verify it, I'll connect WhatsApp Business automatically.");
+        return;
+      }
+      if (!currentWaba.wabaId || !currentWaba.phoneNumberId) {
+        await streamAssistantTurn("Starting WhatsApp Business connection now.");
+        await executeDirectRunCli({
+          command: "social integrations connect waba",
+          displayText: "social integrations connect waba",
+          rememberAs: "waba connect"
+        });
+        return;
+      }
+      await streamAssistantTurn("WhatsApp Business is already connected. Run: social doctor");
       return;
     }
 
@@ -944,6 +1014,7 @@ function HatchRuntime(): JSX.Element {
       if (looksLikeCancelWord(rewrittenInput)) {
         addTurn("user", rewrittenInput);
         setPendingFlow(null);
+        setPostAuthAction(null);
         await streamAssistantTurn("Auth setup canceled.");
         return;
       }
@@ -956,6 +1027,17 @@ function HatchRuntime(): JSX.Element {
         displayText: `social auth login -a ${targetApi} --token *** --no-open`,
         rememberAs: `auth login ${targetApi}`
       });
+      if (postAuthAction === "connect_waba" && targetApi === "whatsapp") {
+        setPostAuthAction(null);
+        await streamAssistantTurn("Next: connecting WhatsApp Business.");
+        await executeDirectRunCli({
+          command: "social integrations connect waba",
+          displayText: "social integrations connect waba",
+          rememberAs: "waba connect"
+        });
+        return;
+      }
+      setPostAuthAction(null);
       return;
     }
 
@@ -1172,7 +1254,9 @@ function HatchRuntime(): JSX.Element {
     memory.unresolved,
     rememberIntent,
     rememberUnresolved,
+    configState.data,
     pendingFlow,
+    postAuthAction,
     runExecution,
     state.currentIntent,
     state.currentRisk,
@@ -1324,6 +1408,22 @@ function HatchRuntime(): JSX.Element {
       },
       onToggleRail: () => setRightRailCollapsed((prev) => !prev),
       onPaletteToggle: () => setShowPalette(true),
+      onGuide: () => {
+        const command = "guided setup";
+        dispatch({ type: "SET_INPUT", value: command });
+        void parseAndQueueIntent(command);
+      },
+      onNextAction: () => {
+        if (!nextAction) return;
+        dispatch({ type: "SET_INPUT", value: nextAction.command });
+        void parseAndQueueIntent(nextAction.command);
+      },
+      onQuickAction: (index) => {
+        const item = quickActions[index];
+        if (!item) return;
+        dispatch({ type: "SET_INPUT", value: item.command });
+        void parseAndQueueIntent(item.command);
+      },
       onConfirm: () => void confirmOrExecute(),
       onReplayUp: () => setReplaySuggestionIndex((prev) => (prev === 0 ? replaySuggestions.length - 1 : prev - 1)),
       onReplayDown: () => setReplaySuggestionIndex((prev) => (prev + 1) % replaySuggestions.length),
@@ -1388,6 +1488,7 @@ function HatchRuntime(): JSX.Element {
   ];
   const missingSetup = setupChecklist.filter((item) => !item.ok);
   const quickActions = [
+    { label: "Guided setup", command: "guided setup", show: missingSetup.length > 0 },
     { label: "Connect WhatsApp", command: "social auth login -a whatsapp", show: !config?.tokenMap.whatsapp },
     { label: "Connect WhatsApp Business", command: "social integrations connect waba", show: !waba.wabaId || !waba.phoneNumberId },
     { label: "Run doctor", command: "social doctor", show: true },
@@ -1397,11 +1498,6 @@ function HatchRuntime(): JSX.Element {
       show: Boolean(waba.phoneNumberId)
     }
   ].filter((item) => item.show);
-  const nextAction = !config?.tokenMap.whatsapp
-    ? { label: "Connect WhatsApp", command: "social auth login -a whatsapp" }
-    : (!waba.wabaId || !waba.phoneNumberId)
-      ? { label: "Connect WhatsApp Business", command: "social integrations connect waba" }
-      : { label: "Run doctor", command: "social doctor" };
   const readyCount = setupChecklist.filter((item) => item.ok).length;
   const platformStatus = {
     instagram: !!config?.tokenMap.instagram || !!config?.scopes.find((x) => x.includes("instagram")),
@@ -1462,6 +1558,55 @@ function HatchRuntime(): JSX.Element {
   const successCount = logItems.filter((x) => x.success).length;
   const failCount = logItems.filter((x) => !x.success).length;
   const lastError = logItems.find((x) => !x.success && x.error)?.error || "";
+  const nextAction = missingSetup.length > 0
+    ? { label: "Guided setup", command: "guided setup" }
+    : lastError
+      ? { label: "Replay latest", command: "replay latest" }
+      : unresolvedCount > 0
+        ? { label: "Check status", command: "status" }
+        : { label: "Run doctor", command: "social doctor" };
+  const openItems = memory.unresolved.slice(0, 3);
+  const focusTone = missingSetup.length
+    ? theme.warning
+    : lastError
+      ? theme.error
+      : unresolvedCount > 0
+        ? theme.warning
+        : theme.success;
+  const focusTitle = missingSetup.length
+    ? "Finish setup"
+    : lastError
+      ? "Resolve last error"
+      : unresolvedCount > 0
+        ? "Clear open items"
+        : "Ready for requests";
+  const focusDetail = missingSetup.length
+    ? `${missingSetup.length} setup checks still need attention.`
+    : lastError
+      ? shortText(lastError, 140)
+      : unresolvedCount > 0
+        ? `${unresolvedCount} open item${unresolvedCount === 1 ? "" : "s"} waiting.`
+        : "You're clear to run commands.";
+  const paletteOptions = [
+    { label: "Guided setup (recommended)", value: "guided setup", show: missingSetup.length > 0 },
+    nextAction ? { label: `Next step: ${nextAction.label}`, value: nextAction.command, show: true } : null,
+    { label: "Doctor", value: "doctor", show: true },
+    { label: "Status", value: "status", show: true },
+    { label: "WABA setup guide", value: "waba setup", show: true },
+    { label: "WABA send example", value: "social waba send --from PHONE_ID --to +15551234567 --body \"Hello\"", show: true },
+    { label: "Config", value: "config", show: true },
+    { label: "Logs", value: "logs limit 20", show: true },
+    { label: "Replay latest", value: "replay latest", show: true },
+    { label: "Get profile", value: "get my facebook profile", show: true },
+    { label: "List ads", value: "list ads account act_123", show: true },
+    { label: "Create post", value: "create post \"Launch update\" page 12345", show: true },
+    { label: "AI parse", value: "/ai show my facebook pages", show: true }
+  ].filter((item): item is { label: string; value: string; show: boolean } => Boolean(item && item.show))
+    .reduce<Array<{ label: string; value: string }>>((acc, item) => {
+      if (acc.some((entry) => entry.value === item.value)) return acc;
+      acc.push({ label: item.label, value: item.value });
+      return acc;
+    }, []);
 
   return (
     <Box flexDirection="column">
@@ -1485,11 +1630,26 @@ function HatchRuntime(): JSX.Element {
 
       {configState.loading ? null : (
         <>
+          <SectionHeading label="Focus" />
+          <FramedBlock title="Next move" borderColor={focusTone}>
+            <Text color={focusTone}>{focusTitle}</Text>
+            <Text color={theme.muted}>{focusDetail}</Text>
+            {nextAction ? (
+              <Box marginTop={1}>
+                <Text color={theme.text}>Next action: </Text>
+                <Text color={theme.text}>{nextAction.label}</Text>
+                <Text color={theme.muted}> — </Text>
+                <Text color={theme.accent}>{nextAction.command}</Text>
+              </Box>
+            ) : null}
+            <Text color={theme.muted}>Tip: press n to run the next action instantly.</Text>
+          </FramedBlock>
+
           <SectionHeading label="Onboarding" />
           <FramedBlock title="Get started">
             {quickActions.map((item, idx) => (
               <Box key={item.command}>
-                <Text color={theme.muted}>{`Step ${idx + 1}: `}</Text>
+                <Text color={theme.muted}>{`[${idx + 1}] `}</Text>
                 <Text color={theme.text}>{item.label}</Text>
                 <Text color={theme.muted}> — </Text>
                 <Text color={theme.accent}>{item.command}</Text>
@@ -1505,7 +1665,10 @@ function HatchRuntime(): JSX.Element {
             ) : null}
             <Text color={theme.muted}>Tip: copy/paste any line above into chat to run it.</Text>
             <Text color={theme.muted}>Tip: start with Step 1 if you're unsure.</Text>
-            <Text color={theme.muted}>Tip: type "waba setup" for a guided WhatsApp flow.</Text>
+            {quickActions.length ? (
+              <Text color={theme.muted}>Tip: press 1-{Math.min(9, quickActions.length)} to run a step instantly.</Text>
+            ) : null}
+            <Text color={theme.muted}>Tip: press g for guided setup, n for next step, or type "waba setup" for WhatsApp only.</Text>
             <Text color={theme.muted}>Tip: type "help" if you get stuck.</Text>
           </FramedBlock>
           <FramedBlock title="Setup checklist" borderColor={missingSetup.length ? theme.warning : theme.muted}>
@@ -1562,6 +1725,16 @@ function HatchRuntime(): JSX.Element {
             ) : (
               <Text color={theme.muted}>No recent errors.</Text>
             )}
+            {openItems.length ? (
+              <Box marginTop={1} flexDirection="column">
+                <Text color={theme.accent}>Open items</Text>
+                {openItems.map((item) => (
+                  <Text key={`${item.at}-${item.text}`} color={theme.muted}>
+                    - {shortText(item.text, 90)} ({unresolvedHint(item)})
+                  </Text>
+                ))}
+              </Box>
+            ) : null}
           </FramedBlock>
         </>
       )}
@@ -1638,19 +1811,7 @@ function HatchRuntime(): JSX.Element {
           <SectionHeading label="Command palette" />
           <FramedBlock title="Palette">
           <Select
-            options={[
-              { label: "Doctor", value: "doctor" },
-              { label: "Status", value: "status" },
-              { label: "WABA setup guide", value: "waba setup" },
-              { label: "WABA send example", value: "social waba send --from PHONE_ID --to +15551234567 --body \"Hello\"" },
-              { label: "Config", value: "config" },
-              { label: "Logs", value: "logs limit 20" },
-              { label: "Replay latest", value: "replay latest" },
-              { label: "Get profile", value: "get my facebook profile" },
-              { label: "List ads", value: "list ads account act_123" },
-              { label: "Create post", value: "create post \"Launch update\" page 12345" },
-              { label: "AI parse", value: "/ai show my facebook pages" }
-            ]}
+            options={paletteOptions}
             onChange={(value) => {
               setShowPalette(false);
               dispatch({ type: "SET_INPUT", value });
@@ -1669,6 +1830,7 @@ function HatchRuntime(): JSX.Element {
           <Text color={theme.text}>Commands: /help /doctor /status /config /logs /replay /why /ai ...</Text>
           <Text color={theme.text}>Memory: say `my name is ...` and later ask `what's my name`.</Text>
           <Text color={theme.text}>Keys: Enter send/confirm, a approve, r reject, e edit slots, d diagnostics.</Text>
+          <Text color={theme.text}>Quick: g guided setup, n next step, {`1-${Math.min(9, quickActions.length)}`} run onboarding steps.</Text>
           <Text color={theme.muted}>UI: / palette, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
           </FramedBlock>
         </>
@@ -1680,7 +1842,9 @@ function HatchRuntime(): JSX.Element {
         <TextInput value={inputValue} onChange={setInputValue} focus />
       </Box>
       <Text color={state.currentRisk === "HIGH" ? riskTone : theme.accent}>{actionHint}</Text>
-      <Text color={theme.muted}>Enter confirm | / palette | ? help | d diagnostics | x rail | q quit</Text>
+      <Text color={theme.muted}>
+        Enter confirm | / palette | g guided | n next | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
+      </Text>
     </Box>
   );
 }
