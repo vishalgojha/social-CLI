@@ -16,6 +16,7 @@ function handlerFlags() {
     guide: false,
     nextAction: false,
     logs: false,
+    openItem: -1,
     quickAction: -1,
     confirm: false,
     replayUp: false,
@@ -37,6 +38,7 @@ function handlers(flags: ReturnType<typeof handlerFlags>) {
     onGuide: () => { flags.guide = true; },
     onNextAction: () => { flags.nextAction = true; },
     onLogs: () => { flags.logs = true; },
+    onOpenItem: (index: number) => { flags.openItem = index; },
     onQuickAction: (index: number) => { flags.quickAction = index; },
     onConfirm: () => { flags.confirm = true; },
     onReplayUp: () => { flags.replayUp = true; },
@@ -160,10 +162,24 @@ export const shortcutHandlerTests: TuiTestCase[] = [
       const flags = handlerFlags();
       const consumed = handleShortcut("2", {}, false, handlers(flags), {
         phase: "INPUT",
-        hasDraftText: false
+        hasDraftText: false,
+        openItemsCount: 0
       });
       assert.equal(consumed, true);
       assert.equal(flags.quickAction, 1);
+    }
+  },
+  {
+    name: "numeric key targets open item when present",
+    fn: () => {
+      const flags = handlerFlags();
+      const consumed = handleShortcut("1", {}, false, handlers(flags), {
+        phase: "INPUT",
+        hasDraftText: false,
+        openItemsCount: 2
+      });
+      assert.equal(consumed, true);
+      assert.equal(flags.openItem, 0);
     }
   },
   {

@@ -12,6 +12,7 @@ export interface ShortcutHandlers {
   onGuide: () => void;
   onNextAction: () => void;
   onLogs: () => void;
+  onOpenItem: (index: number) => void;
   onQuickAction: (index: number) => void;
   onConfirm: () => void;
   onReplayUp: () => void;
@@ -22,6 +23,7 @@ export interface ShortcutHandlers {
 export interface ShortcutContext {
   phase: AppPhase;
   hasDraftText: boolean;
+  openItemsCount?: number;
 }
 
 function isApprovalPhase(phase: AppPhase): boolean {
@@ -101,6 +103,11 @@ export function handleShortcut(
   }
   if (allowSingleKey && phase === "INPUT" && !hasReplaySuggestions && /^[1-9]$/.test(input)) {
     const index = Number(input) - 1;
+    const openCount = Math.max(0, Number(context.openItemsCount || 0));
+    if (openCount > 0 && index < openCount) {
+      handlers.onOpenItem(index);
+      return true;
+    }
     handlers.onQuickAction(index);
     return true;
   }

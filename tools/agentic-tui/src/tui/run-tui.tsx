@@ -1642,6 +1642,15 @@ function HatchRuntime(): JSX.Element {
         dispatch({ type: "SET_INPUT", value: command });
         void parseAndQueueIntent(command);
       },
+      onOpenItem: (index) => {
+        const item = memory.unresolved[index];
+        if (!item) return;
+        const command = item.reason?.startsWith("execution_")
+          ? `retry ${index + 1}`
+          : `open ${index + 1}`;
+        dispatch({ type: "SET_INPUT", value: command });
+        void parseAndQueueIntent(command);
+      },
       onQuickAction: (index) => {
         const item = quickActions[index];
         if (!item) return;
@@ -1654,7 +1663,8 @@ function HatchRuntime(): JSX.Element {
       onQuit: () => exit()
     }, {
       phase: state.phase,
-      hasDraftText: Boolean(String(draftInput || "").trim())
+      hasDraftText: Boolean(String(draftInput || "").trim()),
+      openItemsCount: Math.min(memory.unresolved.length, 3)
     });
 
     if (consumed) return;
@@ -1954,6 +1964,9 @@ function HatchRuntime(): JSX.Element {
             {quickActions.length ? (
               <Text color={theme.muted}>Tip: press 1-{Math.min(9, quickActions.length)} to run a step instantly.</Text>
             ) : null}
+            {openItems.length ? (
+              <Text color={theme.muted}>Tip: if open items exist, 1-3 targets them before quick actions.</Text>
+            ) : null}
             <Text color={theme.muted}>Tip: press g or type /start for guided setup, n or /next for next step.</Text>
             <Text color={theme.muted}>Tip: type "waba setup" for WhatsApp only.</Text>
             <Text color={theme.muted}>Tip: type "help" if you get stuck.</Text>
@@ -2020,6 +2033,7 @@ function HatchRuntime(): JSX.Element {
                     - [{idx + 1}] {shortText(item.text, 90)} ({unresolvedHint(item)}) — open {idx + 1} | retry {idx + 1} | o{idx + 1} | r{idx + 1}
                   </Text>
                 ))}
+                <Text color={theme.muted}>Tip: press 1-3 to open/retry an item quickly.</Text>
               </Box>
             ) : null}
           </FramedBlock>
