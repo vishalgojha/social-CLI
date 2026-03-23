@@ -771,6 +771,7 @@ function HatchRuntime(): JSX.Element {
   const [focusedWorkspace, setFocusedWorkspace] = useState<string>("");
   const [attentionMode, setAttentionMode] = useState(false);
   const [quietMode, setQuietMode] = useState(false);
+  const [showGuideOverlay, setShowGuideOverlay] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState("default");
   const [replaySuggestionIndex, setReplaySuggestionIndex] = useState(0);
   const [inputHistory, setInputHistory] = useState<string[]>([]);
@@ -894,6 +895,10 @@ function HatchRuntime(): JSX.Element {
       return next;
     });
   }, [addTurn]);
+
+  const toggleGuideOverlay = useCallback(() => {
+    setShowGuideOverlay((prev) => !prev);
+  }, []);
 
   const cycleFocusedWorkspace = useCallback((direction: "prev" | "next", rows: OpsRow[]) => {
     if (!rows.length) return;
@@ -2016,6 +2021,7 @@ function HatchRuntime(): JSX.Element {
         dispatch({ type: "SET_INPUT", value: command });
         void parseAndQueueIntent(command);
       },
+      onToggleGuideOverlay: () => toggleGuideOverlay(),
       onPaletteToggle: () => {
         setPaletteQuery("");
         setShowPalette(true);
@@ -2189,6 +2195,31 @@ function HatchRuntime(): JSX.Element {
   const lastRunTime = lastRun ? formatOpsTime(lastRun.timestamp) : "not run";
   const lastRunAction = lastRun ? lastRun.action : "none yet";
   const lastRunError = lastRun?.error ? shortText(lastRun.error, 140) : "";
+  const nextGuideCommand = missingSetup.length > 0 || authIssue
+    ? "guided setup"
+    : lastError
+      ? "fix last error"
+      : unresolvedCount > 0
+        ? "open 1"
+        : nextAction?.command || "social doctor";
+  const nextGuideTitle = missingSetup.length > 0
+    ? "Finish setup"
+    : lastError
+      ? "Fix the last error"
+      : unresolvedCount > 0
+        ? "Clear open items"
+        : attentionOpsWorkspaces.length > 0
+          ? "Review workspaces needing attention"
+          : "You are ready";
+  const nextGuideDetail = missingSetup.length > 0
+    ? "We need a few setup steps before everything works."
+    : lastError
+      ? "The last action failed. Let's resolve it."
+      : unresolvedCount > 0
+        ? "There are open items waiting on you."
+        : attentionOpsWorkspaces.length > 0
+          ? "Some workspaces still need attention."
+          : "No blockers right now.";
   const attentionClear = !lastError && missingSetup.length === 0 && openItems.length === 0 && attentionOpsWorkspaces.length === 0;
   const focusTone = missingSetup.length
     ? theme.warning
@@ -2319,6 +2350,18 @@ function HatchRuntime(): JSX.Element {
           </>
         )}
       </FramedBlock>
+      {showGuideOverlay ? (
+        <>
+          <SectionHeading label="Next step guide" />
+          <FramedBlock title="Next step" borderColor={theme.accent}>
+            <Text color={theme.text}>{nextGuideTitle}</Text>
+            <Text color={theme.muted}>{nextGuideDetail}</Text>
+            <Text color={theme.accent}>Do this: {nextGuideCommand}</Text>
+            <Text color={theme.muted}>Tip: press h for help fixing issues.</Text>
+            <Text color={theme.muted}>Tip: press i to hide this guide.</Text>
+          </FramedBlock>
+        </>
+      ) : null}
       {attentionMode ? (
         <>
           <SectionHeading label="Attention mode" />
@@ -2490,6 +2533,7 @@ function HatchRuntime(): JSX.Element {
                   <Text color={theme.muted}>Tip: press c to toggle attention mode.</Text>
                   <Text color={theme.muted}>Tip: press v for quiet mode.</Text>
                   <Text color={theme.muted}>Tip: press h for help fixing issues.</Text>
+                  <Text color={theme.muted}>Tip: press i to show the next step guide.</Text>
                   <Text color={theme.muted}>Tip: run "social ops center" for a full CLI view.</Text>
                 </Box>
               ) : (
@@ -2887,7 +2931,7 @@ function HatchRuntime(): JSX.Element {
           <Text color={theme.text}>Memory: say `my name is ...` and later ask `what's my name`.</Text>
           <Text color={theme.text}>Keys: Enter/y approve, n/r reject, e edit slots, d diagnostics.</Text>
           <Text color={theme.text}>Quick: g guided setup, n next step, l logs, {`1-${Math.min(9, quickActions.length)}`} run onboarding steps.</Text>
-          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, c attention mode, v quiet mode, [ ] cycle focus, f run focus, s switch workspace, a approvals, e alerts, h help fix, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
+          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, c attention mode, v quiet mode, i next-step guide, [ ] cycle focus, f run focus, s switch workspace, a approvals, e alerts, h help fix, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
           <Text color={theme.muted}>Tokens: type "fix token" or "open whatsapp token" to launch the dashboard.</Text>
           </FramedBlock>
         </>
@@ -2900,7 +2944,7 @@ function HatchRuntime(): JSX.Element {
       </Box>
       <Text color={state.currentRisk === "HIGH" ? riskTone : theme.accent}>{actionHint}</Text>
       <Text color={theme.muted}>
-        Enter confirm | / palette (filter) | b board | c attention | v quiet | [ ] focus | f run | s switch | a approvals | e alerts | h help | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
+        Enter confirm | / palette (filter) | b board | c attention | v quiet | i guide | [ ] focus | f run | s switch | a approvals | e alerts | h help | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
       </Text>
     </Box>
   );

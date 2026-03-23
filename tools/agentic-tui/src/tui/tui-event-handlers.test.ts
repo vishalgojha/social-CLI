@@ -22,6 +22,7 @@ function handlerFlags() {
     focusAlerts: false,
     quietMode: false,
     helpFix: false,
+    guideOverlay: false,
     palette: false,
     guide: false,
     nextAction: false,
@@ -54,6 +55,7 @@ function handlers(flags: ReturnType<typeof handlerFlags>) {
     onFocusAlerts: () => { flags.focusAlerts = true; },
     onToggleQuietMode: () => { flags.quietMode = true; },
     onHelpFix: () => { flags.helpFix = true; },
+    onToggleGuideOverlay: () => { flags.guideOverlay = true; },
     onPaletteToggle: () => { flags.palette = true; },
     onGuide: () => { flags.guide = true; },
     onNextAction: () => { flags.nextAction = true; },
@@ -240,6 +242,18 @@ export const shortcutHandlerTests: TuiTestCase[] = [
       });
       assert.equal(consumed, true);
       assert.equal(flags.helpFix, true);
+    }
+  },
+  {
+    name: "i toggles next step guide overlay in input phase",
+    fn: () => {
+      const flags = handlerFlags();
+      const consumed = handleShortcut("i", {}, false, handlers(flags), {
+        phase: "INPUT",
+        hasDraftText: false
+      });
+      assert.equal(consumed, true);
+      assert.equal(flags.guideOverlay, true);
     }
   },
   {
