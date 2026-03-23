@@ -52,6 +52,8 @@ function registerWhatsAppCommands(program) {
         .option('--json', 'Output as JSON')
         .option('--dry-run', 'Print payload without calling the API')
         .option('--verbose', 'Print payload without secrets')
+        .option('--sandbox', 'Preview only (no message is sent)')
+        .option('--prod', 'Send a live production message')
         .action(async (options) => {
         const token = getTokenOrExit();
         const type = String(options.type || 'text').toLowerCase();
@@ -85,11 +87,46 @@ function registerWhatsAppCommands(program) {
             console.error(chalk.red('X Invalid --type. Use: text, image'));
             process.exit(1);
         }
+        const envMode = String(process.env.SOCIAL_WABA_MODE || '').trim().toLowerCase();
+        const explicitMode = options.prod
+            ? 'prod'
+            : options.sandbox
+                ? 'sandbox'
+                : envMode === 'prod' || envMode === 'production'
+                    ? 'prod'
+                    : envMode === 'sandbox'
+                        ? 'sandbox'
+                        : '';
+        let mode = explicitMode;
+        if (!mode) {
+            if (!process.stdout.isTTY) {
+                console.error(chalk.red('X Missing mode. Use --prod to send or --sandbox to preview only.'));
+                process.exit(1);
+            }
+            const answer = await inquirer.prompt([
+                {
+                    type: 'list',
+                    name: 'mode',
+                    message: 'Send in sandbox or production mode?',
+                    choices: [
+                        { name: 'Sandbox (preview only, no send)', value: 'sandbox' },
+                        { name: 'Production (send real message)', value: 'prod' }
+                    ],
+                    default: 0
+                }
+            ]);
+            mode = String(answer.mode || 'sandbox');
+        }
+        if (mode === 'sandbox') {
+            options.dryRun = true;
+        }
         if (options.verbose || options.dryRun) {
             printRequestDebug({ endpoint: `/${from}/messages`, payload });
         }
-        if (options.dryRun)
+        if (options.dryRun) {
+            console.log(chalk.yellow('Sandbox preview only. No message sent.'));
             return;
+        }
         const spinner = ora('Sending WhatsApp message...').start();
         const client = new MetaAPIClient(token, 'whatsapp');
         try {
