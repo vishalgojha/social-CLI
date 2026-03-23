@@ -12,6 +12,7 @@ export interface ShortcutHandlers {
   onToggleBoardFilter: () => void;
   onFocusPrev: () => void;
   onFocusNext: () => void;
+  onFocusRun: () => void;
   onGuide: () => void;
   onNextAction: () => void;
   onLogs: () => void;
@@ -98,6 +99,10 @@ export function handleShortcut(
   }
   if (input === "]" && allowSingleKey && phase === "INPUT") {
     handlers.onFocusNext();
+    return true;
+  }
+  if (input === "f" && allowSingleKey && phase === "INPUT") {
+    handlers.onFocusRun();
     return true;
   }
   if (input === "/" && allowSingleKey && phase === "INPUT") {

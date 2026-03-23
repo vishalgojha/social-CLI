@@ -1934,6 +1934,18 @@ function HatchRuntime(): JSX.Element {
       onToggleBoardFilter: () => toggleBoardFilter(),
       onFocusPrev: () => cycleFocusedWorkspace("prev", filteredOpsWorkspaces),
       onFocusNext: () => cycleFocusedWorkspace("next", filteredOpsWorkspaces),
+      onFocusRun: () => {
+        if (!focusedOpsWorkspace) {
+          addTurn("system", "No focused workspace yet.");
+          return;
+        }
+        if (!focusedNextCommand) {
+          addTurn("system", `No next action for ${focusedOpsWorkspace.name}.`);
+          return;
+        }
+        dispatch({ type: "SET_INPUT", value: focusedNextCommand });
+        void parseAndQueueIntent(focusedNextCommand);
+      },
       onPaletteToggle: () => {
         setPaletteQuery("");
         setShowPalette(true);
@@ -2416,6 +2428,7 @@ function HatchRuntime(): JSX.Element {
                   ) : null}
                   <Text color={theme.muted}>Tip: press b to filter to needs attention or all clear.</Text>
                   <Text color={theme.muted}>Tip: press [ and ] to move focus across workspaces.</Text>
+                  <Text color={theme.muted}>Tip: press f to run the focused workspace next action.</Text>
                   <Text color={theme.muted}>Tip: run "social ops center" for a full CLI view.</Text>
                 </Box>
               ) : (
@@ -2614,7 +2627,7 @@ function HatchRuntime(): JSX.Element {
           <Text color={theme.text}>Memory: say `my name is ...` and later ask `what's my name`.</Text>
           <Text color={theme.text}>Keys: Enter/y approve, n/r reject, e edit slots, d diagnostics.</Text>
           <Text color={theme.text}>Quick: g guided setup, n next step, l logs, {`1-${Math.min(9, quickActions.length)}`} run onboarding steps.</Text>
-          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, [ ] cycle focus, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
+          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, [ ] cycle focus, f run focus, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
           <Text color={theme.muted}>Tokens: type "fix token" or "open whatsapp token" to launch the dashboard.</Text>
           </FramedBlock>
         </>
@@ -2627,7 +2640,7 @@ function HatchRuntime(): JSX.Element {
       </Box>
       <Text color={state.currentRisk === "HIGH" ? riskTone : theme.accent}>{actionHint}</Text>
       <Text color={theme.muted}>
-        Enter confirm | / palette (filter) | b board | [ ] focus | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
+        Enter confirm | / palette (filter) | b board | [ ] focus | f run | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
       </Text>
     </Box>
   );
