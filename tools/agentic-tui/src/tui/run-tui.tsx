@@ -769,6 +769,7 @@ function HatchRuntime(): JSX.Element {
   const [rightRailCollapsed, setRightRailCollapsed] = useState(false);
   const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
   const [focusedWorkspace, setFocusedWorkspace] = useState<string>("");
+  const [attentionMode, setAttentionMode] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState("default");
   const [replaySuggestionIndex, setReplaySuggestionIndex] = useState(0);
   const [inputHistory, setInputHistory] = useState<string[]>([]);
@@ -873,6 +874,14 @@ function HatchRuntime(): JSX.Element {
     setBoardFilter((prev) => {
       const next = nextBoardFilter(prev);
       addTurn("system", `Agency board view: ${boardFilterLabel(next)}.`);
+      return next;
+    });
+  }, [addTurn]);
+
+  const toggleAttentionMode = useCallback(() => {
+    setAttentionMode((prev) => {
+      const next = !prev;
+      addTurn("system", next ? "Attention mode on: showing only critical panels." : "Attention mode off: full view restored.");
       return next;
     });
   }, [addTurn]);
@@ -1179,20 +1188,24 @@ function HatchRuntime(): JSX.Element {
   const opsApprovalsOpen = opsWorkspaces.reduce((acc, row) => acc + (row.approvalsOpen || 0), 0);
   const opsAlertsOpen = opsWorkspaces.reduce((acc, row) => acc + (row.alertsOpen || 0), 0);
   const opsNeedsAttention = opsWorkspaces.filter((row) => row.approvalsOpen > 0 || row.alertsOpen > 0).length;
+  const attentionOpsWorkspaces = opsWorkspaces.filter((row) => row.approvalsOpen > 0 || row.alertsOpen > 0);
   const opsBoardView = boardFilterLabel(boardFilter);
   const filteredOpsWorkspaces = opsWorkspaces.filter((row) => {
     if (boardFilter === "attention") return row.approvalsOpen > 0 || row.alertsOpen > 0;
     if (boardFilter === "clear") return row.approvalsOpen === 0 && row.alertsOpen === 0;
     return true;
   });
-  const defaultFocusedName = filteredOpsWorkspaces.find((row) => row.name === activeWorkspaceName)?.name
-    || filteredOpsWorkspaces[0]?.name
+  const opsFocusRows = attentionMode ? attentionOpsWorkspaces : filteredOpsWorkspaces;
+  const opsRowsToShow = opsFocusRows;
+  const opsViewLabel = attentionMode ? "needs attention" : opsBoardView;
+  const defaultFocusedName = opsFocusRows.find((row) => row.name === activeWorkspaceName)?.name
+    || opsFocusRows[0]?.name
     || "";
-  const resolvedFocusedName = focusedWorkspace && filteredOpsWorkspaces.some((row) => row.name === focusedWorkspace)
+  const resolvedFocusedName = focusedWorkspace && opsFocusRows.some((row) => row.name === focusedWorkspace)
     ? focusedWorkspace
     : defaultFocusedName;
   const focusedOpsWorkspace = resolvedFocusedName
-    ? filteredOpsWorkspaces.find((row) => row.name === resolvedFocusedName)
+    ? opsFocusRows.find((row) => row.name === resolvedFocusedName)
     : undefined;
   const focusedNextCommand = focusedOpsWorkspace ? buildOpsNextCommand(focusedOpsWorkspace) : "";
   const waba = config?.waba || {
@@ -1932,8 +1945,9 @@ function HatchRuntime(): JSX.Element {
       },
       onToggleRail: () => setRightRailCollapsed((prev) => !prev),
       onToggleBoardFilter: () => toggleBoardFilter(),
-      onFocusPrev: () => cycleFocusedWorkspace("prev", filteredOpsWorkspaces),
-      onFocusNext: () => cycleFocusedWorkspace("next", filteredOpsWorkspaces),
+      onToggleAttentionMode: () => toggleAttentionMode(),
+      onFocusPrev: () => cycleFocusedWorkspace("prev", opsFocusRows),
+      onFocusNext: () => cycleFocusedWorkspace("next", opsFocusRows),
       onFocusRun: () => {
         if (!focusedOpsWorkspace) {
           addTurn("system", "No focused workspace yet.");
@@ -2112,6 +2126,7 @@ function HatchRuntime(): JSX.Element {
   const recentRollbacks = state.rollbackHistory.slice(-5);
   const resultPreview = state.results ? JSON.stringify(state.results, null, 2) : "";
   const openItems = memory.unresolved.slice(0, 3);
+  const attentionClear = !lastError && missingSetup.length === 0 && openItems.length === 0 && attentionOpsWorkspaces.length === 0;
   const focusTone = missingSetup.length
     ? theme.warning
     : lastError
@@ -2213,51 +2228,63 @@ function HatchRuntime(): JSX.Element {
         <Text color={theme.muted}> webhook </Text>
         <Text color={theme.muted}>| profile {config?.activeProfile || "default"}</Text>
       </Box>
-      <SectionHeading label="Social Flow hatch" />
-      <FramedBlock title="Runtime">
-        <Text color={theme.text}>
-          profile {config?.activeProfile || "default"} | session {shortText(memory.sessionId, 22)} | connected {connectedCount}/3 | ai {aiLabel}
-        </Text>
-        <Text color={phaseTone}>
-          phase {state.phase.toLowerCase()} | risk {(state.currentRisk || "LOW").toLowerCase()} | confidence {confidenceLabel} | account {selectedAccount}
-        </Text>
-        <Text color={theme.muted}>
-          industry {industryLabel} | memory {memoryLabel} | open items {unresolvedCount} | runtime {runtimeLabel}
-        </Text>
-        <Text color={readinessTone}>readiness {readinessLabel}</Text>
-        <Text color={theme.muted}>
-          setup progress {setupProgress} ({readyCount}/{setupChecklist.length})
-        </Text>
-        {missingSetup.length ? (
-          <Text color={theme.warning}>next: {nextSetupLabel}</Text>
-        ) : null}
-        {missingSetup.length ? (
-          <Box marginTop={1} flexDirection="column">
-            <Text color={theme.warning}>setup checklist</Text>
-            {setupChecklist.map((item) => (
-              <Box key={item.label} flexDirection="column">
-                <Box>
-                  <StatusBadge label={item.ok ? "OK" : "FAIL"} tone={item.ok ? "ok" : "fail"} />
-                  <Text color={item.ok ? theme.text : theme.warning}>
-                    {" "}{item.label}{item.ok ? "" : item.fix ? ` -> ${item.fix}` : ""}
-                  </Text>
-                </Box>
-                {!item.ok && item.hint ? <Text color={theme.muted}>  {item.hint}</Text> : null}
+      {attentionMode ? (
+        <>
+          <SectionHeading label="Attention mode" />
+          <FramedBlock title="Attention mode" borderColor={theme.warning}>
+            <Text color={theme.warning}>Showing only critical panels.</Text>
+            <Text color={theme.muted}>Press c to return to the full view.</Text>
+          </FramedBlock>
+        </>
+      ) : (
+        <>
+          <SectionHeading label="Social Flow hatch" />
+          <FramedBlock title="Runtime">
+            <Text color={theme.text}>
+              profile {config?.activeProfile || "default"} | session {shortText(memory.sessionId, 22)} | connected {connectedCount}/3 | ai {aiLabel}
+            </Text>
+            <Text color={phaseTone}>
+              phase {state.phase.toLowerCase()} | risk {(state.currentRisk || "LOW").toLowerCase()} | confidence {confidenceLabel} | account {selectedAccount}
+            </Text>
+            <Text color={theme.muted}>
+              industry {industryLabel} | memory {memoryLabel} | open items {unresolvedCount} | runtime {runtimeLabel}
+            </Text>
+            <Text color={readinessTone}>readiness {readinessLabel}</Text>
+            <Text color={theme.muted}>
+              setup progress {setupProgress} ({readyCount}/{setupChecklist.length})
+            </Text>
+            {missingSetup.length ? (
+              <Text color={theme.warning}>next: {nextSetupLabel}</Text>
+            ) : null}
+            {missingSetup.length ? (
+              <Box marginTop={1} flexDirection="column">
+                <Text color={theme.warning}>setup checklist</Text>
+                {setupChecklist.map((item) => (
+                  <Box key={item.label} flexDirection="column">
+                    <Box>
+                      <StatusBadge label={item.ok ? "OK" : "FAIL"} tone={item.ok ? "ok" : "fail"} />
+                      <Text color={item.ok ? theme.text : theme.warning}>
+                        {" "}{item.label}{item.ok ? "" : item.fix ? ` -> ${item.fix}` : ""}
+                      </Text>
+                    </Box>
+                    {!item.ok && item.hint ? <Text color={theme.muted}>  {item.hint}</Text> : null}
+                  </Box>
+                ))}
               </Box>
-            ))}
-          </Box>
-        ) : (
-          <Box>
-            <StatusBadge label="OK" tone="ok" />
-            <Text color={theme.success}> setup checklist: all green.</Text>
-          </Box>
-        )}
-        <Text color={theme.muted}>
-          latest {topActivity ? `${shortTime(topActivity.at)} ${topActivity.message.slice(0, 72)}` : "idle"}
-        </Text>
-        {configState.loading ? <Text color={theme.muted}>config loading...</Text> : null}
-        {configState.error ? <Text color={theme.error}>config error: {configState.error}</Text> : null}
-      </FramedBlock>
+            ) : (
+              <Box>
+                <StatusBadge label="OK" tone="ok" />
+                <Text color={theme.success}> setup checklist: all green.</Text>
+              </Box>
+            )}
+            <Text color={theme.muted}>
+              latest {topActivity ? `${shortTime(topActivity.at)} ${topActivity.message.slice(0, 72)}` : "idle"}
+            </Text>
+            {configState.loading ? <Text color={theme.muted}>config loading...</Text> : null}
+            {configState.error ? <Text color={theme.error}>config error: {configState.error}</Text> : null}
+          </FramedBlock>
+        </>
+      )}
 
       {lastError ? (
         <>
@@ -2277,7 +2304,134 @@ function HatchRuntime(): JSX.Element {
         </>
       ) : null}
 
-      {configState.loading ? null : (
+      {configState.loading ? null : attentionMode ? (
+        <>
+          {missingSetup.length ? (
+            <>
+              <SectionHeading label="Setup needs attention" />
+              <FramedBlock title="Setup gaps" borderColor={theme.warning}>
+                {missingSetup.map((item) => (
+                  <Box key={item.label} marginTop={1} flexDirection="column">
+                    <Box>
+                      <Text color={theme.warning}>NEEDS {item.label}</Text>
+                    </Box>
+                    {item.hint ? <Text color={theme.muted}>{item.hint}</Text> : null}
+                    {item.fix ? <Text color={theme.accent}>Do this (copy/paste): {item.fix}</Text> : null}
+                  </Box>
+                ))}
+              </FramedBlock>
+            </>
+          ) : null}
+
+          <SectionHeading label="Agency board" />
+          <FramedBlock title="Ops center">
+            {opsState.loading ? <Text color={theme.muted}>loading ops center...</Text> : null}
+            {opsState.error ? <Text color={theme.error}>ops center error: {opsState.error}</Text> : null}
+            {!opsState.loading && !opsState.error ? (
+              opsWorkspaces.length ? (
+                <Box flexDirection="column">
+                  <Text color={theme.muted}>
+                    workspaces {opsWorkspaces.length} | approvals {opsApprovalsOpen} | alerts {opsAlertsOpen} | needs attention {opsNeedsAttention}
+                  </Text>
+                  <Text color={theme.muted}>
+                    {attentionMode
+                      ? `attention mode: ${opsViewLabel} | showing ${opsRowsToShow.length} of ${opsWorkspaces.length}`
+                      : `view ${opsViewLabel} (press b to toggle) | showing ${opsRowsToShow.length} of ${opsWorkspaces.length}`}
+                  </Text>
+                  {opsRowsToShow.length ? (
+                    opsRowsToShow.map((row) => {
+                      const isActive = row.name === activeWorkspaceName;
+                      const isFocused = row.name === resolvedFocusedName;
+                      const approvalsTone = row.approvalsOpen > 0 ? "fail" : "ok";
+                      const alertsTone = row.alertsOpen > 0 ? "fail" : "ok";
+                      const lastCheck = row.lastMorningRunDate ? row.lastMorningRunDate : "not run";
+                      const lastActivity = row.lastActivity ? formatOpsTime(row.lastActivity) : "none";
+                      const nextCommand = buildOpsNextCommand(row);
+                      return (
+                        <Box key={row.name} marginTop={1} flexDirection="column">
+                          <Box>
+                            <Text color={isActive ? theme.success : theme.text}>
+                              {row.name}{isActive ? " (active)" : ""}{isFocused ? " [focus]" : ""}
+                            </Text>
+                            <Text color={theme.muted}> approvals </Text>
+                            <StatusBadge label={row.approvalsOpen > 0 ? "FAIL" : "OK"} tone={approvalsTone} />
+                            <Text color={theme.muted}> {row.approvalsOpen} </Text>
+                            <Text color={theme.muted}> alerts </Text>
+                            <StatusBadge label={row.alertsOpen > 0 ? "FAIL" : "OK"} tone={alertsTone} />
+                            <Text color={theme.muted}> {row.alertsOpen}</Text>
+                          </Box>
+                          <Text color={theme.muted}>last check {lastCheck} | last activity {lastActivity}</Text>
+                          <Text color={theme.muted}>next: {row.nextAction}</Text>
+                          {nextCommand ? (
+                            <Text color={theme.accent}>Run: {nextCommand}</Text>
+                          ) : null}
+                        </Box>
+                      );
+                    })
+                  ) : (
+                    <Text color={theme.muted}>
+                      {attentionMode ? "No workspaces need attention." : "No workspaces match this view. Press b to show all."}
+                    </Text>
+                  )}
+                  {focusedOpsWorkspace ? (
+                    <Box marginTop={1} flexDirection="column">
+                      <Text color={theme.accent}>Focused workspace</Text>
+                      <Text color={theme.text}>
+                        {focusedOpsWorkspace.name}{focusedOpsWorkspace.name === activeWorkspaceName ? " (active)" : ""}
+                      </Text>
+                      <Text color={theme.muted}>
+                        approvals {focusedOpsWorkspace.approvalsOpen} | alerts {focusedOpsWorkspace.alertsOpen} | last check {focusedOpsWorkspace.lastMorningRunDate || "not run"} | last activity {focusedOpsWorkspace.lastActivity ? formatOpsTime(focusedOpsWorkspace.lastActivity) : "none"}
+                      </Text>
+                      <Text color={theme.muted}>next: {focusedOpsWorkspace.nextAction}</Text>
+                      {focusedNextCommand ? (
+                        <Text color={theme.accent}>Run: {focusedNextCommand}</Text>
+                      ) : null}
+                      <Text color={theme.muted}>Tip: switch active workspace with "social accounts switch &lt;name&gt;".</Text>
+                    </Box>
+                  ) : null}
+                  <Text color={theme.muted}>Tip: press b to filter to needs attention or all clear.</Text>
+                  <Text color={theme.muted}>Tip: press [ and ] to move focus across workspaces.</Text>
+                  <Text color={theme.muted}>Tip: press f to run the focused workspace next action.</Text>
+                  <Text color={theme.muted}>Tip: press c to toggle attention mode.</Text>
+                  <Text color={theme.muted}>Tip: run "social ops center" for a full CLI view.</Text>
+                </Box>
+              ) : (
+                <Text color={theme.muted}>No workspaces found. Add one with: social accounts add &lt;name&gt;</Text>
+              )
+            ) : null}
+          </FramedBlock>
+
+          {openItems.length ? (
+            <>
+              <SectionHeading label="Open items" />
+              <FramedBlock title="Open items">
+                <Box marginTop={1} flexDirection="column">
+                  <Text color={theme.accent}>Open items</Text>
+                  {openItems.map((item, idx) => (
+                    <Box key={`${item.at}-${item.text}`}>
+                      <StatusBadge label="FAIL" tone="fail" />
+                      <Text color={theme.muted}>
+                        {" "}[{idx + 1}] {shortText(item.text, 90)} ({unresolvedHint(item)}) — open {idx + 1} | retry {idx + 1} | o{idx + 1} | r{idx + 1}
+                      </Text>
+                    </Box>
+                  ))}
+                  <Text color={theme.muted}>Tip: press 1-3 to open/retry an item quickly.</Text>
+                </Box>
+              </FramedBlock>
+            </>
+          ) : null}
+
+          {attentionClear ? (
+            <>
+              <SectionHeading label="All clear" />
+              <FramedBlock title="All clear" borderColor={theme.success}>
+                <Text color={theme.success}>No critical items right now.</Text>
+                <Text color={theme.muted}>Press c to return to the full view.</Text>
+              </FramedBlock>
+            </>
+          ) : null}
+        </>
+      ) : (
         <>
           <SectionHeading label="Focus" />
           <FramedBlock title="Next move" borderColor={focusTone}>
@@ -2375,10 +2529,12 @@ function HatchRuntime(): JSX.Element {
                     workspaces {opsWorkspaces.length} | approvals {opsApprovalsOpen} | alerts {opsAlertsOpen} | needs attention {opsNeedsAttention}
                   </Text>
                   <Text color={theme.muted}>
-                    view {opsBoardView} (press b to toggle) | showing {filteredOpsWorkspaces.length} of {opsWorkspaces.length}
+                    {attentionMode
+                      ? `attention mode: ${opsViewLabel} | showing ${opsRowsToShow.length} of ${opsWorkspaces.length}`
+                      : `view ${opsViewLabel} (press b to toggle) | showing ${opsRowsToShow.length} of ${opsWorkspaces.length}`}
                   </Text>
-                  {filteredOpsWorkspaces.length ? (
-                    filteredOpsWorkspaces.map((row) => {
+                  {opsRowsToShow.length ? (
+                    opsRowsToShow.map((row) => {
                       const isActive = row.name === activeWorkspaceName;
                       const isFocused = row.name === resolvedFocusedName;
                       const approvalsTone = row.approvalsOpen > 0 ? "fail" : "ok";
@@ -2408,7 +2564,9 @@ function HatchRuntime(): JSX.Element {
                       );
                     })
                   ) : (
-                    <Text color={theme.muted}>No workspaces match this view. Press b to show all.</Text>
+                    <Text color={theme.muted}>
+                      {attentionMode ? "No workspaces need attention." : "No workspaces match this view. Press b to show all."}
+                    </Text>
                   )}
                   {focusedOpsWorkspace ? (
                     <Box marginTop={1} flexDirection="column">
@@ -2429,6 +2587,7 @@ function HatchRuntime(): JSX.Element {
                   <Text color={theme.muted}>Tip: press b to filter to needs attention or all clear.</Text>
                   <Text color={theme.muted}>Tip: press [ and ] to move focus across workspaces.</Text>
                   <Text color={theme.muted}>Tip: press f to run the focused workspace next action.</Text>
+                  <Text color={theme.muted}>Tip: press c to toggle attention mode.</Text>
                   <Text color={theme.muted}>Tip: run "social ops center" for a full CLI view.</Text>
                 </Box>
               ) : (
@@ -2627,7 +2786,7 @@ function HatchRuntime(): JSX.Element {
           <Text color={theme.text}>Memory: say `my name is ...` and later ask `what's my name`.</Text>
           <Text color={theme.text}>Keys: Enter/y approve, n/r reject, e edit slots, d diagnostics.</Text>
           <Text color={theme.text}>Quick: g guided setup, n next step, l logs, {`1-${Math.min(9, quickActions.length)}`} run onboarding steps.</Text>
-          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, [ ] cycle focus, f run focus, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
+          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, c attention mode, [ ] cycle focus, f run focus, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
           <Text color={theme.muted}>Tokens: type "fix token" or "open whatsapp token" to launch the dashboard.</Text>
           </FramedBlock>
         </>
@@ -2640,7 +2799,7 @@ function HatchRuntime(): JSX.Element {
       </Box>
       <Text color={state.currentRisk === "HIGH" ? riskTone : theme.accent}>{actionHint}</Text>
       <Text color={theme.muted}>
-        Enter confirm | / palette (filter) | b board | [ ] focus | f run | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
+        Enter confirm | / palette (filter) | b board | c attention | [ ] focus | f run | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
       </Text>
     </Box>
   );

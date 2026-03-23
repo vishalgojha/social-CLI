@@ -10,6 +10,7 @@ export interface ShortcutHandlers {
   onToggleRail: () => void;
   onPaletteToggle: () => void;
   onToggleBoardFilter: () => void;
+  onToggleAttentionMode: () => void;
   onFocusPrev: () => void;
   onFocusNext: () => void;
   onFocusRun: () => void;
@@ -91,6 +92,10 @@ export function handleShortcut(
   }
   if (input === "b" && allowSingleKey && phase === "INPUT") {
     handlers.onToggleBoardFilter();
+    return true;
+  }
+  if (input === "c" && allowSingleKey && phase === "INPUT") {
+    handlers.onToggleAttentionMode();
     return true;
   }
   if (input === "[" && allowSingleKey && phase === "INPUT") {

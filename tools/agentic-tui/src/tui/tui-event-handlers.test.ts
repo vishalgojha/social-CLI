@@ -13,6 +13,7 @@ function handlerFlags() {
     reject: false,
     rail: false,
     boardFilter: false,
+    attentionMode: false,
     focusPrev: false,
     focusNext: false,
     focusRun: false,
@@ -39,6 +40,7 @@ function handlers(flags: ReturnType<typeof handlerFlags>) {
     onReject: () => { flags.reject = true; },
     onToggleRail: () => { flags.rail = true; },
     onToggleBoardFilter: () => { flags.boardFilter = true; },
+    onToggleAttentionMode: () => { flags.attentionMode = true; },
     onFocusPrev: () => { flags.focusPrev = true; },
     onFocusNext: () => { flags.focusNext = true; },
     onFocusRun: () => { flags.focusRun = true; },
@@ -126,6 +128,18 @@ export const shortcutHandlerTests: TuiTestCase[] = [
       });
       assert.equal(consumed, true);
       assert.equal(flags.boardFilter, true);
+    }
+  },
+  {
+    name: "c toggles attention mode in input phase",
+    fn: () => {
+      const flags = handlerFlags();
+      const consumed = handleShortcut("c", {}, false, handlers(flags), {
+        phase: "INPUT",
+        hasDraftText: false
+      });
+      assert.equal(consumed, true);
+      assert.equal(flags.attentionMode, true);
     }
   },
   {
