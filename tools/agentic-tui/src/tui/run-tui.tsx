@@ -770,6 +770,7 @@ function HatchRuntime(): JSX.Element {
   const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
   const [focusedWorkspace, setFocusedWorkspace] = useState<string>("");
   const [attentionMode, setAttentionMode] = useState(false);
+  const [quietMode, setQuietMode] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState("default");
   const [replaySuggestionIndex, setReplaySuggestionIndex] = useState(0);
   const [inputHistory, setInputHistory] = useState<string[]>([]);
@@ -882,6 +883,14 @@ function HatchRuntime(): JSX.Element {
     setAttentionMode((prev) => {
       const next = !prev;
       addTurn("system", next ? "Attention mode on: showing only critical panels." : "Attention mode off: full view restored.");
+      return next;
+    });
+  }, [addTurn]);
+
+  const toggleQuietMode = useCallback(() => {
+    setQuietMode((prev) => {
+      const next = !prev;
+      addTurn("system", next ? "Quiet mode on: hiding transcript and diagnostics." : "Quiet mode off: full view restored.");
       return next;
     });
   }, [addTurn]);
@@ -1995,6 +2004,7 @@ function HatchRuntime(): JSX.Element {
         dispatch({ type: "SET_INPUT", value: focusedAlertsCommand });
         void parseAndQueueIntent(focusedAlertsCommand);
       },
+      onToggleQuietMode: () => toggleQuietMode(),
       onPaletteToggle: () => {
         setPaletteQuery("");
         setShowPalette(true);
@@ -2267,8 +2277,8 @@ function HatchRuntime(): JSX.Element {
         <>
           <SectionHeading label="Attention mode" />
           <FramedBlock title="Attention mode" borderColor={theme.warning}>
-            <Text color={theme.warning}>Showing only critical panels.</Text>
-            <Text color={theme.muted}>Press c to return to the full view.</Text>
+          <Text color={theme.warning}>Showing only critical panels.</Text>
+          <Text color={theme.muted}>Press c to return to the full view. Press v for quiet mode.</Text>
           </FramedBlock>
         </>
       ) : (
@@ -2432,6 +2442,7 @@ function HatchRuntime(): JSX.Element {
                   <Text color={theme.muted}>Tip: press s to switch to the focused workspace.</Text>
                   <Text color={theme.muted}>Tip: press a for approvals, e for alerts.</Text>
                   <Text color={theme.muted}>Tip: press c to toggle attention mode.</Text>
+                  <Text color={theme.muted}>Tip: press v for quiet mode.</Text>
                   <Text color={theme.muted}>Tip: run "social ops center" for a full CLI view.</Text>
                 </Box>
               ) : (
@@ -2699,24 +2710,28 @@ function HatchRuntime(): JSX.Element {
         </>
       )}
 
-      <SectionHeading label="Transcript" />
-      <Box marginTop={1} flexDirection="column">
-        {chatTurns.slice(-16).map((turn) => (
-          turn.role === "user" ? (
-            <Box key={turn.id} marginTop={1} paddingX={1} borderStyle="single" borderColor={theme.muted}>
-              <Text color={theme.text}>{turn.text || "..."}</Text>
-            </Box>
-          ) : (
-            <Box key={turn.id} marginTop={1}>
-              <Text color={turn.role === "assistant" ? theme.text : theme.muted}>
-                {turn.role === "system" ? `· ${turn.text || "..."}` : (turn.text || "...")}
-              </Text>
-            </Box>
-          )
-        ))}
-      </Box>
+      {!quietMode ? (
+        <>
+          <SectionHeading label="Transcript" />
+          <Box marginTop={1} flexDirection="column">
+            {chatTurns.slice(-16).map((turn) => (
+              turn.role === "user" ? (
+                <Box key={turn.id} marginTop={1} paddingX={1} borderStyle="single" borderColor={theme.muted}>
+                  <Text color={theme.text}>{turn.text || "..."}</Text>
+                </Box>
+              ) : (
+                <Box key={turn.id} marginTop={1}>
+                  <Text color={turn.role === "assistant" ? theme.text : theme.muted}>
+                    {turn.role === "system" ? `· ${turn.text || "..."}` : (turn.text || "...")}
+                  </Text>
+                </Box>
+              )
+            ))}
+          </Box>
+        </>
+      ) : null}
 
-      {verboseMode ? (
+      {verboseMode && !quietMode ? (
         <>
           <SectionHeading label="Diagnostics" />
           <FramedBlock title="Execution rail" borderColor={state.currentRisk === "HIGH" ? riskTone : theme.muted}>
@@ -2825,7 +2840,7 @@ function HatchRuntime(): JSX.Element {
           <Text color={theme.text}>Memory: say `my name is ...` and later ask `what's my name`.</Text>
           <Text color={theme.text}>Keys: Enter/y approve, n/r reject, e edit slots, d diagnostics.</Text>
           <Text color={theme.text}>Quick: g guided setup, n next step, l logs, {`1-${Math.min(9, quickActions.length)}`} run onboarding steps.</Text>
-          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, c attention mode, [ ] cycle focus, f run focus, s switch workspace, a approvals, e alerts, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
+          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, c attention mode, v quiet mode, [ ] cycle focus, f run focus, s switch workspace, a approvals, e alerts, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
           <Text color={theme.muted}>Tokens: type "fix token" or "open whatsapp token" to launch the dashboard.</Text>
           </FramedBlock>
         </>
@@ -2838,7 +2853,7 @@ function HatchRuntime(): JSX.Element {
       </Box>
       <Text color={state.currentRisk === "HIGH" ? riskTone : theme.accent}>{actionHint}</Text>
       <Text color={theme.muted}>
-        Enter confirm | / palette (filter) | b board | c attention | [ ] focus | f run | s switch | a approvals | e alerts | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
+        Enter confirm | / palette (filter) | b board | c attention | v quiet | [ ] focus | f run | s switch | a approvals | e alerts | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
       </Text>
     </Box>
   );

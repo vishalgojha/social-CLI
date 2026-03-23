@@ -20,6 +20,7 @@ function handlerFlags() {
     focusActivate: false,
     focusApprovals: false,
     focusAlerts: false,
+    quietMode: false,
     palette: false,
     guide: false,
     nextAction: false,
@@ -50,6 +51,7 @@ function handlers(flags: ReturnType<typeof handlerFlags>) {
     onFocusActivate: () => { flags.focusActivate = true; },
     onFocusApprovals: () => { flags.focusApprovals = true; },
     onFocusAlerts: () => { flags.focusAlerts = true; },
+    onToggleQuietMode: () => { flags.quietMode = true; },
     onPaletteToggle: () => { flags.palette = true; },
     onGuide: () => { flags.guide = true; },
     onNextAction: () => { flags.nextAction = true; },
@@ -212,6 +214,18 @@ export const shortcutHandlerTests: TuiTestCase[] = [
       });
       assert.equal(consumed, true);
       assert.equal(flags.focusAlerts, true);
+    }
+  },
+  {
+    name: "v toggles quiet mode in input phase",
+    fn: () => {
+      const flags = handlerFlags();
+      const consumed = handleShortcut("v", {}, false, handlers(flags), {
+        phase: "INPUT",
+        hasDraftText: false
+      });
+      assert.equal(consumed, true);
+      assert.equal(flags.quietMode, true);
     }
   },
   {
