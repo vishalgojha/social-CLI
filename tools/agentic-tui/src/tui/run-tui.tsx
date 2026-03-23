@@ -1208,6 +1208,12 @@ function HatchRuntime(): JSX.Element {
     ? opsFocusRows.find((row) => row.name === resolvedFocusedName)
     : undefined;
   const focusedNextCommand = focusedOpsWorkspace ? buildOpsNextCommand(focusedOpsWorkspace) : "";
+  const focusedApprovalsCommand = focusedOpsWorkspace
+    ? `social ops approvals list --workspace ${focusedOpsWorkspace.name} --open`
+    : "";
+  const focusedAlertsCommand = focusedOpsWorkspace
+    ? `social ops alerts list --workspace ${focusedOpsWorkspace.name} --open`
+    : "";
   const waba = config?.waba || {
     connected: false,
     businessId: "",
@@ -1973,6 +1979,22 @@ function HatchRuntime(): JSX.Element {
         dispatch({ type: "SET_INPUT", value: command });
         void parseAndQueueIntent(command);
       },
+      onFocusApprovals: () => {
+        if (!focusedOpsWorkspace) {
+          addTurn("system", "No focused workspace yet.");
+          return;
+        }
+        dispatch({ type: "SET_INPUT", value: focusedApprovalsCommand });
+        void parseAndQueueIntent(focusedApprovalsCommand);
+      },
+      onFocusAlerts: () => {
+        if (!focusedOpsWorkspace) {
+          addTurn("system", "No focused workspace yet.");
+          return;
+        }
+        dispatch({ type: "SET_INPUT", value: focusedAlertsCommand });
+        void parseAndQueueIntent(focusedAlertsCommand);
+      },
       onPaletteToggle: () => {
         setPaletteQuery("");
         setShowPalette(true);
@@ -2399,6 +2421,8 @@ function HatchRuntime(): JSX.Element {
                       {focusedNextCommand ? (
                         <Text color={theme.accent}>Run: {focusedNextCommand}</Text>
                       ) : null}
+                      <Text color={theme.accent}>Approvals (a): {focusedApprovalsCommand}</Text>
+                      <Text color={theme.accent}>Alerts (e): {focusedAlertsCommand}</Text>
                       <Text color={theme.muted}>Tip: press s to switch to the focused workspace.</Text>
                     </Box>
                   ) : null}
@@ -2406,6 +2430,7 @@ function HatchRuntime(): JSX.Element {
                   <Text color={theme.muted}>Tip: press [ and ] to move focus across workspaces.</Text>
                   <Text color={theme.muted}>Tip: press f to run the focused workspace next action.</Text>
                   <Text color={theme.muted}>Tip: press s to switch to the focused workspace.</Text>
+                  <Text color={theme.muted}>Tip: press a for approvals, e for alerts.</Text>
                   <Text color={theme.muted}>Tip: press c to toggle attention mode.</Text>
                   <Text color={theme.muted}>Tip: run "social ops center" for a full CLI view.</Text>
                 </Box>
@@ -2800,7 +2825,7 @@ function HatchRuntime(): JSX.Element {
           <Text color={theme.text}>Memory: say `my name is ...` and later ask `what's my name`.</Text>
           <Text color={theme.text}>Keys: Enter/y approve, n/r reject, e edit slots, d diagnostics.</Text>
           <Text color={theme.text}>Quick: g guided setup, n next step, l logs, {`1-${Math.min(9, quickActions.length)}`} run onboarding steps.</Text>
-          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, c attention mode, [ ] cycle focus, f run focus, s switch workspace, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
+          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, c attention mode, [ ] cycle focus, f run focus, s switch workspace, a approvals, e alerts, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
           <Text color={theme.muted}>Tokens: type "fix token" or "open whatsapp token" to launch the dashboard.</Text>
           </FramedBlock>
         </>
@@ -2813,7 +2838,7 @@ function HatchRuntime(): JSX.Element {
       </Box>
       <Text color={state.currentRisk === "HIGH" ? riskTone : theme.accent}>{actionHint}</Text>
       <Text color={theme.muted}>
-        Enter confirm | / palette (filter) | b board | c attention | [ ] focus | f run | s switch | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
+        Enter confirm | / palette (filter) | b board | c attention | [ ] focus | f run | s switch | a approvals | e alerts | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
       </Text>
     </Box>
   );

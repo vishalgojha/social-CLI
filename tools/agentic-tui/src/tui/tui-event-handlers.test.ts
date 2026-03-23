@@ -18,6 +18,8 @@ function handlerFlags() {
     focusNext: false,
     focusRun: false,
     focusActivate: false,
+    focusApprovals: false,
+    focusAlerts: false,
     palette: false,
     guide: false,
     nextAction: false,
@@ -46,6 +48,8 @@ function handlers(flags: ReturnType<typeof handlerFlags>) {
     onFocusNext: () => { flags.focusNext = true; },
     onFocusRun: () => { flags.focusRun = true; },
     onFocusActivate: () => { flags.focusActivate = true; },
+    onFocusApprovals: () => { flags.focusApprovals = true; },
+    onFocusAlerts: () => { flags.focusAlerts = true; },
     onPaletteToggle: () => { flags.palette = true; },
     onGuide: () => { flags.guide = true; },
     onNextAction: () => { flags.nextAction = true; },
@@ -184,6 +188,30 @@ export const shortcutHandlerTests: TuiTestCase[] = [
       });
       assert.equal(consumed, true);
       assert.equal(flags.focusActivate, true);
+    }
+  },
+  {
+    name: "a opens focused approvals in input phase",
+    fn: () => {
+      const flags = handlerFlags();
+      const consumed = handleShortcut("a", {}, false, handlers(flags), {
+        phase: "INPUT",
+        hasDraftText: false
+      });
+      assert.equal(consumed, true);
+      assert.equal(flags.focusApprovals, true);
+    }
+  },
+  {
+    name: "e opens focused alerts in input phase",
+    fn: () => {
+      const flags = handlerFlags();
+      const consumed = handleShortcut("e", {}, false, handlers(flags), {
+        phase: "INPUT",
+        hasDraftText: false
+      });
+      assert.equal(consumed, true);
+      assert.equal(flags.focusAlerts, true);
     }
   },
   {
