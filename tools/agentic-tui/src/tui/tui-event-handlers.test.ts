@@ -13,6 +13,8 @@ function handlerFlags() {
     reject: false,
     rail: false,
     boardFilter: false,
+    focusPrev: false,
+    focusNext: false,
     palette: false,
     guide: false,
     nextAction: false,
@@ -36,6 +38,8 @@ function handlers(flags: ReturnType<typeof handlerFlags>) {
     onReject: () => { flags.reject = true; },
     onToggleRail: () => { flags.rail = true; },
     onToggleBoardFilter: () => { flags.boardFilter = true; },
+    onFocusPrev: () => { flags.focusPrev = true; },
+    onFocusNext: () => { flags.focusNext = true; },
     onPaletteToggle: () => { flags.palette = true; },
     onGuide: () => { flags.guide = true; },
     onNextAction: () => { flags.nextAction = true; },
@@ -120,6 +124,24 @@ export const shortcutHandlerTests: TuiTestCase[] = [
       });
       assert.equal(consumed, true);
       assert.equal(flags.boardFilter, true);
+    }
+  },
+  {
+    name: "[ and ] cycle focused workspace in input phase",
+    fn: () => {
+      const flags = handlerFlags();
+      const prev = handleShortcut("[", {}, false, handlers(flags), {
+        phase: "INPUT",
+        hasDraftText: false
+      });
+      const next = handleShortcut("]", {}, false, handlers(flags), {
+        phase: "INPUT",
+        hasDraftText: false
+      });
+      assert.equal(prev, true);
+      assert.equal(next, true);
+      assert.equal(flags.focusPrev, true);
+      assert.equal(flags.focusNext, true);
     }
   },
   {

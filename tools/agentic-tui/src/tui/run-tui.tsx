@@ -768,6 +768,7 @@ function HatchRuntime(): JSX.Element {
   const [paletteQuery, setPaletteQuery] = useState("");
   const [rightRailCollapsed, setRightRailCollapsed] = useState(false);
   const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
+  const [focusedWorkspace, setFocusedWorkspace] = useState<string>("");
   const [selectedAccount, setSelectedAccount] = useState("default");
   const [replaySuggestionIndex, setReplaySuggestionIndex] = useState(0);
   const [inputHistory, setInputHistory] = useState<string[]>([]);
@@ -875,6 +876,20 @@ function HatchRuntime(): JSX.Element {
       return next;
     });
   }, [addTurn]);
+
+  const cycleFocusedWorkspace = useCallback((direction: "prev" | "next", rows: OpsRow[]) => {
+    if (!rows.length) return;
+    const currentIndex = focusedWorkspace
+      ? rows.findIndex((row) => row.name === focusedWorkspace)
+      : -1;
+    const baseIndex = currentIndex >= 0 ? currentIndex : 0;
+    const offset = direction === "prev" ? -1 : 1;
+    const nextIndex = (baseIndex + offset + rows.length) % rows.length;
+    const next = rows[nextIndex]?.name || "";
+    if (!next) return;
+    setFocusedWorkspace(next);
+    addTurn("system", `Focused workspace: ${next}.`);
+  }, [addTurn, focusedWorkspace]);
 
   const streamPhase = useCallback(async (label: string, detail?: string) => {
     await streamAssistantTurn(`${label}${detail ? `: ${detail}` : ""}`);
@@ -1170,7 +1185,15 @@ function HatchRuntime(): JSX.Element {
     if (boardFilter === "clear") return row.approvalsOpen === 0 && row.alertsOpen === 0;
     return true;
   });
-  const focusedOpsWorkspace = filteredOpsWorkspaces.find((row) => row.name === activeWorkspaceName) || filteredOpsWorkspaces[0];
+  const defaultFocusedName = filteredOpsWorkspaces.find((row) => row.name === activeWorkspaceName)?.name
+    || filteredOpsWorkspaces[0]?.name
+    || "";
+  const resolvedFocusedName = focusedWorkspace && filteredOpsWorkspaces.some((row) => row.name === focusedWorkspace)
+    ? focusedWorkspace
+    : defaultFocusedName;
+  const focusedOpsWorkspace = resolvedFocusedName
+    ? filteredOpsWorkspaces.find((row) => row.name === resolvedFocusedName)
+    : undefined;
   const focusedNextCommand = focusedOpsWorkspace ? buildOpsNextCommand(focusedOpsWorkspace) : "";
   const waba = config?.waba || {
     connected: false,
@@ -1223,6 +1246,11 @@ function HatchRuntime(): JSX.Element {
         ? { label: "Check status", command: "status" }
         : { label: "Run doctor", command: "social doctor" };
   const authIssue = Boolean(lastError && isSetupOrAuthError(lastError));
+
+  useEffect(() => {
+    if (!resolvedFocusedName || resolvedFocusedName === focusedWorkspace) return;
+    setFocusedWorkspace(resolvedFocusedName);
+  }, [focusedWorkspace, resolvedFocusedName]);
 
   const parseAndQueueIntent = useCallback(async (raw: string): Promise<void> => {
     const input = String(raw || "").trim();
@@ -1904,6 +1932,8 @@ function HatchRuntime(): JSX.Element {
       },
       onToggleRail: () => setRightRailCollapsed((prev) => !prev),
       onToggleBoardFilter: () => toggleBoardFilter(),
+      onFocusPrev: () => cycleFocusedWorkspace("prev", filteredOpsWorkspaces),
+      onFocusNext: () => cycleFocusedWorkspace("next", filteredOpsWorkspaces),
       onPaletteToggle: () => {
         setPaletteQuery("");
         setShowPalette(true);
@@ -2338,6 +2368,7 @@ function HatchRuntime(): JSX.Element {
                   {filteredOpsWorkspaces.length ? (
                     filteredOpsWorkspaces.map((row) => {
                       const isActive = row.name === activeWorkspaceName;
+                      const isFocused = row.name === resolvedFocusedName;
                       const approvalsTone = row.approvalsOpen > 0 ? "fail" : "ok";
                       const alertsTone = row.alertsOpen > 0 ? "fail" : "ok";
                       const lastCheck = row.lastMorningRunDate ? row.lastMorningRunDate : "not run";
@@ -2347,7 +2378,7 @@ function HatchRuntime(): JSX.Element {
                         <Box key={row.name} marginTop={1} flexDirection="column">
                           <Box>
                             <Text color={isActive ? theme.success : theme.text}>
-                              {row.name}{isActive ? " (active)" : ""}
+                              {row.name}{isActive ? " (active)" : ""}{isFocused ? " [focus]" : ""}
                             </Text>
                             <Text color={theme.muted}> approvals </Text>
                             <StatusBadge label={row.approvalsOpen > 0 ? "FAIL" : "OK"} tone={approvalsTone} />
@@ -2384,6 +2415,7 @@ function HatchRuntime(): JSX.Element {
                     </Box>
                   ) : null}
                   <Text color={theme.muted}>Tip: press b to filter to needs attention or all clear.</Text>
+                  <Text color={theme.muted}>Tip: press [ and ] to move focus across workspaces.</Text>
                   <Text color={theme.muted}>Tip: run "social ops center" for a full CLI view.</Text>
                 </Box>
               ) : (
@@ -2582,7 +2614,7 @@ function HatchRuntime(): JSX.Element {
           <Text color={theme.text}>Memory: say `my name is ...` and later ask `what's my name`.</Text>
           <Text color={theme.text}>Keys: Enter/y approve, n/r reject, e edit slots, d diagnostics.</Text>
           <Text color={theme.text}>Quick: g guided setup, n next step, l logs, {`1-${Math.min(9, quickActions.length)}`} run onboarding steps.</Text>
-          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
+          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, [ ] cycle focus, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
           <Text color={theme.muted}>Tokens: type "fix token" or "open whatsapp token" to launch the dashboard.</Text>
           </FramedBlock>
         </>
@@ -2595,7 +2627,7 @@ function HatchRuntime(): JSX.Element {
       </Box>
       <Text color={state.currentRisk === "HIGH" ? riskTone : theme.accent}>{actionHint}</Text>
       <Text color={theme.muted}>
-        Enter confirm | / palette (filter) | b board | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
+        Enter confirm | / palette (filter) | b board | [ ] focus | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
       </Text>
     </Box>
   );
