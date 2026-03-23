@@ -230,6 +230,21 @@ function boardFilterLabel(current: BoardFilter): string {
   return "all";
 }
 
+type OpsRow = OpsCenterSnapshot["workspaces"][number];
+
+function buildOpsNextCommand(row: OpsRow): string {
+  if (row.nextAction === "Review approvals") {
+    return `social ops approvals list --workspace ${row.name} --open`;
+  }
+  if (row.nextAction === "Review alerts") {
+    return `social ops alerts list --workspace ${row.name} --open`;
+  }
+  if (row.nextAction === "Run morning check") {
+    return `social ops morning-run --workspace ${row.name} --spend 0`;
+  }
+  return "";
+}
+
 type QuickAction = { label: string; command: string };
 
 function dedupeQuickActions(actions: QuickAction[]): QuickAction[] {
@@ -1145,6 +1160,7 @@ function HatchRuntime(): JSX.Element {
   const config = configState.data;
   const opsSnapshot = opsState.data;
   const opsWorkspaces = opsSnapshot?.workspaces ?? [];
+  const activeWorkspaceName = String(opsSnapshot?.activeWorkspace || config?.activeProfile || "").trim();
   const opsApprovalsOpen = opsWorkspaces.reduce((acc, row) => acc + (row.approvalsOpen || 0), 0);
   const opsAlertsOpen = opsWorkspaces.reduce((acc, row) => acc + (row.alertsOpen || 0), 0);
   const opsNeedsAttention = opsWorkspaces.filter((row) => row.approvalsOpen > 0 || row.alertsOpen > 0).length;
@@ -1154,6 +1170,8 @@ function HatchRuntime(): JSX.Element {
     if (boardFilter === "clear") return row.approvalsOpen === 0 && row.alertsOpen === 0;
     return true;
   });
+  const focusedOpsWorkspace = filteredOpsWorkspaces.find((row) => row.name === activeWorkspaceName) || filteredOpsWorkspaces[0];
+  const focusedNextCommand = focusedOpsWorkspace ? buildOpsNextCommand(focusedOpsWorkspace) : "";
   const waba = config?.waba || {
     connected: false,
     businessId: "",
@@ -2319,18 +2337,12 @@ function HatchRuntime(): JSX.Element {
                   </Text>
                   {filteredOpsWorkspaces.length ? (
                     filteredOpsWorkspaces.map((row) => {
-                      const isActive = row.name === (opsSnapshot?.activeWorkspace || config?.activeProfile);
+                      const isActive = row.name === activeWorkspaceName;
                       const approvalsTone = row.approvalsOpen > 0 ? "fail" : "ok";
                       const alertsTone = row.alertsOpen > 0 ? "fail" : "ok";
                       const lastCheck = row.lastMorningRunDate ? row.lastMorningRunDate : "not run";
                       const lastActivity = row.lastActivity ? formatOpsTime(row.lastActivity) : "none";
-                      const nextCommand = row.nextAction === "Review approvals"
-                        ? `social ops approvals list --workspace ${row.name} --open`
-                        : row.nextAction === "Review alerts"
-                          ? `social ops alerts list --workspace ${row.name} --open`
-                          : row.nextAction === "Run morning check"
-                            ? `social ops morning-run --workspace ${row.name} --spend 0`
-                            : "";
+                      const nextCommand = buildOpsNextCommand(row);
                       return (
                         <Box key={row.name} marginTop={1} flexDirection="column">
                           <Box>
@@ -2355,6 +2367,22 @@ function HatchRuntime(): JSX.Element {
                   ) : (
                     <Text color={theme.muted}>No workspaces match this view. Press b to show all.</Text>
                   )}
+                  {focusedOpsWorkspace ? (
+                    <Box marginTop={1} flexDirection="column">
+                      <Text color={theme.accent}>Focused workspace</Text>
+                      <Text color={theme.text}>
+                        {focusedOpsWorkspace.name}{focusedOpsWorkspace.name === activeWorkspaceName ? " (active)" : ""}
+                      </Text>
+                      <Text color={theme.muted}>
+                        approvals {focusedOpsWorkspace.approvalsOpen} | alerts {focusedOpsWorkspace.alertsOpen} | last check {focusedOpsWorkspace.lastMorningRunDate || "not run"} | last activity {focusedOpsWorkspace.lastActivity ? formatOpsTime(focusedOpsWorkspace.lastActivity) : "none"}
+                      </Text>
+                      <Text color={theme.muted}>next: {focusedOpsWorkspace.nextAction}</Text>
+                      {focusedNextCommand ? (
+                        <Text color={theme.accent}>Run: {focusedNextCommand}</Text>
+                      ) : null}
+                      <Text color={theme.muted}>Tip: switch active workspace with "social accounts switch &lt;name&gt;".</Text>
+                    </Box>
+                  ) : null}
                   <Text color={theme.muted}>Tip: press b to filter to needs attention or all clear.</Text>
                   <Text color={theme.muted}>Tip: run "social ops center" for a full CLI view.</Text>
                 </Box>
