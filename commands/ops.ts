@@ -5,6 +5,7 @@ const config = require('../lib/config');
 const storage = require('../lib/ops/storage');
 const rbac = require('../lib/ops/rbac');
 const workflows = require('../lib/ops/workflows');
+const { renderPanel, formatBadge } = require('../lib/ui/chrome');
 
 function workspaceFrom(options) {
   return storage.sanitizeWorkspace(options?.workspace || config.getActiveProfile() || 'default');
@@ -36,6 +37,74 @@ function csvIds(v) {
     .split(',')
     .map((x) => x.trim())
     .filter(Boolean);
+}
+
+function formatWhen(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const ts = Date.parse(raw);
+  if (!Number.isFinite(ts)) return raw;
+  return new Date(ts).toISOString().replace('T', ' ').slice(0, 16);
+}
+
+function latestTimestamp(rows, keys) {
+  const items = Array.isArray(rows) ? rows : [];
+  const fields = Array.isArray(keys) ? keys : [];
+  let latest = '';
+  let latestTs = 0;
+  items.forEach((row) => {
+    fields.forEach((field) => {
+      const raw = String(row?.[field] || '').trim();
+      if (!raw) return;
+      const ts = Date.parse(raw);
+      if (Number.isFinite(ts) && ts > latestTs) {
+        latestTs = ts;
+        latest = raw;
+      }
+    });
+  });
+  return latest;
+}
+
+function deriveNextOpsAction({ approvalsOpen, alertsOpen, lastMorningRunDate }) {
+  if (approvalsOpen > 0) return 'Review approvals';
+  if (alertsOpen > 0) return 'Review alerts';
+  if (!lastMorningRunDate) return 'Run morning check';
+  return 'All clear';
+}
+
+function buildOpsCenterSnapshot({
+  workspace,
+  approvals = [],
+  alerts = [],
+  actions = [],
+  outcomes = [],
+  state = {}
+}) {
+  const approvalsOpen = approvals.filter((a) => String(a?.status || '') === 'pending').length;
+  const alertsOpen = alerts.filter((a) => String(a?.status || '') === 'open').length;
+  const lastActionAt = latestTimestamp(actions, ['when', 'createdAt']);
+  const lastOutcomeAt = latestTimestamp(outcomes, ['createdAt']);
+  const lastActivity = latestTimestamp([{ at: lastActionAt }, { at: lastOutcomeAt }], ['at']);
+  const lastActionSummary = actions.length
+    ? String(actions[actions.length - 1]?.summary || actions[actions.length - 1]?.action || '')
+    : '';
+  const lastOutcomeSummary = outcomes.length
+    ? String(outcomes[outcomes.length - 1]?.summary || outcomes[outcomes.length - 1]?.kind || '')
+    : '';
+  const lastMorningRunDate = String(state?.lastMorningRunDate || '').trim();
+  const nextAction = deriveNextOpsAction({ approvalsOpen, alertsOpen, lastMorningRunDate });
+
+  return {
+    workspace,
+    approvalsOpen,
+    alertsOpen,
+    lastActivity,
+    lastMorningRunDate,
+    lastActionSummary,
+    lastOutcomeSummary,
+    nextAction
+  };
 }
 
 function printRows(title, rows) {
@@ -335,6 +404,84 @@ function registerOpsCommands(program) {
       }
       console.log(chalk.green(`\nOK Ops workspace ready: ${ws}`));
       console.log(chalk.gray(`Morning schedule: ${schedule.id} (${schedule.runAt}, repeat=${schedule.repeat})\n`));
+    });
+
+  ops
+    .command('center')
+    .description('Ops command center summary across workspaces')
+    .option('--workspaces <names>', 'Comma-separated workspace names (default: all profiles)')
+    .option('--json', 'Output JSON')
+    .action((options) => {
+      const explicit = csvIds(options.workspaces);
+      const all = config.listProfiles();
+      const workspaces = explicit.length ? explicit : all;
+      if (!workspaces.length) {
+        console.log(chalk.yellow('! No workspaces found. Add one with: social accounts add <name>'));
+        console.log('');
+        return;
+      }
+
+      const active = config.getActiveProfile();
+      const snapshots = workspaces.map((workspace) => buildOpsCenterSnapshot({
+        workspace,
+        approvals: storage.listApprovals(workspace),
+        alerts: storage.listAlerts(workspace),
+        actions: storage.listActionLog(workspace),
+        outcomes: storage.listOutcomes(workspace),
+        state: storage.getState(workspace)
+      }));
+
+      if (options.json) {
+        console.log(JSON.stringify({ active, workspaces: snapshots }, null, 2));
+        return;
+      }
+
+      const approvalsTotal = snapshots.reduce((acc, s) => acc + s.approvalsOpen, 0);
+      const alertsTotal = snapshots.reduce((acc, s) => acc + s.alertsOpen, 0);
+      const needsAttention = snapshots.filter((s) => s.approvalsOpen > 0 || s.alertsOpen > 0).length;
+
+      const summaryRows = [
+        `${chalk.gray('Active workspace'.padEnd(18, ' '))} ${chalk.cyan(active)}`,
+        `${chalk.gray('Workspaces'.padEnd(18, ' '))} ${chalk.cyan(String(snapshots.length))}`,
+        `${chalk.gray('Approvals open'.padEnd(18, ' '))} ${chalk.cyan(String(approvalsTotal))}`,
+        `${chalk.gray('Alerts open'.padEnd(18, ' '))} ${chalk.cyan(String(alertsTotal))}`,
+        `${chalk.gray('Needs attention'.padEnd(18, ' '))} ${chalk.cyan(String(needsAttention))}`
+      ];
+
+      const rows = snapshots.map((s) => {
+        const approvalsBadge = s.approvalsOpen > 0
+          ? formatBadge('APPROVALS', { tone: 'warn' })
+          : formatBadge('APPROVALS', { tone: 'success' });
+        const alertsBadge = s.alertsOpen > 0
+          ? formatBadge('ALERTS', { tone: 'warn' })
+          : formatBadge('ALERTS', { tone: 'success' });
+        const counts = chalk.gray(`${s.approvalsOpen} approvals / ${s.alertsOpen} alerts`);
+        const lastCheck = s.lastMorningRunDate
+          ? chalk.gray(`check ${formatWhen(s.lastMorningRunDate)}`)
+          : chalk.gray('check not run');
+        const lastActivity = s.lastActivity
+          ? chalk.gray(`last ${formatWhen(s.lastActivity)}`)
+          : chalk.gray('no activity');
+        const nextText = chalk.yellow(`next: ${s.nextAction}`);
+        const prefix = s.workspace === active ? chalk.green('*') : ' ';
+        return `${prefix} ${chalk.cyan(s.workspace)}  ${approvalsBadge} ${alertsBadge}  ${counts}  ${lastCheck}  ${lastActivity}  ${nextText}`;
+      });
+
+      console.log('');
+      console.log(renderPanel({
+        title: ' Ops Command Center ',
+        rows: summaryRows,
+        minWidth: 86,
+        borderColor: (value) => chalk.cyan(value)
+      }));
+      console.log('');
+      console.log(renderPanel({
+        title: ' Workspace Status ',
+        rows,
+        minWidth: 110,
+        borderColor: (value) => chalk.blue(value)
+      }));
+      console.log('');
     });
 
   const workspace = ops.command('workspace').description('Workspace templates and role presets');
@@ -1399,3 +1546,9 @@ function registerOpsCommands(program) {
 }
 
 module.exports = registerOpsCommands;
+
+(registerOpsCommands)._private = {
+  formatWhen,
+  deriveNextOpsAction,
+  buildOpsCenterSnapshot
+};

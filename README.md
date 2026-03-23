@@ -46,6 +46,7 @@ social accounts switch <name>
 social profile get --fields id,name
 social post create --message "Hello team" --page-id PAGE_ID
 social ads list --account act_123
+social ops center
 social logs
 social replay <LOG_ID>
 social ai --provider deterministic "create post \"Hello\" page 12345"
