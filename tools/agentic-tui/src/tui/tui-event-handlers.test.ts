@@ -12,6 +12,7 @@ function handlerFlags() {
     approve: false,
     reject: false,
     rail: false,
+    boardFilter: false,
     palette: false,
     guide: false,
     nextAction: false,
@@ -34,6 +35,7 @@ function handlers(flags: ReturnType<typeof handlerFlags>) {
     onApprove: () => { flags.approve = true; },
     onReject: () => { flags.reject = true; },
     onToggleRail: () => { flags.rail = true; },
+    onToggleBoardFilter: () => { flags.boardFilter = true; },
     onPaletteToggle: () => { flags.palette = true; },
     onGuide: () => { flags.guide = true; },
     onNextAction: () => { flags.nextAction = true; },
@@ -106,6 +108,18 @@ export const shortcutHandlerTests: TuiTestCase[] = [
       });
       assert.equal(consumed, false);
       assert.equal(flags.quit, false);
+    }
+  },
+  {
+    name: "b toggles agency board filter in input phase",
+    fn: () => {
+      const flags = handlerFlags();
+      const consumed = handleShortcut("b", {}, false, handlers(flags), {
+        phase: "INPUT",
+        hasDraftText: false
+      });
+      assert.equal(consumed, true);
+      assert.equal(flags.boardFilter, true);
     }
   },
   {

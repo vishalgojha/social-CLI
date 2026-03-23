@@ -216,6 +216,20 @@ function unresolvedHint(entry: MemoryUnresolvedRecord): string {
   return reason;
 }
 
+type BoardFilter = "all" | "attention" | "clear";
+
+function nextBoardFilter(current: BoardFilter): BoardFilter {
+  if (current === "all") return "attention";
+  if (current === "attention") return "clear";
+  return "all";
+}
+
+function boardFilterLabel(current: BoardFilter): string {
+  if (current === "attention") return "needs attention";
+  if (current === "clear") return "all clear";
+  return "all";
+}
+
 type QuickAction = { label: string; command: string };
 
 function dedupeQuickActions(actions: QuickAction[]): QuickAction[] {
@@ -738,6 +752,7 @@ function HatchRuntime(): JSX.Element {
   const [showPalette, setShowPalette] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
   const [rightRailCollapsed, setRightRailCollapsed] = useState(false);
+  const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
   const [selectedAccount, setSelectedAccount] = useState("default");
   const [replaySuggestionIndex, setReplaySuggestionIndex] = useState(0);
   const [inputHistory, setInputHistory] = useState<string[]>([]);
@@ -837,6 +852,14 @@ function HatchRuntime(): JSX.Element {
       await streamAssistantTurn(`Open ${apiLabel(api)} token page: ${url}`);
     }
   }, [streamAssistantTurn]);
+
+  const toggleBoardFilter = useCallback(() => {
+    setBoardFilter((prev) => {
+      const next = nextBoardFilter(prev);
+      addTurn("system", `Agency board view: ${boardFilterLabel(next)}.`);
+      return next;
+    });
+  }, [addTurn]);
 
   const streamPhase = useCallback(async (label: string, detail?: string) => {
     await streamAssistantTurn(`${label}${detail ? `: ${detail}` : ""}`);
@@ -1125,6 +1148,12 @@ function HatchRuntime(): JSX.Element {
   const opsApprovalsOpen = opsWorkspaces.reduce((acc, row) => acc + (row.approvalsOpen || 0), 0);
   const opsAlertsOpen = opsWorkspaces.reduce((acc, row) => acc + (row.alertsOpen || 0), 0);
   const opsNeedsAttention = opsWorkspaces.filter((row) => row.approvalsOpen > 0 || row.alertsOpen > 0).length;
+  const opsBoardView = boardFilterLabel(boardFilter);
+  const filteredOpsWorkspaces = opsWorkspaces.filter((row) => {
+    if (boardFilter === "attention") return row.approvalsOpen > 0 || row.alertsOpen > 0;
+    if (boardFilter === "clear") return row.approvalsOpen === 0 && row.alertsOpen === 0;
+    return true;
+  });
   const waba = config?.waba || {
     connected: false,
     businessId: "",
@@ -1856,6 +1885,7 @@ function HatchRuntime(): JSX.Element {
         addTurn("assistant", "Rejected.");
       },
       onToggleRail: () => setRightRailCollapsed((prev) => !prev),
+      onToggleBoardFilter: () => toggleBoardFilter(),
       onPaletteToggle: () => {
         setPaletteQuery("");
         setShowPalette(true);
@@ -2284,40 +2314,48 @@ function HatchRuntime(): JSX.Element {
                   <Text color={theme.muted}>
                     workspaces {opsWorkspaces.length} | approvals {opsApprovalsOpen} | alerts {opsAlertsOpen} | needs attention {opsNeedsAttention}
                   </Text>
-                  {opsWorkspaces.map((row) => {
-                    const isActive = row.name === (opsSnapshot?.activeWorkspace || config?.activeProfile);
-                    const approvalsTone = row.approvalsOpen > 0 ? "fail" : "ok";
-                    const alertsTone = row.alertsOpen > 0 ? "fail" : "ok";
-                    const lastCheck = row.lastMorningRunDate ? row.lastMorningRunDate : "not run";
-                    const lastActivity = row.lastActivity ? formatOpsTime(row.lastActivity) : "none";
-                    const nextCommand = row.nextAction === "Review approvals"
-                      ? `social ops approvals list --workspace ${row.name} --open`
-                      : row.nextAction === "Review alerts"
-                        ? `social ops alerts list --workspace ${row.name} --open`
-                        : row.nextAction === "Run morning check"
-                          ? `social ops morning-run --workspace ${row.name} --spend 0`
-                          : "";
-                    return (
-                      <Box key={row.name} marginTop={1} flexDirection="column">
-                        <Box>
-                          <Text color={isActive ? theme.success : theme.text}>
-                            {row.name}{isActive ? " (active)" : ""}
-                          </Text>
-                          <Text color={theme.muted}> approvals </Text>
-                          <StatusBadge label={row.approvalsOpen > 0 ? "FAIL" : "OK"} tone={approvalsTone} />
-                          <Text color={theme.muted}> {row.approvalsOpen} </Text>
-                          <Text color={theme.muted}> alerts </Text>
-                          <StatusBadge label={row.alertsOpen > 0 ? "FAIL" : "OK"} tone={alertsTone} />
-                          <Text color={theme.muted}> {row.alertsOpen}</Text>
+                  <Text color={theme.muted}>
+                    view {opsBoardView} (press b to toggle) | showing {filteredOpsWorkspaces.length} of {opsWorkspaces.length}
+                  </Text>
+                  {filteredOpsWorkspaces.length ? (
+                    filteredOpsWorkspaces.map((row) => {
+                      const isActive = row.name === (opsSnapshot?.activeWorkspace || config?.activeProfile);
+                      const approvalsTone = row.approvalsOpen > 0 ? "fail" : "ok";
+                      const alertsTone = row.alertsOpen > 0 ? "fail" : "ok";
+                      const lastCheck = row.lastMorningRunDate ? row.lastMorningRunDate : "not run";
+                      const lastActivity = row.lastActivity ? formatOpsTime(row.lastActivity) : "none";
+                      const nextCommand = row.nextAction === "Review approvals"
+                        ? `social ops approvals list --workspace ${row.name} --open`
+                        : row.nextAction === "Review alerts"
+                          ? `social ops alerts list --workspace ${row.name} --open`
+                          : row.nextAction === "Run morning check"
+                            ? `social ops morning-run --workspace ${row.name} --spend 0`
+                            : "";
+                      return (
+                        <Box key={row.name} marginTop={1} flexDirection="column">
+                          <Box>
+                            <Text color={isActive ? theme.success : theme.text}>
+                              {row.name}{isActive ? " (active)" : ""}
+                            </Text>
+                            <Text color={theme.muted}> approvals </Text>
+                            <StatusBadge label={row.approvalsOpen > 0 ? "FAIL" : "OK"} tone={approvalsTone} />
+                            <Text color={theme.muted}> {row.approvalsOpen} </Text>
+                            <Text color={theme.muted}> alerts </Text>
+                            <StatusBadge label={row.alertsOpen > 0 ? "FAIL" : "OK"} tone={alertsTone} />
+                            <Text color={theme.muted}> {row.alertsOpen}</Text>
+                          </Box>
+                          <Text color={theme.muted}>last check {lastCheck} | last activity {lastActivity}</Text>
+                          <Text color={theme.muted}>next: {row.nextAction}</Text>
+                          {nextCommand ? (
+                            <Text color={theme.accent}>Run: {nextCommand}</Text>
+                          ) : null}
                         </Box>
-                        <Text color={theme.muted}>last check {lastCheck} | last activity {lastActivity}</Text>
-                        <Text color={theme.muted}>next: {row.nextAction}</Text>
-                        {nextCommand ? (
-                          <Text color={theme.accent}>Run: {nextCommand}</Text>
-                        ) : null}
-                      </Box>
-                    );
-                  })}
+                      );
+                    })
+                  ) : (
+                    <Text color={theme.muted}>No workspaces match this view. Press b to show all.</Text>
+                  )}
+                  <Text color={theme.muted}>Tip: press b to filter to needs attention or all clear.</Text>
                   <Text color={theme.muted}>Tip: run "social ops center" for a full CLI view.</Text>
                 </Box>
               ) : (
@@ -2516,7 +2554,7 @@ function HatchRuntime(): JSX.Element {
           <Text color={theme.text}>Memory: say `my name is ...` and later ask `what's my name`.</Text>
           <Text color={theme.text}>Keys: Enter/y approve, n/r reject, e edit slots, d diagnostics.</Text>
           <Text color={theme.text}>Quick: g guided setup, n next step, l logs, {`1-${Math.min(9, quickActions.length)}`} run onboarding steps.</Text>
-          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
+          <Text color={theme.muted}>UI: / palette (type to filter, Esc to close), b board filter, x collapse/expand diagnostics (verbose), up/down history, q quit.</Text>
           <Text color={theme.muted}>Tokens: type "fix token" or "open whatsapp token" to launch the dashboard.</Text>
           </FramedBlock>
         </>
@@ -2529,7 +2567,7 @@ function HatchRuntime(): JSX.Element {
       </Box>
       <Text color={state.currentRisk === "HIGH" ? riskTone : theme.accent}>{actionHint}</Text>
       <Text color={theme.muted}>
-        Enter confirm | / palette (filter) | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
+        Enter confirm | / palette (filter) | b board | g guided | n next | l logs | {`1-${Math.min(9, quickActions.length)}`} quick | ? help | d diagnostics | x rail | q quit
       </Text>
     </Box>
   );

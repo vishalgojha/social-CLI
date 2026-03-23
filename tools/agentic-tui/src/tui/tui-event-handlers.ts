@@ -9,6 +9,7 @@ export interface ShortcutHandlers {
   onReject: () => void;
   onToggleRail: () => void;
   onPaletteToggle: () => void;
+  onToggleBoardFilter: () => void;
   onGuide: () => void;
   onNextAction: () => void;
   onLogs: () => void;
@@ -83,6 +84,10 @@ export function handleShortcut(
   }
   if (input === "x" && allowSingleKey) {
     handlers.onToggleRail();
+    return true;
+  }
+  if (input === "b" && allowSingleKey && phase === "INPUT") {
+    handlers.onToggleBoardFilter();
     return true;
   }
   if (input === "/" && allowSingleKey && phase === "INPUT") {
