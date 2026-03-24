@@ -318,7 +318,7 @@ function asksForRememberedName(input: string): boolean {
   );
 }
 
-type ChatReplyAiProvider = "openai" | "openrouter" | "xai" | "ollama";
+type ChatReplyAiProvider = "anthropic" | "openai" | "openrouter" | "xai" | "ollama";
 
 type ChatReplyAiConfig = {
   enabled: boolean;
@@ -345,7 +345,9 @@ function resolveChatReplyAiConfig(): ChatReplyAiConfig {
   const rawProvider = String(process.env.SOCIAL_TUI_AI_VENDOR || process.env.SOCIAL_TUI_AI_PROVIDER || "openai")
     .trim()
     .toLowerCase();
-  const provider: ChatReplyAiProvider = rawProvider === "openrouter"
+  const provider: ChatReplyAiProvider = rawProvider === "anthropic" || rawProvider === "claude"
+    ? "anthropic"
+    : rawProvider === "openrouter"
     ? "openrouter"
     : rawProvider === "xai" || rawProvider === "grok"
       ? "xai"
@@ -354,7 +356,9 @@ function resolveChatReplyAiConfig(): ChatReplyAiConfig {
         : "openai";
 
   const model = String(process.env.SOCIAL_TUI_AI_MODEL || (
-    provider === "openrouter"
+    provider === "anthropic"
+      ? "claude-3-5-sonnet-latest"
+      : provider === "openrouter"
       ? "openai/gpt-4o-mini"
       : provider === "xai"
         ? "grok-2-latest"
@@ -364,7 +368,9 @@ function resolveChatReplyAiConfig(): ChatReplyAiConfig {
   )).trim();
 
   const baseUrl = String(process.env.SOCIAL_TUI_AI_BASE_URL || (
-    provider === "openrouter"
+    provider === "anthropic"
+      ? "https://api.anthropic.com/v1"
+      : provider === "openrouter"
       ? "https://openrouter.ai/api/v1"
       : provider === "xai"
         ? "https://api.x.ai/v1"
@@ -375,6 +381,8 @@ function resolveChatReplyAiConfig(): ChatReplyAiConfig {
 
   const apiKey = String(
     process.env.SOCIAL_TUI_AI_API_KEY
+    || process.env.SOCIAL_ANTHROPIC_API_KEY
+    || process.env.ANTHROPIC_API_KEY
     || process.env.OPENAI_API_KEY
     || process.env.OPENROUTER_API_KEY
     || process.env.XAI_API_KEY
@@ -410,6 +418,17 @@ function extractOpenAiCompatibleContent(payload: unknown): string {
   return typeof fallback === "string" ? fallback.trim() : "";
 }
 
+function extractAnthropicContent(payload: unknown): string {
+  const root = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+  const content = Array.isArray(root.content) ? root.content : [];
+  return content.map((part) => {
+    if (!part || typeof part !== "object") return "";
+    const value = part as Record<string, unknown>;
+    if (value.type !== "text") return "";
+    return typeof value.text === "string" ? value.text : "";
+  }).join("\n").trim();
+}
+
 async function callConversationalAi(cfg: ChatReplyAiConfig, messages: Array<{ role: "system" | "user"; content: string }>): Promise<string> {
   const controller = new AbortController();
   const timeoutMs = Math.max(1200, Number.parseInt(process.env.SOCIAL_TUI_CHAT_REPLY_TIMEOUT_MS || "3500", 10) || 3500);
@@ -430,6 +449,39 @@ async function callConversationalAi(cfg: ChatReplyAiConfig, messages: Array<{ ro
       if (!response.ok) return "";
       const data = await response.json() as { message?: { content?: string } };
       return String(data?.message?.content || "").trim();
+    }
+
+    if (cfg.provider === "anthropic") {
+      const system = messages
+        .filter((message) => message.role === "system")
+        .map((message) => message.content)
+        .join("\n\n")
+        .trim();
+      const conversationalMessages = messages
+        .filter((message) => message.role !== "system")
+        .map((message) => ({
+          role: message.role,
+          content: message.content
+        }));
+      const response = await fetch(`${cfg.baseUrl.replace(/\/+$/, "")}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": cfg.apiKey,
+          "anthropic-version": process.env.ANTHROPIC_VERSION || "2023-06-01"
+        },
+        body: JSON.stringify({
+          model: cfg.model,
+          system,
+          temperature: 0.4,
+          max_tokens: 180,
+          messages: conversationalMessages
+        }),
+        signal: controller.signal
+      });
+      if (!response.ok) return "";
+      const data = await response.json();
+      return extractAnthropicContent(data);
     }
 
     const response = await fetch(`${cfg.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
@@ -2291,9 +2343,12 @@ function HatchRuntime(): JSX.Element {
     : rawParseMode === "balanced" || rawParseMode === "hybrid"
       ? "balanced"
       : "prefer_ai";
-  const aiProvider = process.env.SOCIAL_TUI_AI_VENDOR || process.env.SOCIAL_TUI_AI_PROVIDER || process.env.SOCIAL_AI_PROVIDER || "auto";
+  const rawAiProvider = String(process.env.SOCIAL_TUI_AI_VENDOR || process.env.SOCIAL_TUI_AI_PROVIDER || process.env.SOCIAL_AI_PROVIDER || "auto").trim().toLowerCase();
+  const aiProvider = rawAiProvider === "claude" ? "anthropic" : rawAiProvider;
   const aiModel = process.env.SOCIAL_TUI_AI_MODEL || (
-    aiProvider === "openai"
+    aiProvider === "anthropic"
+      ? "claude-3-5-sonnet-latest"
+      : aiProvider === "openai"
       ? "gpt-4o-mini"
       : aiProvider === "openrouter"
         ? "openai/gpt-4o-mini"

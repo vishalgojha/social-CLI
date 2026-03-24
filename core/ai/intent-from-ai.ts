@@ -4,7 +4,7 @@ import { validateIntentSchema } from "../intent-schema.js";
 import type { Intent } from "../types.js";
 
 export interface AiIntentOptions {
-  provider: "ollama" | "openai" | "openrouter" | "xai";
+  provider: "anthropic" | "ollama" | "openai" | "openrouter" | "xai";
   model: string;
   baseUrl?: string;
   apiKey?: string;
@@ -73,6 +73,21 @@ function extractAssistantContent(data: unknown): string {
 
   const fallbackText = first.text;
   return typeof fallbackText === "string" ? fallbackText : "";
+}
+
+function extractAnthropicContent(data: unknown): string {
+  const root = (data && typeof data === "object") ? (data as Record<string, unknown>) : {};
+  const content = Array.isArray(root.content) ? root.content : [];
+  return content
+    .map((part) => {
+      if (!part || typeof part !== "object") return "";
+      const value = part as Record<string, unknown>;
+      if (value.type !== "text") return "";
+      return typeof value.text === "string" ? value.text : "";
+    })
+    .filter(Boolean)
+    .join("\n")
+    .trim();
 }
 
 function stringifyData(value: unknown): string {
@@ -151,10 +166,37 @@ async function inferWithOpenAICompatible(text: string, opts: AiIntentOptions): P
   }
 }
 
+async function inferWithAnthropic(text: string, opts: AiIntentOptions): Promise<string> {
+  const base = opts.baseUrl || "https://api.anthropic.com/v1";
+  const key = opts.apiKey || "";
+  if (!key) throw new Error("Missing API key for anthropic provider.");
+  const { data } = await axios.post(
+    `${base.replace(/\/+$/, "")}/messages`,
+    {
+      model: opts.model || "claude-3-5-sonnet-latest",
+      system: systemPrompt(),
+      temperature: 0,
+      max_tokens: 700,
+      messages: [{ role: "user", content: text }]
+    },
+    {
+      timeout: 30_000,
+      headers: {
+        "x-api-key": key,
+        "anthropic-version": process.env.ANTHROPIC_VERSION || "2023-06-01",
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  return extractAnthropicContent(data);
+}
+
 export async function parseIntentWithAi(text: string, opts: AiIntentOptions): Promise<Intent> {
   const raw = opts.provider === "ollama"
     ? await inferWithOllama(text, opts)
-    : await inferWithOpenAICompatible(text, opts);
+    : opts.provider === "anthropic"
+      ? await inferWithAnthropic(text, opts)
+      : await inferWithOpenAICompatible(text, opts);
   const jsonText = extractJsonObject(raw);
   let parsed: unknown;
   try {
@@ -166,4 +208,3 @@ export async function parseIntentWithAi(text: string, opts: AiIntentOptions): Pr
   validateIntentSchema(intent);
   return intent;
 }
-

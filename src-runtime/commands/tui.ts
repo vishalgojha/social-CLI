@@ -15,13 +15,13 @@ type TuiOptions = {
   skipOnboardCheck?: boolean;
 };
 
-type HatchProvider = 'openai' | 'openrouter' | 'xai' | 'ollama';
+type HatchProvider = 'openai' | 'anthropic' | 'openrouter' | 'xai' | 'ollama';
 type PromptedAiSetup = {
   apiKey: string;
   model: string;
 };
 
-const SUPPORTED_PROVIDERS: HatchProvider[] = ['openai', 'openrouter', 'xai', 'ollama'];
+const SUPPORTED_PROVIDERS: HatchProvider[] = ['openai', 'anthropic', 'openrouter', 'xai', 'ollama'];
 
 function runSubprocess(command: string, args: string[], env: NodeJS.ProcessEnv) {
   return new Promise<void>((resolve, reject) => {
@@ -43,6 +43,7 @@ function needsOnboarding() {
 
 function normalizeProvider(raw: string): HatchProvider {
   const value = String(raw || '').trim().toLowerCase();
+  if (value === 'anthropic' || value === 'claude') return 'anthropic';
   if (value === 'openrouter') return 'openrouter';
   if (value === 'xai' || value === 'grok') return 'xai';
   if (value === 'ollama' || value === 'local') return 'ollama';
@@ -52,13 +53,14 @@ function normalizeProvider(raw: string): HatchProvider {
 function parseExplicitProvider(raw: string): HatchProvider | null {
   const value = String(raw || '').trim().toLowerCase();
   if (!value) return null;
-  if (value === 'openai' || value === 'openrouter' || value === 'xai' || value === 'grok' || value === 'ollama' || value === 'local') {
+  if (value === 'openai' || value === 'anthropic' || value === 'claude' || value === 'openrouter' || value === 'xai' || value === 'grok' || value === 'ollama' || value === 'local') {
     return normalizeProvider(value);
   }
   return null;
 }
 
 function providerLabel(provider: HatchProvider): string {
+  if (provider === 'anthropic') return 'Anthropic (Claude)';
   if (provider === 'openrouter') return 'OpenRouter';
   if (provider === 'xai') return 'xAI (Grok)';
   if (provider === 'ollama') return 'Ollama (Local)';
@@ -66,6 +68,7 @@ function providerLabel(provider: HatchProvider): string {
 }
 
 function providerApiEnvName(provider: HatchProvider): string {
+  if (provider === 'anthropic') return 'ANTHROPIC_API_KEY';
   if (provider === 'openrouter') return 'OPENROUTER_API_KEY';
   if (provider === 'xai') return 'XAI_API_KEY';
   if (provider === 'ollama') return 'SOCIAL_OLLAMA_BASE_URL';
@@ -73,6 +76,9 @@ function providerApiEnvName(provider: HatchProvider): string {
 }
 
 function providerBaseUrl(provider: HatchProvider): string {
+  if (provider === 'anthropic') {
+    return String(process.env.SOCIAL_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1').trim();
+  }
   if (provider === 'openrouter') {
     return String(process.env.SOCIAL_OPENROUTER_BASE_URL || process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').trim();
   }
@@ -86,6 +92,7 @@ function providerBaseUrl(provider: HatchProvider): string {
 }
 
 function providerModel(provider: HatchProvider): string {
+  if (provider === 'anthropic') return 'claude-3-5-sonnet-latest';
   if (provider === 'openrouter') return 'openai/gpt-4o-mini';
   if (provider === 'xai') return 'grok-2-latest';
   if (provider === 'ollama') return 'qwen2.5:7b';
@@ -118,6 +125,9 @@ function getProviderModelFromConfig(provider: HatchProvider): string {
 }
 
 function getProviderApiKeyFromEnv(provider: HatchProvider): string {
+  if (provider === 'anthropic') {
+    return String(process.env.SOCIAL_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY || '').trim();
+  }
   if (provider === 'openrouter') {
     return String(process.env.SOCIAL_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || '').trim();
   }
@@ -168,6 +178,7 @@ async function promptForProvider(defaultProvider: HatchProvider): Promise<HatchP
       default: defaultProvider,
       choices: [
         { name: 'OpenAI', value: 'openai' },
+        { name: 'Anthropic (Claude)', value: 'anthropic' },
         { name: 'OpenRouter', value: 'openrouter' },
         { name: 'xAI (Grok)', value: 'xai' },
         { name: 'Ollama (Local)', value: 'ollama' }
@@ -232,7 +243,7 @@ function registerTuiCommand(program: any) {
     .command('tui')
     .alias('hatch')
     .description('Launch agentic terminal UI (chat-first control plane)')
-    .option('--ai-provider <provider>', 'AI provider (openai|openrouter|xai|ollama)')
+    .option('--ai-provider <provider>', 'AI provider (openai|anthropic|openrouter|xai|ollama)')
     .option('--ai-model <model>', 'AI model override')
     .option('--ai-base-url <url>', 'AI base URL override')
     .option('--ai-api-key <key>', 'AI API key override')

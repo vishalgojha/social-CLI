@@ -36,6 +36,7 @@ type StoredConfig = JsonObject & {
 };
 
 function defaultModelForProvider(provider: AiProvider): string {
+  if (provider === "anthropic") return "claude-3-5-sonnet-latest";
   if (provider === "openrouter") return "openai/gpt-4o-mini";
   if (provider === "xai") return "grok-2-latest";
   if (provider === "openai") return "gpt-4o-mini";
@@ -43,6 +44,7 @@ function defaultModelForProvider(provider: AiProvider): string {
 }
 
 function defaultBaseUrlForProvider(provider: AiProvider): string {
+  if (provider === "anthropic") return "https://api.anthropic.com/v1";
   if (provider === "openrouter") return "https://openrouter.ai/api/v1";
   if (provider === "xai") return "https://api.x.ai/v1";
   if (provider === "openai") return "https://api.openai.com/v1";
@@ -85,6 +87,7 @@ function normalizeApiName(value: unknown): ApiName {
 
 function normalizeAiProvider(value: unknown): AiProvider {
   const raw = cleanString(value).toLowerCase();
+  if (raw === "anthropic" || raw === "claude") return "anthropic";
   if (raw === "openrouter") return "openrouter";
   if (raw === "xai" || raw === "grok") return "xai";
   if (raw === "openai") return "openai";

@@ -1,6 +1,6 @@
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH";
 export type ApiName = "facebook" | "instagram" | "whatsapp";
-export type AiProvider = "ollama" | "openai" | "openrouter" | "xai";
+export type AiProvider = "anthropic" | "ollama" | "openai" | "openrouter" | "xai";
 
 export type IntentAction =
   | "onboard"

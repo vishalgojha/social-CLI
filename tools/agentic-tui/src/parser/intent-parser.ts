@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { validateIntent } from "../schema/validate-intent.js";
 import type { ParseResult, ParsedIntent } from "../types.js";
 
-type AiProvider = "ollama" | "openai" | "openrouter" | "xai";
+type AiProvider = "anthropic" | "ollama" | "openai" | "openrouter" | "xai";
 type ParseMode = "deterministic" | "balanced" | "prefer_ai";
 
 type CoreIntent = {
@@ -33,6 +33,7 @@ type CoreConfig = {
 
 function normalizeAiProvider(value: string): AiProvider {
   const raw = String(value || "").trim().toLowerCase();
+  if (raw === "anthropic" || raw === "claude") return "anthropic";
   if (raw === "openrouter") return "openrouter";
   if (raw === "xai" || raw === "grok") return "xai";
   if (raw === "openai") return "openai";
@@ -51,6 +52,7 @@ function resolveParseMode(): ParseMode {
 }
 
 function defaultModel(provider: AiProvider): string {
+  if (provider === "anthropic") return "claude-3-5-sonnet-latest";
   if (provider === "openai") return "gpt-4o-mini";
   if (provider === "openrouter") return "openai/gpt-4o-mini";
   if (provider === "xai") return "grok-2-latest";
@@ -58,6 +60,7 @@ function defaultModel(provider: AiProvider): string {
 }
 
 function defaultBaseUrl(provider: AiProvider): string {
+  if (provider === "anthropic") return "https://api.anthropic.com/v1";
   if (provider === "openai") return "https://api.openai.com/v1";
   if (provider === "openrouter") return "https://openrouter.ai/api/v1";
   if (provider === "xai") return "https://api.x.ai/v1";
@@ -254,7 +257,7 @@ function buildDeterministicIntent(input: string): ParsedIntent {
     apiKey: text.match(/\bapi[-_\s]?key\s+([^\s]+)/i)?.[1] || "",
     baseUrl: text.match(/\bbase[-_\s]?url\s+([^\s]+)/i)?.[1] || "",
     model: text.match(/\bmodel\s+([a-z0-9_.:-]+)/i)?.[1] || "",
-    provider: text.match(/\bprovider\s+(ollama|openai|openrouter|xai|grok)/i)?.[1]?.toLowerCase() || "",
+    provider: text.match(/\bprovider\s+(anthropic|claude|ollama|openai|openrouter|xai|grok)/i)?.[1]?.toLowerCase() || "",
     id: text.match(/\breplay\s+([a-z0-9-]+)/i)?.[1] || "",
     limit: text.match(/\blimit\s+(\d+)/i)?.[1] || "20",
     message: extractQuoted(text) || "",
@@ -346,6 +349,8 @@ export async function parseNaturalLanguageWithOptionalAi(input: string): Promise
   );
   const hasApiKey = Boolean(String(
     process.env.SOCIAL_TUI_AI_API_KEY
+    || process.env.SOCIAL_ANTHROPIC_API_KEY
+    || process.env.ANTHROPIC_API_KEY
     || process.env.OPENAI_API_KEY
     || process.env.OPENROUTER_API_KEY
     || process.env.XAI_API_KEY
@@ -382,6 +387,8 @@ export async function parseNaturalLanguageWithOptionalAi(input: string): Promise
     const model = process.env.SOCIAL_TUI_AI_MODEL || cfg.ai?.model || defaultModel(provider);
     const baseUrl = process.env.SOCIAL_TUI_AI_BASE_URL || cfg.ai?.baseUrl || defaultBaseUrl(provider);
     const apiKey = process.env.SOCIAL_TUI_AI_API_KEY
+      || process.env.SOCIAL_ANTHROPIC_API_KEY
+      || process.env.ANTHROPIC_API_KEY
       || process.env.OPENAI_API_KEY
       || process.env.OPENROUTER_API_KEY
       || process.env.XAI_API_KEY

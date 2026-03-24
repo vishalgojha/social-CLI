@@ -610,6 +610,49 @@
           <p class="muted">Connect tokens, Meta app credentials, and AI provider keys without editing <code>.env</code>. Leave secret fields blank to keep the saved value.</p>
         </div>
 
+        <div class="setup-hero-grid">
+          <article class="card setup-hero-card">
+            <p class="eyebrow">Guided Start</p>
+            <h3>Pick what you want to finish first</h3>
+            <p class="muted">This onboarding lane is designed for non-technical operators. Use the big actions first, then fine-tune anything below.</p>
+            <div class="setup-action-grid">
+              <button id="setup-action-connect-whatsapp" type="button" class="setup-action-card">
+                <strong>Connect WhatsApp</strong>
+                <span>Open token help, switch the default API, and jump to the right field.</span>
+              </button>
+              <button id="setup-action-run-doctor" type="button" class="setup-action-card">
+                <strong>Run Doctor</strong>
+                <span>Open Copilot with a ready-to-run setup diagnosis prompt.</span>
+              </button>
+              <button id="setup-action-send-test" type="button" class="setup-action-card">
+                <strong>Send Test Message</strong>
+                <span>Jump to the WhatsApp lane and start the first-message flow.</span>
+              </button>
+            </div>
+            <div class="setup-progress-card">
+              <div class="setup-progress-copy">
+                <strong id="setup-progress-title">Setup progress</strong>
+                <span id="setup-progress-copy">Loading setup progress...</span>
+              </div>
+              <div class="setup-progress-track" aria-hidden="true">
+                <span id="setup-progress-bar" class="setup-progress-bar"></span>
+              </div>
+              <div id="setup-progress-steps" class="setup-progress-steps"></div>
+            </div>
+          </article>
+
+          <article class="card">
+            <p class="eyebrow">What To Do Next</p>
+            <h3 id="setup-next-step-title">Loading next step...</h3>
+            <p id="setup-next-step-copy" class="muted">Checking saved setup...</p>
+            <div class="row setup-next-actions">
+              <button id="setup-open-whatsapp-dashboard" type="button">Open WhatsApp Token Page</button>
+              <button id="setup-open-guided-menu" type="button" class="secondary">Open Guided Menu</button>
+            </div>
+            <div id="setup-guided-menu" class="setup-guided-menu">Loading guided actions...</div>
+          </article>
+        </div>
+
         <div id="setup-metrics" class="metric-grid">
           <article class="metric-card">
             <p class="metric-label">Loading</p>
@@ -646,6 +689,7 @@
 
             <label for="setup-whatsapp-token">WhatsApp Token</label>
             <input id="setup-whatsapp-token" type="password" placeholder="Paste WhatsApp token" />
+            <p class="micro-copy">Need help finding it? Use <strong>Open WhatsApp Token Page</strong> above, then copy the token from Meta App Dashboard → WhatsApp → API Setup.</p>
 
             <div class="dual-grid">
               <div>
@@ -1136,4 +1180,3 @@
   <script src="./app.js" defer></script>
 </body>
 </html>
-

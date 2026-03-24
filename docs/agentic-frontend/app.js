@@ -141,6 +141,18 @@ const nodes = {
   setupFinish: $("setup-finish"),
   setupReload: $("setup-reload"),
   setupOutput: $("setup-output"),
+  setupActionConnectWhatsapp: $("setup-action-connect-whatsapp"),
+  setupActionRunDoctor: $("setup-action-run-doctor"),
+  setupActionSendTest: $("setup-action-send-test"),
+  setupProgressTitle: $("setup-progress-title"),
+  setupProgressCopy: $("setup-progress-copy"),
+  setupProgressBar: $("setup-progress-bar"),
+  setupProgressSteps: $("setup-progress-steps"),
+  setupNextStepTitle: $("setup-next-step-title"),
+  setupNextStepCopy: $("setup-next-step-copy"),
+  setupOpenWhatsappDashboard: $("setup-open-whatsapp-dashboard"),
+  setupOpenGuidedMenu: $("setup-open-guided-menu"),
+  setupGuidedMenu: $("setup-guided-menu"),
 
   adminReload: $("admin-reload"),
   adminMetrics: $("admin-metrics"),
@@ -835,6 +847,162 @@ function renderSetupMetrics(snapshot) {
   ].forEach((item) => nodes.setupMetrics.appendChild(makeMetricCard(item.label, item.value)));
 }
 
+function setupProgressSteps(snapshot) {
+  const cfg = snapshot?.config || {};
+  const defaultApi = String(cfg.defaultApi || "whatsapp");
+  return [
+    {
+      label: `Connect ${defaultApi}`,
+      done: Boolean(cfg?.tokens?.[defaultApi]?.configured),
+      detail: cfg?.tokens?.[defaultApi]?.configured
+        ? `${defaultApi} token saved`
+        : `Add the ${defaultApi} token`
+    },
+    {
+      label: "Meta app",
+      done: Boolean(cfg?.app?.appId) && Boolean(cfg?.app?.appSecretConfigured),
+      detail: cfg?.app?.appId && cfg?.app?.appSecretConfigured
+        ? "App ID and App Secret saved"
+        : "Save App ID and App Secret"
+    },
+    {
+      label: "AI helper",
+      done: Boolean(cfg?.agent?.apiKeyConfigured),
+      detail: cfg?.agent?.apiKeyConfigured
+        ? `${cfg?.agent?.provider || "AI provider"} ready`
+        : "Save the AI provider key"
+    },
+    {
+      label: "Finish",
+      done: Boolean(cfg?.onboarding?.completed),
+      detail: cfg?.onboarding?.completed
+        ? "Onboarding complete"
+        : "Use Save + Finish Setup"
+    }
+  ];
+}
+
+function renderSetupJourney(snapshot) {
+  const steps = setupProgressSteps(snapshot);
+  const doneCount = steps.filter((step) => step.done).length;
+  const total = steps.length || 1;
+  const percent = Math.round((doneCount / total) * 100);
+  const report = snapshot?.readiness || {};
+  const blockers = Array.isArray(report.blockers) ? report.blockers : [];
+
+  nodes.setupProgressTitle.textContent = `Setup progress: ${percent}%`;
+  nodes.setupProgressCopy.textContent = blockers.length
+    ? `${doneCount} of ${total} steps are ready. We still have ${blockers.length} blocker${blockers.length === 1 ? "" : "s"} to clear.`
+    : doneCount === total
+      ? "Everything essential is ready. You can finish setup or move into operations."
+      : `${doneCount} of ${total} steps are ready. Follow the next-step card to keep moving.`;
+  nodes.setupProgressBar.style.width = `${percent}%`;
+  nodes.setupProgressSteps.innerHTML = "";
+  steps.forEach((step) => {
+    const chip = document.createElement("div");
+    chip.className = `setup-progress-step${step.done ? " is-done" : ""}`;
+    chip.innerHTML = `
+      <strong>${escapeHtml(step.label)}</strong>
+      <span>${escapeHtml(step.detail)}</span>
+    `;
+    nodes.setupProgressSteps.appendChild(chip);
+  });
+}
+
+function buildSetupGuidedActions(snapshot) {
+  const cfg = snapshot?.config || {};
+  const report = snapshot?.readiness || {};
+  const blockers = Array.isArray(report.blockers) ? report.blockers : [];
+  const defaultApi = String(cfg.defaultApi || "whatsapp");
+  const actions = [];
+
+  if (!cfg?.tokens?.whatsapp?.configured) {
+    actions.push({
+      title: "Connect WhatsApp token",
+      body: "Open the Meta dashboard, copy the token, and paste it into the WhatsApp token field.",
+      action: "connect-whatsapp",
+      actionLabel: "Guide me there"
+    });
+  }
+
+  if (!cfg?.app?.appId || !cfg?.app?.appSecretConfigured) {
+    actions.push({
+      title: "Save Meta app credentials",
+      body: "App ID and App Secret unlock smoother diagnosis and OAuth-style setup recovery.",
+      action: "focus-app",
+      actionLabel: "Fill app details"
+    });
+  }
+
+  if (!cfg?.agent?.apiKeyConfigured) {
+    actions.push({
+      title: "Save AI helper key",
+      body: "This powers the guided assistant so non-technical operators can ask for help naturally.",
+      action: "focus-ai",
+      actionLabel: "Set AI key"
+    });
+  }
+
+  if (cfg?.tokens?.[defaultApi]?.configured && cfg?.agent?.apiKeyConfigured && blockers.length > 0) {
+    actions.push({
+      title: "Run a guided doctor check",
+      body: "Let Copilot inspect the remaining setup blockers and suggest the next safe fix.",
+      action: "run-doctor",
+      actionLabel: "Open doctor"
+    });
+  }
+
+  if (report.ok === true && !cfg?.onboarding?.completed) {
+    actions.push({
+      title: "Finish onboarding",
+      body: "You have the essentials saved. The last step is marking onboarding complete.",
+      action: "finish-setup",
+      actionLabel: "Finish setup"
+    });
+  }
+
+  if (!actions.length) {
+    actions.push({
+      title: "You are ready to test",
+      body: "Setup looks healthy. Move to the WhatsApp lane and send a first test message.",
+      action: "send-test",
+      actionLabel: "Open test flow"
+    });
+  }
+
+  return actions.slice(0, 4);
+}
+
+function renderSetupGuidedMenu(snapshot) {
+  const report = snapshot?.readiness || {};
+  const blockers = Array.isArray(report.blockers) ? report.blockers : [];
+  const warnings = Array.isArray(report.warnings) ? report.warnings : [];
+  const actions = buildSetupGuidedActions(snapshot);
+  const first = actions[0];
+
+  nodes.setupNextStepTitle.textContent = first?.title || "You are ready to go";
+  nodes.setupNextStepCopy.textContent = first?.body
+    || (blockers.length
+      ? `${blockers.length} blocker${blockers.length === 1 ? "" : "s"} still need attention.`
+      : warnings.length
+        ? `${warnings.length} recommended improvement${warnings.length === 1 ? "" : "s"} remain.`
+        : "Everything essential is in place.");
+
+  nodes.setupGuidedMenu.innerHTML = "";
+  actions.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "setup-guided-card";
+    card.innerHTML = `
+      <div>
+        <strong>${escapeHtml(item.title)}</strong>
+        <p>${escapeHtml(item.body)}</p>
+      </div>
+      <button type="button" class="secondary" data-setup-action="${escapeHtml(item.action)}">${escapeHtml(item.actionLabel)}</button>
+    `;
+    nodes.setupGuidedMenu.appendChild(card);
+  });
+}
+
 function renderSetupChecklist(snapshot) {
   const cfg = snapshot?.config || {};
   const report = snapshot?.readiness || {};
@@ -899,6 +1067,8 @@ function renderSetupChecklist(snapshot) {
 
 function applySetupSnapshot(snapshot, options = {}) {
   state.setupSnapshot = snapshot;
+  renderSetupJourney(snapshot);
+  renderSetupGuidedMenu(snapshot);
   renderSetupMetrics(snapshot);
   renderSetupChecklist(snapshot);
   applySetupPlaceholders(snapshot);
@@ -993,6 +1163,79 @@ function syncSetupModelForProvider(force = false) {
   }
   nodes.setupAgentModel.placeholder = nextDefault;
   nodes.setupAgentProvider.dataset.lastProvider = provider;
+}
+
+function focusAndSelect(node) {
+  if (!node) return;
+  try {
+    node.focus({ preventScroll: false });
+  } catch {
+    node.focus();
+  }
+  if (typeof node.select === "function") {
+    node.select();
+  }
+}
+
+function openExternalUrl(url) {
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+async function runSetupGuidedAction(action) {
+  const next = String(action || "").trim().toLowerCase();
+  if (!next) return;
+
+  if (next === "connect-whatsapp") {
+    activateScreen("setup");
+    nodes.setupDefaultApi.value = "whatsapp";
+    openExternalUrl("https://developers.facebook.com/apps/");
+    focusAndSelect(nodes.setupWhatsappToken);
+    writeSetupOutput("WhatsApp token guide", {
+      next: "Paste the WhatsApp token into the field after copying it from Meta App Dashboard -> WhatsApp -> API Setup.",
+      dashboard: "https://developers.facebook.com/apps/"
+    });
+    toast("WhatsApp token helper opened.", "ok");
+    return;
+  }
+
+  if (next === "focus-app") {
+    activateScreen("setup");
+    focusAndSelect(nodes.setupAppId);
+    toast("Add your Meta App ID and App Secret here.", "ok");
+    return;
+  }
+
+  if (next === "focus-ai") {
+    activateScreen("setup");
+    focusAndSelect(nodes.setupAgentApiKey);
+    toast("Paste the AI provider key here.", "ok");
+    return;
+  }
+
+  if (next === "run-doctor") {
+    activateScreen("copilot");
+    nodes.chatInput.value = "Run setup doctor and tell me what is missing in plain English.";
+    focusAndSelect(nodes.chatInput);
+    toast("Doctor prompt loaded in Copilot.", "ok");
+    return;
+  }
+
+  if (next === "send-test") {
+    activateScreen("baileys");
+    toast("WhatsApp test lane opened. Create or pick a line, then send a test message.", "ok");
+    return;
+  }
+
+  if (next === "finish-setup") {
+    await saveSetupConfiguration({ markComplete: true });
+    return;
+  }
+
+  if (next === "guided-menu") {
+    activateScreen("launchpad");
+    toast("Guided menu opened.", "ok");
+  }
 }
 
 function renderAdminMetrics(system) {
@@ -2831,6 +3074,29 @@ function bindEvents() {
     }
   });
   nodes.setupAgentProvider.addEventListener("change", () => syncSetupModelForProvider());
+  nodes.setupActionConnectWhatsapp?.addEventListener("click", () => {
+    void runSetupGuidedAction("connect-whatsapp");
+  });
+  nodes.setupActionRunDoctor?.addEventListener("click", () => {
+    void runSetupGuidedAction("run-doctor");
+  });
+  nodes.setupActionSendTest?.addEventListener("click", () => {
+    void runSetupGuidedAction("send-test");
+  });
+  nodes.setupOpenWhatsappDashboard?.addEventListener("click", () => {
+    void runSetupGuidedAction("connect-whatsapp");
+  });
+  nodes.setupOpenGuidedMenu?.addEventListener("click", () => {
+    void runSetupGuidedAction("guided-menu");
+  });
+  nodes.setupGuidedMenu?.addEventListener("click", (event) => {
+    const button = event.target instanceof HTMLElement
+      ? event.target.closest("[data-setup-action]")
+      : null;
+    if (!button) return;
+    event.preventDefault();
+    void runSetupGuidedAction(button.dataset.setupAction || "");
+  });
 
   nodes.adminReload.addEventListener("click", () => loadSelfHostedAdmin());
   nodes.adminTeamReload.addEventListener("click", () => loadAdminSurface());
@@ -2911,4 +3177,3 @@ async function init() {
 init().catch((error) => {
   toast(errorText(error, "Frontend initialization failed"), "err");
 });
-
