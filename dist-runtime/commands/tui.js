@@ -5,7 +5,7 @@ const child_process_1 = require("child_process");
 const chalk = require("chalk");
 const inquirer = require('inquirer');
 const config = require('../../lib/config');
-const SUPPORTED_PROVIDERS = ['openai', 'openrouter', 'xai', 'ollama'];
+const SUPPORTED_PROVIDERS = ['openai', 'anthropic', 'openrouter', 'xai', 'ollama'];
 function runSubprocess(command, args, env) {
     return new Promise((resolve, reject) => {
         const child = (0, child_process_1.spawn)(command, args, {
@@ -26,6 +26,8 @@ function needsOnboarding() {
 }
 function normalizeProvider(raw) {
     const value = String(raw || '').trim().toLowerCase();
+    if (value === 'anthropic' || value === 'claude')
+        return 'anthropic';
     if (value === 'openrouter')
         return 'openrouter';
     if (value === 'xai' || value === 'grok')
@@ -38,12 +40,14 @@ function parseExplicitProvider(raw) {
     const value = String(raw || '').trim().toLowerCase();
     if (!value)
         return null;
-    if (value === 'openai' || value === 'openrouter' || value === 'xai' || value === 'grok' || value === 'ollama' || value === 'local') {
+    if (value === 'openai' || value === 'anthropic' || value === 'claude' || value === 'openrouter' || value === 'xai' || value === 'grok' || value === 'ollama' || value === 'local') {
         return normalizeProvider(value);
     }
     return null;
 }
 function providerLabel(provider) {
+    if (provider === 'anthropic')
+        return 'Anthropic (Claude)';
     if (provider === 'openrouter')
         return 'OpenRouter';
     if (provider === 'xai')
@@ -53,6 +57,8 @@ function providerLabel(provider) {
     return 'OpenAI';
 }
 function providerApiEnvName(provider) {
+    if (provider === 'anthropic')
+        return 'ANTHROPIC_API_KEY';
     if (provider === 'openrouter')
         return 'OPENROUTER_API_KEY';
     if (provider === 'xai')
@@ -62,6 +68,9 @@ function providerApiEnvName(provider) {
     return 'OPENAI_API_KEY';
 }
 function providerBaseUrl(provider) {
+    if (provider === 'anthropic') {
+        return String(process.env.SOCIAL_ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1').trim();
+    }
     if (provider === 'openrouter') {
         return String(process.env.SOCIAL_OPENROUTER_BASE_URL || process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').trim();
     }
@@ -74,6 +83,8 @@ function providerBaseUrl(provider) {
     return String(process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').trim();
 }
 function providerModel(provider) {
+    if (provider === 'anthropic')
+        return 'claude-3-5-sonnet-latest';
     if (provider === 'openrouter')
         return 'openai/gpt-4o-mini';
     if (provider === 'xai')
@@ -107,6 +118,9 @@ function getProviderModelFromConfig(provider) {
     return agent.model;
 }
 function getProviderApiKeyFromEnv(provider) {
+    if (provider === 'anthropic') {
+        return String(process.env.SOCIAL_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY || '').trim();
+    }
     if (provider === 'openrouter') {
         return String(process.env.SOCIAL_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || '').trim();
     }
@@ -147,6 +161,7 @@ async function promptForProvider(defaultProvider) {
             default: defaultProvider,
             choices: [
                 { name: 'OpenAI', value: 'openai' },
+                { name: 'Anthropic (Claude)', value: 'anthropic' },
                 { name: 'OpenRouter', value: 'openrouter' },
                 { name: 'xAI (Grok)', value: 'xai' },
                 { name: 'Ollama (Local)', value: 'ollama' }
@@ -205,7 +220,7 @@ function registerTuiCommand(program) {
         .command('tui')
         .alias('hatch')
         .description('Launch agentic terminal UI (chat-first control plane)')
-        .option('--ai-provider <provider>', 'AI provider (openai|openrouter|xai|ollama)')
+        .option('--ai-provider <provider>', 'AI provider (openai|anthropic|openrouter|xai|ollama)')
         .option('--ai-model <model>', 'AI model override')
         .option('--ai-base-url <url>', 'AI base URL override')
         .option('--ai-api-key <key>', 'AI API key override')

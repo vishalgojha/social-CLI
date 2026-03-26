@@ -528,7 +528,7 @@ async function generateConversationalReply(input: ConversationalReplyInput): Pro
     : "";
 
   const system = [
-    "You are Hatch, the conversational assistant for Social Flow.",
+    "You are Flow, the conversational operating agent for Social Flow.",
     "Style: natural, concise, human; max 2 short sentences.",
     "Guardrails: never claim an action ran unless this session executed it.",
     "If execution failed, acknowledge clearly and suggest one concrete next command in backticks.",
@@ -896,8 +896,8 @@ function HatchRuntime(): JSX.Element {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([
-    newTurn("system", "Wake up, Social Flow."),
-    newTurn("assistant", "I am online. Tell me what you want to connect, check, or run.")
+    newTurn("system", "Wake up, Flow."),
+    newTurn("assistant", "Flow is online. Tell me what you want to connect, check, or run.")
   ]);
   const [showHelp, setShowHelp] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
@@ -2781,7 +2781,7 @@ function HatchRuntime(): JSX.Element {
         </>
       ) : (
         <>
-          <SectionHeading label="Social Flow hatch" />
+          <SectionHeading label="Ask Flow" />
           <FramedBlock title="Runtime">
             <Text color={theme.text}>
               profile {config?.activeProfile || "default"} | session {shortText(memory.sessionId, 22)} | connected {connectedCount}/3 | ai {aiLabel}

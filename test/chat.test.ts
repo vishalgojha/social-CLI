@@ -6,11 +6,66 @@ const path = require('path');
 const { ConversationContext } = require('../lib/chat/context');
 const { PersistentMemory } = require('../lib/chat/memory');
 const { AutonomousAgent } = require('../lib/chat/agent');
+const { buildMarketingTemplateDecision } = require('../lib/chat/marketing-specialist');
+const { buildMarketingTemplate } = require('../lib/chat/marketing-templates');
 const opsStorage = require('../lib/ops/storage');
 
 process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'chat-test-key';
 
 module.exports = [
+  {
+    name: 'marketing template registry renders budget confirmation consistently',
+    fn: () => {
+      const res = buildMarketingTemplate('budget_confirmation', { budgetText: 'INR 300 daily' });
+      assert.ok(res);
+      assert.equal(res.mode, 'template');
+      assert.equal(res.message.includes('INR 300 daily'), true);
+      assert.equal(res.suggestions.length > 0, true);
+    }
+  },
+  {
+    name: 'chat context summary exposes active response mode',
+    fn: () => {
+      const ctx = new ConversationContext();
+      ctx.setResponseMode('extract');
+      const summary = ctx.getSummary();
+      assert.equal(summary.activeResponseMode, 'extract');
+      assert.equal(summary.responseModesSeen.includes('extract'), true);
+    }
+  },
+  {
+    name: 'marketing specialist returns checklist template for ad help prompt',
+    fn: () => {
+      const res = buildMarketingTemplateDecision('help me create an ad');
+      assert.ok(res);
+      assert.equal(res.specialist, 'marketing');
+      assert.equal(res.actions.length, 0);
+      assert.equal(res.needsInput, true);
+      assert.equal(res.message.toLowerCase().includes('send the full brief in one line'), true);
+    }
+  },
+  {
+    name: 'chat agent extracts marketing brief without calling llm',
+    fn: async () => {
+      const ctx = new ConversationContext();
+      const agent = new AutonomousAgent({
+        context: ctx,
+        config: { getDefaultApi: () => 'facebook' },
+        options: {}
+      });
+      agent.tryLlmDecision = async () => {
+        throw new Error('LLM should not be called for marketing brief extraction');
+      };
+      const res = await agent.process('300rs daily, real estate, Bandra East targeting for ads');
+      assert.equal(res.specialist, 'marketing');
+      assert.equal(res.mode, 'extract');
+      assert.equal(res.actions.length, 0);
+      assert.equal(res.needsInput, true);
+      assert.equal(res.message.includes('Bandra East'), true);
+      assert.equal(res.message.toLowerCase().includes('missing required fields'), true);
+      assert.equal(ctx.getSummary().activeResponseMode, 'extract');
+    }
+  },
   {
     name: 'chat context stores facts and pending actions',
     fn: () => {
@@ -129,6 +184,7 @@ module.exports = [
       const res = await agent.process('hello');
       assert.equal(res.actions.length, 0);
       assert.equal(res.needsInput, true);
+      assert.equal(res.mode, 'template');
     }
   },
   {

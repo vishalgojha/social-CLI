@@ -12,6 +12,7 @@ const {
 } = require('../llm-providers');
 const { getToolRegistry } = require('../../tools/registry');
 const { toolDescriptions, systemPrompt, buildUserPrompt, parseJsonPayload } = require('./prompt');
+const { buildMarketingTemplateDecision } = require('./marketing-specialist');
 const { DEFAULT_CLARIFICATION_CHOICES, resolveIntentDecision } = require('./intent-engine');
 const { confirmationPromptForRisk, highestRisk } = require('../ui/risk-policy');
 const opsStorage = require('../ops/storage');
@@ -89,12 +90,40 @@ function resolveChatProvider(config) {
   );
 }
 
-function resolveChatModel(provider, config) {
+function resolveChatTaskTier({ specialistId, latestMessage }) {
+  const specialist = String(specialistId || '').trim().toLowerCase();
+  const lower = String(latestMessage || '').trim().toLowerCase();
+  if (!lower) return 'balanced';
+  if (/\b(write|draft|generate|angles?|creative|caption|copy|rewrite|campaign idea|strategy)\b/.test(lower)) {
+    return 'premium';
+  }
+  if (/\b(analy[sz]e|summari[sz]e|recommend|compare|plan)\b/.test(lower)) {
+    return 'balanced';
+  }
+  if (specialist === 'marketing') {
+    if (/\b(budget|objective|industry|location|target|targeting|requirements|what do you need)\b/.test(lower)) {
+      return 'cheap';
+    }
+    return 'balanced';
+  }
+  if (['developer', 'ops', 'connector', 'router'].includes(specialist)) {
+    return 'cheap';
+  }
+  return 'balanced';
+}
+
+function resolveChatModel(provider, config, tier = 'balanced') {
   const cfg = typeof config?.getAgentConfig === 'function' ? config.getAgentConfig() : {};
+  const modelTiers = cfg.modelTiers && typeof cfg.modelTiers === 'object' ? cfg.modelTiers : {};
+  const requestedTier = String(tier || '').trim().toLowerCase();
+  const tierModel = ['cheap', 'balanced', 'premium'].includes(requestedTier)
+    ? String(modelTiers[requestedTier] || '').trim()
+    : '';
   return process.env.SOCIAL_CHAT_MODEL ||
     process.env.META_CHAT_MODEL ||
     process.env.SOCIAL_AI_MODEL ||
     process.env.META_AI_MODEL ||
+    tierModel ||
     cfg.model ||
     defaultModelForProvider(provider);
 }
@@ -148,6 +177,23 @@ function uniq(items) {
     out.push(v);
   });
   return out;
+}
+
+function normalizeResponseMode(mode, fallback = 'clarify') {
+  const value = String(mode || '').trim().toLowerCase();
+  if (['template', 'extract', 'clarify', 'generate'].includes(value)) return value;
+  return ['template', 'extract', 'clarify', 'generate'].includes(String(fallback || '').trim().toLowerCase())
+    ? String(fallback).trim().toLowerCase()
+    : 'clarify';
+}
+
+function inferResponseMode(decision, fallback = 'clarify') {
+  if (decision && typeof decision === 'object' && decision.mode) {
+    return normalizeResponseMode(decision.mode, fallback);
+  }
+  if (Array.isArray(decision?.clarificationChoices) && decision.clarificationChoices.length) return 'clarify';
+  if (Array.isArray(decision?.actions) && decision.actions.length > 0) return normalizeResponseMode(fallback, 'clarify');
+  return normalizeResponseMode(fallback, 'clarify');
 }
 
 function normalizeActions(actions, isSupportedTool) {
@@ -775,6 +821,17 @@ class AutonomousAgent {
 
   async process(userInput) {
     this.context.addMessage('user', userInput);
+    const finalizeDecision = (payload, options = {}) => {
+      const out = payload && typeof payload === 'object' ? payload : {};
+      const specialist = options.specialist || null;
+      out.mode = inferResponseMode(out, options.defaultMode || 'clarify');
+      if (specialist) {
+        out.specialist = specialist.id;
+        out.specialistName = specialist.name;
+      }
+      this.context.setResponseMode(out.mode);
+      return out;
+    };
 
     if (this.context.hasPendingActions()) {
       if (this.context.userConfirmedLatest(userInput)) {
@@ -786,20 +843,23 @@ class AutonomousAgent {
           ? `Perfect. I'll execute ${pending.length} actions now.`
           : 'Perfect. I will execute that now.';
         this.context.addMessage('agent', msg);
-        return {
+        return finalizeDecision({
           message: msg,
           actions: pending,
           needsInput: false,
           specialist: specialist.id,
           specialistName: specialist.name,
           suggestions: this.proactiveSuggestionsFromContext()
-        };
+        }, { specialist, defaultMode: 'clarify' });
       }
       if (this.context.userRejectedLatest(userInput)) {
         this.context.clearPendingActions();
         const msg = 'No problem. Tell me what to change and I will adjust the plan.';
         this.context.addMessage('agent', msg);
-        return { message: msg, actions: [], needsInput: true, suggestions: this.proactiveSuggestionsFromContext() };
+        return finalizeDecision(
+          { message: msg, actions: [], needsInput: true, suggestions: this.proactiveSuggestionsFromContext() },
+          { defaultMode: 'clarify' }
+        );
       }
       // User sent a new instruction instead of confirming/rejecting pending work.
       // Treat this as plan replacement so stale pending actions do not block execution.
@@ -825,31 +885,40 @@ class AutonomousAgent {
         ...this.proactiveSuggestionsFromContext()
       ]);
       this.context.addMessage('agent', msg);
-      return {
+      return finalizeDecision({
         message: msg,
         actions: [],
         needsInput: true,
         specialist: specialist.id,
         specialistName: specialist.name,
         suggestions
-      };
+      }, { specialist, defaultMode: 'clarify' });
     }
 
     if (isSmallTalk(userInput)) {
       const msg = 'I can help with developer setup, token/webhook diagnostics, posts, scheduling, WhatsApp messaging, analytics, and campaigns. What do you want to do?';
       this.context.addMessage('agent', msg);
       const specialist = this.setActiveSpecialist('router');
-      return {
+      return finalizeDecision({
         message: msg,
         actions: [],
         needsInput: true,
         specialist: specialist.id,
         specialistName: specialist.name,
         suggestions: this.proactiveSuggestionsFromContext()
-      };
+      }, { specialist, defaultMode: 'template' });
     }
 
     let decision = this.developerHeuristicDecision(userInput);
+    if (!decision) {
+      decision = buildMarketingTemplateDecision(userInput, this.context?.facts || {});
+      if (decision?.marketingBrief) {
+        this.context.facts.marketingBrief = {
+          ...(this.context.facts.marketingBrief || {}),
+          ...decision.marketingBrief
+        };
+      }
+    }
     if (!decision) {
       try {
         decision = await this.tryLlmDecision();
@@ -862,14 +931,14 @@ class AutonomousAgent {
           ...this.proactiveSuggestionsFromContext()
         ]);
         this.context.addMessage('agent', msg);
-        return {
+        return finalizeDecision({
           message: msg,
           actions: [],
           needsInput: true,
           specialist: specialist.id,
           specialistName: specialist.name,
           suggestions
-        };
+        }, { specialist, defaultMode: 'clarify' });
       }
     }
 
@@ -929,7 +998,10 @@ class AutonomousAgent {
     decision.specialistName = specialist.name;
     decision.message = `[${specialist.name}] ${decision.message}`;
     this.context.addMessage('agent', decision.message);
-    return decision;
+    return finalizeDecision(decision, {
+      specialist,
+      defaultMode: decision.mode || (decision.actions && decision.actions.length > 0 ? 'clarify' : 'clarify')
+    });
   }
 
   llmCapability() {
@@ -992,8 +1064,19 @@ class AutonomousAgent {
 
   async tryLlmDecision() {
     const provider = resolveChatProvider(this.config);
-    const model = resolveChatModel(provider, this.config);
     const key = resolveChatApiKey(provider, this.config);
+    const summary = this.context.getSummary();
+    const latestUserMessage = this.context.getLatestUserMessage();
+    const activeSpecialistId = String(summary?.activeSpecialist || '').trim() || 'router';
+    const preferredSpecialistId = activeSpecialistId !== 'router'
+      ? activeSpecialistId
+      : this.specialistFromText(latestUserMessage);
+    const preferredSpecialist = specialistById(preferredSpecialistId);
+    const taskTier = resolveChatTaskTier({
+      specialistId: preferredSpecialist.id,
+      latestMessage: latestUserMessage
+    });
+    const model = resolveChatModel(provider, this.config, taskTier);
     const planningTimeoutMs = Math.max(
       4500,
       toNumber(
@@ -1007,16 +1090,19 @@ class AutonomousAgent {
     );
 
     const userPrompt = buildUserPrompt({
-      summary: this.context.getSummary(),
+      summary,
       history: this.context.getHistory(16),
-      latest: this.context.getLatestUserMessage()
+      latest: latestUserMessage
     });
 
     const text = await chatComplete({
       provider,
       model,
       apiKey: key,
-      system: `${systemPrompt()}\n\nTOOLS:\n${JSON.stringify(this.tools, null, 2)}`,
+      system: `${systemPrompt({
+        specialistId: preferredSpecialist.id,
+        specialistName: preferredSpecialist.name
+      })}\n\nTOOLS:\n${JSON.stringify(this.tools, null, 2)}`,
       user: userPrompt,
       temperature: 0.2,
       timeoutMs: planningTimeoutMs
@@ -1029,6 +1115,8 @@ class AutonomousAgent {
     return {
       message: String(parsed.message || '').trim() || 'I drafted a plan for you.',
       actions: normalizeActions(parsed.actions, (toolName) => this.isSupportedTool(toolName)),
+      mode: normalizeResponseMode(parsed.mode, 'generate'),
+      modelTier: taskTier,
       needsInput: Boolean(parsed.needsInput),
       suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.map(String) : []
     };

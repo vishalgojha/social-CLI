@@ -12,6 +12,8 @@ const node_path_1 = __importDefault(require("node:path"));
 const CONFIG_DIR_NAME = ".social-flow";
 const LEGACY_CONFIG_DIRS = [".social-cli", ".meta-cli"];
 function defaultModelForProvider(provider) {
+    if (provider === "anthropic")
+        return "claude-3-5-sonnet-latest";
     if (provider === "openrouter")
         return "openai/gpt-4o-mini";
     if (provider === "xai")
@@ -21,6 +23,8 @@ function defaultModelForProvider(provider) {
     return "qwen2.5:7b";
 }
 function defaultBaseUrlForProvider(provider) {
+    if (provider === "anthropic")
+        return "https://api.anthropic.com/v1";
     if (provider === "openrouter")
         return "https://openrouter.ai/api/v1";
     if (provider === "xai")
@@ -64,6 +68,8 @@ function normalizeApiName(value) {
 }
 function normalizeAiProvider(value) {
     const raw = cleanString(value).toLowerCase();
+    if (raw === "anthropic" || raw === "claude")
+        return "anthropic";
     if (raw === "openrouter")
         return "openrouter";
     if (raw === "xai" || raw === "grok")

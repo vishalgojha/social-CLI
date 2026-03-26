@@ -117,7 +117,12 @@ class ConfigManager {
       agent: {
         provider: 'openai',
         model: '',
-        apiKey: ''
+        apiKey: '',
+        modelTiers: {
+          cheap: '',
+          balanced: '',
+          premium: ''
+        }
       },
       tokens: {
         facebook: '',
@@ -189,7 +194,14 @@ class ConfigManager {
     return {
       ...d,
       ...p,
-      agent: { ...d.agent, ...(p.agent || {}) },
+      agent: {
+        ...d.agent,
+        ...(p.agent || {}),
+        modelTiers: {
+          ...(d.agent || {}).modelTiers,
+          ...(((p.agent || {}).modelTiers) || {})
+        }
+      },
       tokens: { ...d.tokens, ...(p.tokens || {}) },
       app: { ...d.app, ...(p.app || {}) },
       defaults: { ...d.defaults, ...(p.defaults || {}) },
@@ -488,7 +500,15 @@ class ConfigManager {
   // Agent config (LLM provider/key/model). WARNING: apiKey is sensitive.
   getAgentConfig() {
     const p = this._profile();
-    return { ...(p.agent || {}) };
+    const agent = p.agent || {};
+    return {
+      ...agent,
+      modelTiers: {
+        cheap: String(((agent.modelTiers || {}).cheap) || '').trim(),
+        balanced: String(((agent.modelTiers || {}).balanced) || '').trim(),
+        premium: String(((agent.modelTiers || {}).premium) || '').trim()
+      }
+    };
   }
 
   setAgentProvider(provider) {
@@ -502,6 +522,16 @@ class ConfigManager {
     const p = this._profile();
     p.agent = p.agent || {};
     p.agent.model = model || '';
+    this._save();
+  }
+
+  setAgentModelTier(tier, model) {
+    const key = String(tier || '').trim().toLowerCase();
+    if (!['cheap', 'balanced', 'premium'].includes(key)) return;
+    const p = this._profile();
+    p.agent = p.agent || {};
+    p.agent.modelTiers = p.agent.modelTiers || {};
+    p.agent.modelTiers[key] = model || '';
     this._save();
   }
 

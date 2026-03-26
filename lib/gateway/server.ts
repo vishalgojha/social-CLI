@@ -398,6 +398,11 @@ function configSnapshot() {
     agent: {
       provider: String(agent.provider || 'openai'),
       model: String(agent.model || ''),
+      modelTiers: {
+        cheap: String(((agent.modelTiers || {}).cheap) || ''),
+        balanced: String(((agent.modelTiers || {}).balanced) || ''),
+        premium: String(((agent.modelTiers || {}).premium) || '')
+      },
       apiKeyConfigured: String(agent.provider || 'openai').trim().toLowerCase() === 'ollama'
         ? true
         : Boolean(agent.apiKey)
@@ -2812,6 +2817,15 @@ class GatewayServer {
             updated.push('agent.model');
           }
         }
+        const modelTiers = agentPatch.modelTiers && typeof agentPatch.modelTiers === 'object' ? agentPatch.modelTiers : {};
+        ['cheap', 'balanced', 'premium'].forEach((tierName) => {
+          if (!Object.prototype.hasOwnProperty.call(modelTiers, tierName)) return;
+          const model = String(modelTiers[tierName] || '').trim();
+          if (typeof config.setAgentModelTier === 'function') {
+            config.setAgentModelTier(tierName, model);
+            updated.push(`agent.modelTiers.${tierName}`);
+          }
+        });
         if (Object.prototype.hasOwnProperty.call(agentPatch, 'apiKey')) {
           const apiKey = String(agentPatch.apiKey || '').trim();
           if (apiKey && typeof config.setAgentApiKey === 'function') {

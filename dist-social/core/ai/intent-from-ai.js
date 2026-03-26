@@ -70,6 +70,22 @@ function extractAssistantContent(data) {
     const fallbackText = first.text;
     return typeof fallbackText === "string" ? fallbackText : "";
 }
+function extractAnthropicContent(data) {
+    const root = (data && typeof data === "object") ? data : {};
+    const content = Array.isArray(root.content) ? root.content : [];
+    return content
+        .map((part) => {
+        if (!part || typeof part !== "object")
+            return "";
+        const value = part;
+        if (value.type !== "text")
+            return "";
+        return typeof value.text === "string" ? value.text : "";
+    })
+        .filter(Boolean)
+        .join("\n")
+        .trim();
+}
 function stringifyData(value) {
     if (typeof value === "string")
         return value;
@@ -140,10 +156,33 @@ async function inferWithOpenAICompatible(text, opts) {
         return extractAssistantContent(data);
     }
 }
+async function inferWithAnthropic(text, opts) {
+    const base = opts.baseUrl || "https://api.anthropic.com/v1";
+    const key = opts.apiKey || "";
+    if (!key)
+        throw new Error("Missing API key for anthropic provider.");
+    const { data } = await axios_1.default.post(`${base.replace(/\/+$/, "")}/messages`, {
+        model: opts.model || "claude-3-5-sonnet-latest",
+        system: systemPrompt(),
+        temperature: 0,
+        max_tokens: 700,
+        messages: [{ role: "user", content: text }]
+    }, {
+        timeout: 30_000,
+        headers: {
+            "x-api-key": key,
+            "anthropic-version": process.env.ANTHROPIC_VERSION || "2023-06-01",
+            "Content-Type": "application/json"
+        }
+    });
+    return extractAnthropicContent(data);
+}
 async function parseIntentWithAi(text, opts) {
     const raw = opts.provider === "ollama"
         ? await inferWithOllama(text, opts)
-        : await inferWithOpenAICompatible(text, opts);
+        : opts.provider === "anthropic"
+            ? await inferWithAnthropic(text, opts)
+            : await inferWithOpenAICompatible(text, opts);
     const jsonText = extractJsonObject(raw);
     let parsed;
     try {

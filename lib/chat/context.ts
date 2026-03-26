@@ -9,6 +9,11 @@ function normalizeText(v) {
   return String(v || '').trim();
 }
 
+function normalizeResponseMode(mode) {
+  const value = normalizeText(mode).toLowerCase();
+  return ['template', 'extract', 'clarify', 'generate'].includes(value) ? value : 'clarify';
+}
+
 function affirmative(text) {
   const s = normalizeText(text).toLowerCase();
   return ['y', 'yes', 'yeah', 'yep', 'ok', 'okay', 'do it', 'proceed', 'go ahead', 'sounds good'].includes(s);
@@ -179,6 +184,20 @@ class ConversationContext {
     this.sessionMeta.updatedAt = nowIso();
   }
 
+  setResponseMode(mode) {
+    const normalized = normalizeResponseMode(mode);
+    this.sessionMeta.activeResponseMode = normalized;
+    const existing = Array.isArray(this.sessionMeta.responseModesSeen)
+      ? this.sessionMeta.responseModesSeen
+      : [];
+    if (!existing.includes(normalized)) {
+      this.sessionMeta.responseModesSeen = [...existing, normalized].slice(-20);
+    } else {
+      this.sessionMeta.responseModesSeen = existing.slice(-20);
+    }
+    this.sessionMeta.updatedAt = nowIso();
+  }
+
   extractFacts(content) {
     const text = normalizeText(content);
     if (!text) return;
@@ -219,8 +238,12 @@ class ConversationContext {
       executedActions: this.executedActions.length,
       recentTools: this.executedActions.slice(-5).map((x) => x.tool),
       activeSpecialist: this.sessionMeta.activeSpecialist || 'router',
+      activeResponseMode: this.sessionMeta.activeResponseMode || 'clarify',
       specialistsSeen: Array.isArray(this.sessionMeta.specialistsSeen)
         ? this.sessionMeta.specialistsSeen.slice(-10)
+        : [],
+      responseModesSeen: Array.isArray(this.sessionMeta.responseModesSeen)
+        ? this.sessionMeta.responseModesSeen.slice(-10)
         : []
     };
   }

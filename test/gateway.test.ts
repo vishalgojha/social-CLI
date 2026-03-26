@@ -94,7 +94,12 @@ function snapshotAgentConfig() {
   return {
     provider: String(cfg.provider || 'openai'),
     model: String(cfg.model || ''),
-    apiKey: String(cfg.apiKey || '')
+    apiKey: String(cfg.apiKey || ''),
+    modelTiers: {
+      cheap: String(((cfg.modelTiers || {}).cheap) || ''),
+      balanced: String(((cfg.modelTiers || {}).balanced) || ''),
+      premium: String(((cfg.modelTiers || {}).premium) || '')
+    }
   };
 }
 
@@ -107,6 +112,11 @@ function restoreAgentConfig(prev) {
   }
   if (typeof config.setAgentApiKey === 'function') {
     config.setAgentApiKey(String(prev.apiKey || ''));
+  }
+  if (typeof config.setAgentModelTier === 'function') {
+    config.setAgentModelTier('cheap', String(((prev.modelTiers || {}).cheap) || ''));
+    config.setAgentModelTier('balanced', String(((prev.modelTiers || {}).balanced) || ''));
+    config.setAgentModelTier('premium', String(((prev.modelTiers || {}).premium) || ''));
   }
 }
 
@@ -517,6 +527,11 @@ module.exports = [
             agent: {
               provider: 'openai',
               model: 'gpt-4.1-mini',
+              modelTiers: {
+                cheap: 'gpt-4.1-nano',
+                balanced: 'gpt-4.1-mini',
+                premium: 'gpt-4.1'
+              },
               apiKey: 'sk-test-1234'
             },
             onboarding: {
@@ -534,6 +549,9 @@ module.exports = [
         assert.equal(saveRes.data.updated.includes('defaultApi'), true);
         assert.equal(saveRes.data.updated.includes('agent.provider'), true);
         assert.equal(saveRes.data.updated.includes('agent.model'), true);
+        assert.equal(saveRes.data.updated.includes('agent.modelTiers.cheap'), true);
+        assert.equal(saveRes.data.updated.includes('agent.modelTiers.balanced'), true);
+        assert.equal(saveRes.data.updated.includes('agent.modelTiers.premium'), true);
         assert.equal(saveRes.data.updated.includes('agent.apiKey'), true);
         assert.equal(saveRes.data.updated.includes('onboarding.completed'), true);
         assert.equal(Boolean(saveRes.data.readiness), true);
@@ -552,6 +570,9 @@ module.exports = [
         assert.equal(configRes.data.config.defaultApi, 'instagram');
         assert.equal(configRes.data.config.agent.provider, 'openai');
         assert.equal(configRes.data.config.agent.model, 'gpt-4.1-mini');
+        assert.equal(configRes.data.config.agent.modelTiers.cheap, 'gpt-4.1-nano');
+        assert.equal(configRes.data.config.agent.modelTiers.balanced, 'gpt-4.1-mini');
+        assert.equal(configRes.data.config.agent.modelTiers.premium, 'gpt-4.1');
         assert.equal(configRes.data.config.agent.apiKeyConfigured, true);
         assert.equal(configRes.data.config.onboarding.completed, true);
         assert.equal(configRes.data.readiness.ok, true);
@@ -877,7 +898,9 @@ module.exports = [
         assert.equal(msgRes.data.ok, true);
         assert.equal(typeof msgRes.data.response.message, 'string');
         assert.equal(msgRes.data.response.actions.length, 0);
+        assert.equal(msgRes.data.response.mode, 'clarify');
         assert.equal(String(msgRes.data.response.message || '').toLowerCase().includes('valid api key'), true);
+        assert.equal(msgRes.data.summary.activeResponseMode, 'clarify');
         assert.equal(Array.isArray(msgRes.data.timeline), true);
       } finally {
         await server.stop();
