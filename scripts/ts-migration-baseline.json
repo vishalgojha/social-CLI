@@ -27,6 +27,7 @@
     "utils"
   ],
   "allowed_js_files": [
-    "bin/social.js"
+    "bin/social.js",
+    "bin/gateway-hosted.js"
   ]
 }
